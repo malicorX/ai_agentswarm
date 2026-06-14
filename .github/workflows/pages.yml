@@ -7,6 +7,11 @@ on:
       - "pilot/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
+    inputs:
+      artifact_ref:
+        description: Artifact ref from AgentSwarm deploy request (optional)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -27,8 +32,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build static site
         shell: bash
+        env:
+          ARTIFACT_REF: ${{ github.event.inputs.artifact_ref }}
         run: |
           set -euo pipefail
+          if [ -n "${ARTIFACT_REF:-}" ]; then
+            echo "AgentSwarm artifact_ref=${ARTIFACT_REF}"
+          fi
           mkdir -p _site/news-hub _site/dashboard
           cp pilot/index.html _site/index.html
           cp -r pilot/news-hub/. _site/news-hub/

@@ -83,6 +83,7 @@ See [execution-plan.md](execution-plan.md).
 - [x] Deployer agent — `deploy.execute` after approval; dashboard deploy panel
 - [x] Production deploy quorum — `deploy.environments.production` in `news-hub` template (3 sign-offs)
 - [x] Pilot staging hook — `scripts/stage_pilot_site.py` + `AGENTSWARM_DEPLOY_STAGING=1`
+- [x] GitHub Pages workflow dispatch — `scripts/trigger_pages_deploy.py` + `AGENTSWARM_DEPLOY_HOOK`
 
 ## Phase 4 — Federation
 

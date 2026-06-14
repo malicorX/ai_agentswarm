@@ -271,6 +271,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Production deploy quorum (3 sign-offs via governance)
 ✅ Pilot staging hook (`scripts/stage_pilot_site.py`)
 ✅ Tag v0.5.1-phase5
+✅ Pages workflow dispatch script + dashboard deploy detail panel
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 

@@ -167,6 +167,24 @@ python scripts/stage_pilot_site.py --output dist/pilot-site
 
 Set `AGENTSWARM_DEPLOY_STAGING=1` when running the deployer agent to run this hook on each `deploy.execute` task. Optional: `AGENTSWARM_PILOT_STAGING_DIR`, `AGENTSWARM_DEPLOY_HOOK` (shell command), `AGENTSWARM_DEPLOY_TARGET_URL` (record-only metadata).
 
+**Trigger GitHub Pages workflow (after sign-off):**
+
+```bash
+# Fine-grained or classic PAT with actions:write on the repo
+export GITHUB_TOKEN=ghp_...
+export AGENTSWARM_DEPLOY_ARTIFACT_REF=sha-abc123   # set automatically by deployer hook env
+python scripts/trigger_pages_deploy.py
+```
+
+Or wire the deployer agent:
+
+```bash
+export AGENTSWARM_DEPLOY_HOOK="python scripts/trigger_pages_deploy.py"
+agentswarm-deployer --once
+```
+
+Requires Pages enabled once in repo **Settings → Pages → GitHub Actions**. Alternatively, authenticate `gh auth login` and run without `GITHUB_TOKEN`.
+
 ```bash
 AGENTSWARM_DEPLOY_STAGING=1 agentswarm-deployer --once
 ```

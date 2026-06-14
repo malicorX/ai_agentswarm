@@ -58,11 +58,18 @@
       border: 1px solid #8883;
       border-radius: 0.35rem;
     }
-    .profile-card h3 {
-      margin: 0 0 0.35rem;
-      font-size: 0.95rem;
-      text-transform: capitalize;
+    tr.deploy-row { cursor: pointer; }
+    tr.deploy-row:hover { background: #8881; }
+    tr.deploy-row.selected { background: #48f2; }
+    #deployDetailPanel {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid #8884;
+      border-radius: 0.5rem;
     }
+    #deployDetailPanel[hidden] { display: none; }
+    .deploy-meta { font-size: 0.9rem; margin: 0.25rem 0; }
+    .signoff-list { margin: 0.5rem 0 0; padding-left: 1.25rem; }
   </style>
 </head>
 <body>
@@ -125,12 +132,18 @@
           <th>Artifact</th>
           <th>Status</th>
           <th>Sign-offs</th>
+          <th>Outcome</th>
           <th>Approved</th>
           <th>Deployed</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
+    <section id="deployDetailPanel" hidden>
+      <h3 style="margin:0 0 0.5rem;font-size:1rem;">Deploy detail</h3>
+      <p id="deployDetailStatus" class="muted">Select a deploy row.</p>
+      <div id="deployDetailContent"></div>
+    </section>
   </section>
 
   <script>
@@ -146,7 +159,12 @@
     const deployStatus = document.getElementById("deployStatus");
     const deployBoard = document.getElementById("deployBoard");
     const deployBody = deployBoard.querySelector("tbody");
+    const deployDetailPanel = document.getElementById("deployDetailPanel");
+    const deployDetailStatus = document.getElementById("deployDetailStatus");
+    const deployDetailContent = document.getElementById("deployDetailContent");
     let selectedAgentId = null;
+    let selectedDeployId = null;
+    let deployCache = [];
 
     function renderBadges(badges) {
       if (!badges || !badges.length) {
@@ -263,6 +281,38 @@
       }
     }
 
+    function deployOutcome(row) {
+      const exec = row.execution_result;
+      if (exec && exec.outcome) return exec.outcome;
+      if (row.status === "rejected") return "rejected";
+      if (row.status === "approved") return "awaiting execute";
+      if (row.status === "pending") return "awaiting sign-offs";
+      return "—";
+    }
+
+    function renderDeployDetail(row) {
+      selectedDeployId = row.request_id;
+      deployDetailPanel.hidden = false;
+      deployDetailStatus.textContent = `${row.request_id} · ${row.environment} · ${row.status}`;
+      const exec = row.execution_result || {};
+      const signoffs = (row.signoffs || [])
+        .map((s) => `<li><code>${s.agent_id}</code> (${s.capability}, score ${Number(s.score_at_signoff).toFixed(1)})</li>`)
+        .join("");
+      deployDetailContent.innerHTML = `
+        <p class="deploy-meta"><strong>Artifact:</strong> <code>${row.artifact_ref}</code></p>
+        <p class="deploy-meta"><strong>Sign-offs:</strong> ${row.signoff_count}/${row.required_signoffs}</p>
+        <p class="deploy-meta"><strong>Executed by:</strong> ${row.executed_by_agent_id ? `<code>${row.executed_by_agent_id}</code>` : "—"}</p>
+        <p class="deploy-meta"><strong>Outcome:</strong> ${deployOutcome(row)}</p>
+        <p class="deploy-meta"><strong>Message:</strong> ${exec.message || "—"}</p>
+        ${exec.staging_dir ? `<p class="deploy-meta"><strong>Staging:</strong> <code>${exec.staging_dir}</code></p>` : ""}
+        ${exec.target_url ? `<p class="deploy-meta"><strong>Target:</strong> <a href="${exec.target_url}">${exec.target_url}</a></p>` : ""}
+        ${signoffs ? `<ul class="signoff-list">${signoffs}</ul>` : "<p class=\"muted\">No sign-offs yet.</p>"}
+      `;
+      deployBody.querySelectorAll("tr.deploy-row").forEach((tr) => {
+        tr.classList.toggle("selected", tr.dataset.requestId === selectedDeployId);
+      });
+    }
+
     async function loadDeployRequests() {
       deployStatus.textContent = "Loading…";
       deployStatus.classList.remove("error");
@@ -277,25 +327,35 @@
         const res = await fetch(url);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const rows = await res.json();
+        deployCache = rows;
         if (!rows.length) {
           deployStatus.textContent = "No deploy requests yet.";
+          deployDetailPanel.hidden = true;
           return;
         }
         rows.forEach((row) => {
           const tr = document.createElement("tr");
+          tr.className = "deploy-row";
+          tr.dataset.requestId = row.request_id;
           tr.innerHTML = `
             <td><code>${row.request_id}</code></td>
             <td>${row.environment}</td>
             <td><code>${row.artifact_ref}</code></td>
             <td>${row.status}</td>
             <td>${row.signoff_count}/${row.required_signoffs}</td>
+            <td>${deployOutcome(row)}</td>
             <td class="muted">${row.approved_at || "—"}</td>
             <td class="muted">${row.deployed_at || "—"}</td>
           `;
+          tr.addEventListener("click", () => renderDeployDetail(row));
           deployBody.appendChild(tr);
         });
-        deployStatus.textContent = `Showing ${rows.length} deploy request(s).`;
+        deployStatus.textContent = `Showing ${rows.length} deploy request(s). Click a row for detail.`;
         deployBoard.hidden = false;
+        if (selectedDeployId) {
+          const selected = rows.find((r) => r.request_id === selectedDeployId);
+          if (selected) renderDeployDetail(selected);
+        }
       } catch (err) {
         deployStatus.textContent = "Failed to load deploy requests: " + err.message;
         deployStatus.classList.add("error");

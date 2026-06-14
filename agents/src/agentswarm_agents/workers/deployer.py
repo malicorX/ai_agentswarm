@@ -23,6 +23,11 @@ def repo_root() -> Path:
 
 def run_deploy_hooks(request: dict[str, Any]) -> dict[str, Any]:
     details: dict[str, Any] = {}
+    hook_env = os.environ.copy()
+    artifact_ref = str(request.get("artifact_ref", "")).strip()
+    if artifact_ref:
+        hook_env["AGENTSWARM_DEPLOY_ARTIFACT_REF"] = artifact_ref
+
     staging_flag = os.environ.get("AGENTSWARM_DEPLOY_STAGING", "").lower()
     if staging_flag in ("1", "true", "yes"):
         script = repo_root() / "scripts" / "stage_pilot_site.py"
@@ -36,6 +41,7 @@ def run_deploy_hooks(request: dict[str, Any]) -> dict[str, Any]:
             text=True,
             check=True,
             cwd=repo_root(),
+            env=hook_env,
         )
         staging_dir = proc.stdout.strip().splitlines()[-1]
         details["staging_dir"] = staging_dir
@@ -49,6 +55,7 @@ def run_deploy_hooks(request: dict[str, Any]) -> dict[str, Any]:
             capture_output=True,
             text=True,
             cwd=repo_root(),
+            env=hook_env,
         )
         details["hook_command"] = hook_cmd
         details["hook_exit_code"] = proc.returncode
