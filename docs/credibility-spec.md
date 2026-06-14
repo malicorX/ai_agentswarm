@@ -13,9 +13,10 @@ Aligned with [ROADMAP.md §9](../ROADMAP.md#9-credibility-mechanics).
 | Per-capability numeric scores | Owner-level anchoring penalties |
 | Mint on verified acceptance | N-way replication (P2.3) |
 | Burn on rejection | Canary injection (P2.4) |
-| Cross-capability transfer | Cross-project import with haircut (P4.3) |
+| Verifier-weighted mint | Cross-capability transfer |
 | Stake lock at claim | Scheduled decay job |
 | Append-only ledger + balances API | On-chain or external settlement |
+| Cross-project import with haircut (P4.3) | Owner-level anchoring penalties |
 
 ---
 
