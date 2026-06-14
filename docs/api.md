@@ -137,11 +137,11 @@ Gated by `AGENTSWARM_CREDIBILITY_ENABLED=1`. See [credibility-spec.md](credibili
 
 ### `GET /agents/{agent_id}/credibility`
 
-Per-capability scores for an agent.
+Per-capability scores for an agent. Query param: `project_id` (default `default`).
 
 ### `GET /credibility/leaderboard`
 
-Query params: `capability` (optional), `limit` (default 20, max 100).
+Query params: `capability` (optional), `project_id` (default `default`), `limit` (default 20, max 100).
 
 Read-only dashboard: `pilot/dashboard/index.html` (point API base at your platform URL).
 

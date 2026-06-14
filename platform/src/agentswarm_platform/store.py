@@ -57,6 +57,7 @@ from agentswarm_platform.credibility_ledger import (
     leaderboard as credibility_leaderboard,
     list_agent_credibility,
     lock_claim_stake,
+    project_id_from_task_row,
     seed_agent_capabilities,
 )
 from agentswarm_platform.models import (
@@ -306,6 +307,9 @@ class Store:
                 seed_agent_capabilities(conn, agent_id, capabilities)
                 if project_ids is not None:
                     self._join_agent_projects(conn, agent_id, project_ids)
+                    self._seed_credibility_for_projects(
+                        conn, agent_id, capabilities, project_ids
+                    )
                 return AgentRegisterResponse(agent_id=agent_id, credential=credential)
 
             agent_id = f"agent_{uuid.uuid4().hex[:12]}"
@@ -339,9 +343,27 @@ class Store:
                     "capabilities": capabilities,
                 },
             )
-            seed_agent_capabilities(conn, agent_id, capabilities)
             self._join_agent_projects(conn, agent_id, project_ids)
+            self._seed_credibility_for_projects(conn, agent_id, capabilities, project_ids)
         return AgentRegisterResponse(agent_id=agent_id, credential=credential)
+
+    def _project_targets(self, project_ids: list[str] | None) -> set[str]:
+        if project_ids is None:
+            return {DEFAULT_PROJECT_ID}
+        targets = {validate_project_id(raw_id) for raw_id in project_ids}
+        if not targets:
+            return {DEFAULT_PROJECT_ID}
+        return targets
+
+    def _seed_credibility_for_projects(
+        self,
+        conn: sqlite3.Connection,
+        agent_id: str,
+        capabilities: list[str],
+        project_ids: list[str] | None,
+    ) -> None:
+        for project_id in self._project_targets(project_ids):
+            seed_agent_capabilities(conn, agent_id, capabilities, project_id)
 
     def _join_agent_projects(
         self,
@@ -349,13 +371,7 @@ class Store:
         agent_id: str,
         project_ids: list[str] | None,
     ) -> None:
-        if project_ids is None:
-            targets = {DEFAULT_PROJECT_ID}
-        else:
-            targets = {validate_project_id(raw_id) for raw_id in project_ids}
-            if not targets:
-                targets = {DEFAULT_PROJECT_ID}
-        for project_id in targets:
+        for project_id in self._project_targets(project_ids):
             join_agent_to_project(conn, agent_id, project_id)
 
     def create_project(
@@ -713,6 +729,7 @@ class Store:
                     agent_id=agent_id,
                     capability=row["capability_required"],
                     task_id=task_id,
+                    project_id=project_id_from_task_row(row),
                 )
             conn.execute(
                 """
@@ -824,6 +841,7 @@ class Store:
                 shared_payload=shared_payload,
                 result=result,
                 capability=row["capability_required"],
+                project_id=project_id_from_task_row(row),
             )
             if canary_passed is not None:
                 self._append_audit(
@@ -1550,11 +1568,13 @@ class Store:
             "memory_keys": [row["memory_key"] for row in memory_rows],
         }
 
-    def get_agent_credibility(self, agent_id: str) -> list[dict[str, Any]] | None:
+    def get_agent_credibility(
+        self, agent_id: str, project_id: str = DEFAULT_PROJECT_ID
+    ) -> list[dict[str, Any]] | None:
         if self.get_agent(agent_id) is None:
             return None
         with self._conn() as conn:
-            return list_agent_credibility(conn, agent_id)
+            return list_agent_credibility(conn, agent_id, project_id)
 
     def get_replication_group_status(self, group_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
@@ -1567,10 +1587,13 @@ class Store:
             return get_canary_stats(conn, agent_id)
 
     def get_credibility_leaderboard(
-        self, capability: str | None, limit: int
+        self,
+        capability: str | None,
+        limit: int,
+        project_id: str = DEFAULT_PROJECT_ID,
     ) -> list[dict[str, Any]]:
         with self._conn() as conn:
-            return credibility_leaderboard(conn, capability, limit)
+            return credibility_leaderboard(conn, capability, limit, project_id)
 
     def get_task_type_by_claim_token(self, claim_token: str) -> str | None:
         with self._conn() as conn:

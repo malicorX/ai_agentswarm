@@ -189,11 +189,14 @@ def get_agent_budget(agent_id: str) -> AgentBudgetStatus:
 
 
 @app.get("/agents/{agent_id}/credibility")
-def get_agent_credibility(agent_id: str) -> dict:
-    scores = store.get_agent_credibility(agent_id)
+def get_agent_credibility(
+    agent_id: str,
+    project_id: str = Query(default="default"),
+) -> dict:
+    scores = store.get_agent_credibility(agent_id, project_id=project_id)
     if scores is None:
         raise HTTPException(status_code=404, detail="agent not found")
-    return {"agent_id": agent_id, "capabilities": scores}
+    return {"agent_id": agent_id, "project_id": project_id, "capabilities": scores}
 
 
 @app.get("/agents/{agent_id}/canary-stats")
@@ -216,10 +219,12 @@ def get_replication_group(group_id: str) -> ReplicationGroupStatus:
 def get_credibility_leaderboard(
     capability: str | None = Query(default=None),
     limit: int = Query(default=20, le=100),
+    project_id: str = Query(default="default"),
 ) -> dict:
     return {
         "capability": capability,
-        "entries": store.get_credibility_leaderboard(capability, limit),
+        "project_id": project_id,
+        "entries": store.get_credibility_leaderboard(capability, limit, project_id),
     }
 
 

@@ -73,4 +73,4 @@ See [execution-plan.md](execution-plan.md).
 Not started beyond P4.1. See ROADMAP.md §17.
 
 - [x] Multi-project task pool (P4.1) — `project_id` on tasks, `GET/POST /projects`, agent project membership
-- [ ] Per-project credibility (P4.2)
+- [x] Per-project credibility (P4.2) — balances keyed by `project_id`, API `?project_id=`

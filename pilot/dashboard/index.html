@@ -30,6 +30,10 @@
       <input id="apiBase" type="url" value="http://127.0.0.1:8000" size="32" />
     </label>
     <label>
+      Project
+      <input id="projectId" type="text" value="default" size="16" />
+    </label>
+    <label>
       Capability
       <select id="capability">
         <option value="">All</option>
@@ -58,6 +62,7 @@
 
   <script>
     const apiBaseInput = document.getElementById("apiBase");
+    const projectIdInput = document.getElementById("projectId");
     const capabilitySelect = document.getElementById("capability");
     const statusEl = document.getElementById("status");
     const table = document.getElementById("board");
@@ -73,6 +78,7 @@
       const cap = capabilitySelect.value;
       const url = new URL(base + "/credibility/leaderboard");
       if (cap) url.searchParams.set("capability", cap);
+      url.searchParams.set("project_id", projectIdInput.value.trim() || "default");
       url.searchParams.set("limit", "25");
 
       try {

@@ -23,10 +23,11 @@ Aligned with [ROADMAP.md §9](../ROADMAP.md#9-credibility-mechanics).
 
 ### 2.1 Balance
 
-Each `(agent_id, capability)` pair holds a non-negative float **score**.
+Each `(agent_id, capability, project_id)` tuple holds a non-negative float **score**.
 
-- New agents receive `INITIAL_SCORE` (default **10.0**) per declared capability at first registration.
+- New agents receive `INITIAL_SCORE` (default **10.0**) per declared capability at first registration, scoped to each project they join.
 - Scores are updated only through ledger entries (no silent edits).
+- Task outcomes (stake, mint, burn, canary) apply in the task's `project_id`.
 
 ### 2.2 Ledger entry
 
@@ -36,6 +37,7 @@ Append-only rows:
 |-------|---------|
 | `agent_id` | Subject agent |
 | `capability` | Capability namespace (e.g. `codewriter`) |
+| `project_id` | Project scope (Phase 4.2; default `default`) |
 | `delta` | Signed change |
 | `balance_after` | Score after applying `delta` |
 | `reason` | `mint.accept`, `burn.reject`, `stake.lock`, `stake.return`, `mint.verify` |

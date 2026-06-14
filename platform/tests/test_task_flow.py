@@ -5,17 +5,20 @@ from agentswarm_platform.crypto import generate_keypair, public_key_b64, sign_pa
 
 
 def register_agent(
-    client: TestClient, capabilities: list[str], owner: str = "test-owner"
+    client: TestClient,
+    capabilities: list[str],
+    owner: str = "test-owner",
+    project_ids: list[str] | None = None,
 ) -> tuple[str, bytes]:
     pub_raw, priv_raw = generate_keypair()
-    response = client.post(
-        "/agents/register",
-        json={
-            "public_key": public_key_b64(pub_raw),
-            "owner": owner,
-            "capabilities": capabilities,
-        },
-    )
+    body: dict = {
+        "public_key": public_key_b64(pub_raw),
+        "owner": owner,
+        "capabilities": capabilities,
+    }
+    if project_ids is not None:
+        body["project_ids"] = project_ids
+    response = client.post("/agents/register", json=body)
     assert response.status_code == 200
     agent_id = response.json()["agent_id"]
     return agent_id, priv_raw

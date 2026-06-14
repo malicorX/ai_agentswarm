@@ -88,6 +88,7 @@ def evaluate_canary(
     shared_payload: dict[str, Any] | None,
     result: dict[str, Any],
     capability: str,
+    project_id: str,
 ) -> bool | None:
     expected = parse_canary_expectation(task_payload)
     if expected is None and shared_payload is not None:
@@ -111,10 +112,11 @@ def evaluate_canary(
             conn,
             agent_id=agent_id,
             capability=capability,
+            project_id=project_id,
             delta=-2.0,
             reason="burn.canary",
             ref_type="task",
             ref_id=task_id,
-            details={"expected": expected, "actual": result},
+            details={"expected": expected, "actual": result, "project_id": project_id},
         )
     return passed

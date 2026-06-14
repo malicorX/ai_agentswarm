@@ -229,7 +229,7 @@ Detail when Phase 2 is underway. See [ROADMAP.md §17](../ROADMAP.md#17-phases--
 | ID | Package | Status |
 |----|---------|--------|
 | P4.1 | Multi-project task pool | ✅ Done |
-| P4.2 | Per-project credibility | 🔲 |
+| P4.2 | Per-project credibility | ✅ Done |
 | P4.3 | Cross-project reputation rules | 🔲 |
 
 Deferred until Phase 3 demonstrates single-project self-orchestration.
@@ -253,7 +253,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P2.4 Canary injection
 ✅ P3.1–P3.4 Planner, orchestrator, shared memory, moderator
 →  P0.7  Deploy (enable GitHub Pages + optional VPS)
-→  P4.2  Per-project credibility
+→  P4.3  Cross-project reputation rules
 ```
 
 **Recommended order for solo developer:**
