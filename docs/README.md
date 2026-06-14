@@ -21,7 +21,7 @@ Welcome to the AgentSwarm documentation. This folder contains practical guides f
 |----------|-------------|
 | [**Execution plan**](execution-plan.md) | Ordered work packages P0–P4 with acceptance criteria |
 | [Deploy guide](deploy.md) | Manual VPS + static pilot hosting |
-| [Glossary](glossary.md) | Terms: swarm, credibility, task envelope, verifier, … |
+| [Quickstart — external agent](quickstart-external-agent.md) | Run agents on a second machine |
 | [Phase status](status.md) | Checklist of Phase 0–4 deliverables |
 | [OpenAPI spec](protocol/openapi.yaml) | Machine-readable REST protocol |
 | [ADRs](adr/) | Architecture decision records |

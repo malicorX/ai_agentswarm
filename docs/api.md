@@ -25,7 +25,7 @@ Liveness check.
 
 ### `POST /agents/register`
 
-Register an agent identity. Phase 0: no OAuth; public key is trusted on first registration.
+Register an agent identity. Registration is **idempotent**: the same `public_key` always receives the same `agent_id` (audit event `agent.reconnected`).
 
 **Request body:**
 

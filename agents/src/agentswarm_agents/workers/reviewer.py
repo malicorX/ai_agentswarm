@@ -3,12 +3,11 @@ from __future__ import annotations
 import argparse
 import time
 
-from agentswarm_platform.crypto import generate_keypair
+from agentswarm_agents.client import platform_url
+from agentswarm_agents.identity import connect_agent
 
-from agentswarm_agents.client import PlatformClient, platform_url
 
-
-def run_once(client: PlatformClient) -> bool:
+def run_once(client) -> bool:
     tasks = client.poll_tasks(capability="reviewer")
     if not tasks:
         return False
@@ -28,19 +27,18 @@ def run_once(client: PlatformClient) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="AgentSwarm reviewer agent")
+    parser.add_argument("--agent-name", default="reviewer")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--poll-interval", type=float, default=2.0)
     args = parser.parse_args()
 
-    pub, priv = generate_keypair()
-    client = PlatformClient.register(
-        platform_url(),
+    client = connect_agent(
+        agent_name=args.agent_name,
         owner="phase0-reviewer",
         capabilities=["reviewer"],
-        private_key=priv,
-        public_key_raw=pub,
+        base_url=platform_url(),
     )
-    print(f"reviewer registered: {client.agent_id}")
+    print(f"reviewer: connected as {client.agent_id}")
 
     if args.once:
         if not run_once(client):

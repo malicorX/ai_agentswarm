@@ -124,9 +124,9 @@ Packages are **sequential within a phase** unless marked parallel. Do not skip a
 
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
-| P1.0 | ADR 0002 — Identity model | 🔲 Draft | P0.9 |
-| P1.1 | ADR 0003 — MCP vs REST spike | 🔲 Draft | P0.9 |
-| P1.2 | Persistent agent key storage | 🔲 | P1.0 |
+| P1.0 | ADR 0002 — Identity model | ✅ Accepted | P0.9 |
+| P1.1 | ADR 0003 — MCP vs REST spike | ✅ Accepted | P0.9 |
+| P1.2 | Persistent agent key storage | ✅ Done | P1.0 |
 | P1.3 | GitHub OAuth owner verification | 🔲 | P1.0 |
 | P1.4 | Hardened registration API | 🔲 | P1.2, P1.3 |
 | P1.5 | Task creation auth | 🔲 | P1.4 |
@@ -242,10 +242,11 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P0–P6 complete
 ✅ P0.5 pilot depth complete
 ✅ P0.8 demo_phase0.sh
-→  P0.7  Deploy (docs/deploy.md + first manual deploy + GitHub Pages enabled)
+→  P0.7  Deploy (enable GitHub Pages + optional VPS)
 →  P0.9  Tag v0.1.0-phase0
-⇢  P1.0  Review ADR 0002 → Accepted
-⇢  P1.1  MCP spike → finalize ADR 0003
+→  P1.3  GitHub OAuth owner verification
+→  P1.5  Task creation auth
+→  P1.7  Python SDK (`packages/sdk-python/`)
 ```
 
 **Recommended order for solo developer:**

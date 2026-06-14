@@ -33,11 +33,11 @@ See [execution-plan.md § Phase 0.5](execution-plan.md#phase-05--pilot-depth-rec
 
 ## Phase 1 — Open Plugin API
 
-**Blockers:** Accept [ADR 0002](adr/0002-identity-model.md), complete [ADR 0003](adr/0003-protocol-rest-vs-mcp.md) spike.
+**Blockers:** ~~ADRs 0002/0003~~ — Accepted. Next: OAuth (P1.3), task auth (P1.5).
 
-- [ ] ADR 0002 identity — Proposed → Accepted
-- [ ] ADR 0003 MCP vs REST — spike complete
-- [ ] Persistent agent keys
+- [x] ADR 0002 identity — Accepted
+- [x] ADR 0003 MCP vs REST — Accepted (REST-first)
+- [x] Persistent agent keys (`agentswarm_agents.identity`, `~/.agentswarm/agents/`)
 - [ ] GitHub OAuth owner verification
 - [ ] Hardened registration API
 - [ ] Task creation auth

@@ -6,9 +6,8 @@ import sys
 import time
 from pathlib import Path
 
-from agentswarm_platform.crypto import generate_keypair
-
-from agentswarm_agents.client import PlatformClient, pilot_dir, platform_url
+from agentswarm_agents.client import pilot_dir, platform_url
+from agentswarm_agents.identity import connect_agent
 
 
 def run_pytest() -> dict:
@@ -27,7 +26,7 @@ def run_pytest() -> dict:
     }
 
 
-def run_once(client: PlatformClient) -> bool:
+def run_once(client) -> bool:
     tasks = client.poll_tasks(capability="tester")
     if not tasks:
         return False
@@ -41,19 +40,18 @@ def run_once(client: PlatformClient) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="AgentSwarm tester agent")
+    parser.add_argument("--agent-name", default="tester")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--poll-interval", type=float, default=2.0)
     args = parser.parse_args()
 
-    pub, priv = generate_keypair()
-    client = PlatformClient.register(
-        platform_url(),
+    client = connect_agent(
+        agent_name=args.agent_name,
         owner="phase0-tester",
         capabilities=["tester"],
-        private_key=priv,
-        public_key_raw=pub,
+        base_url=platform_url(),
     )
-    print(f"tester registered: {client.agent_id}")
+    print(f"tester: connected as {client.agent_id}")
 
     if args.once:
         if not run_once(client):

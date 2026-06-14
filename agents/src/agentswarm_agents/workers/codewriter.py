@@ -3,13 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from agentswarm_platform.crypto import generate_keypair
-
-from agentswarm_agents.client import PlatformClient, pilot_dir, platform_url
+from agentswarm_agents.client import pilot_dir, platform_url
+from agentswarm_agents.identity import connect_agent
 
 REQUIRED_ARTICLE_FIELDS = ("id", "title", "summary", "url", "source", "published_at")
 
@@ -76,7 +74,7 @@ def execute_task(task: dict) -> dict:
     raise ValueError(f"unsupported task type: {task_type}")
 
 
-def run_once(client: PlatformClient) -> bool:
+def run_once(client) -> bool:
     tasks = client.poll_tasks(capability="codewriter")
     if not tasks:
         return False
@@ -90,19 +88,18 @@ def run_once(client: PlatformClient) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="AgentSwarm codewriter agent")
+    parser.add_argument("--agent-name", default="codewriter")
     parser.add_argument("--once", action="store_true", help="Process one task and exit")
     parser.add_argument("--poll-interval", type=float, default=2.0)
     args = parser.parse_args()
 
-    pub, priv = generate_keypair()
-    client = PlatformClient.register(
-        platform_url(),
+    client = connect_agent(
+        agent_name=args.agent_name,
         owner="phase0-codewriter",
         capabilities=["codewriter"],
-        private_key=priv,
-        public_key_raw=pub,
+        base_url=platform_url(),
     )
-    print(f"codewriter registered: {client.agent_id}")
+    print(f"codewriter: connected as {client.agent_id}")
 
     if args.once:
         if not run_once(client):

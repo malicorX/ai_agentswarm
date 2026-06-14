@@ -7,7 +7,10 @@
       "url": "https://github.com/malicorX/ai_agentswarm",
       "source": "AgentSwarm",
       "published_at": "2026-06-13T12:00:00+00:00",
-      "topics": ["agents", "open-source"]
+      "topics": [
+        "agents",
+        "open-source"
+      ]
     },
     {
       "id": "volunteer-compute-analogy",
@@ -16,7 +19,29 @@
       "url": "https://github.com/malicorX/ai_agentswarm/blob/main/ROADMAP.md",
       "source": "AgentSwarm Roadmap",
       "published_at": "2026-06-01T09:00:00+00:00",
-      "topics": ["architecture"]
+      "topics": [
+        "architecture"
+      ]
+    },
+    {
+      "id": "test-item",
+      "title": "Test",
+      "summary": "Summary text",
+      "url": "https://example.com/a",
+      "source": "Test",
+      "published_at": "2026-06-13T12:00:00+00:00",
+      "topics": [
+        "test"
+      ]
+    },
+    {
+      "id": "dup",
+      "title": "T",
+      "summary": "S",
+      "url": "https://example.com",
+      "source": "X",
+      "published_at": "2026-06-13T12:00:00+00:00",
+      "topics": []
     }
   ]
 }

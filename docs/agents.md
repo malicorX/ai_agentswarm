@@ -170,9 +170,19 @@ To add behavior without LLMs:
 
 For LLM-powered agents (Phase 1+), the agent process would call an model API inside `Execute` and put structured output in `result`. The platform never sees API keys.
 
-## Limitations (Phase 0)
+## Identity and persistence
 
-- New keypair every process start — no persistent agent identity
+Agents use `connect_agent()` from `agentswarm_agents.identity`:
+
+- **`--agent-name`** — stable name for key storage (default: role name)
+- **Key file** — `~/.agentswarm/agents/<name>.json` (override: `AGENTSWARM_IDENTITY_DIR`)
+- **Idempotent register** — same public key → same `agent_id` across restarts
+
+See [quickstart-external-agent.md](quickstart-external-agent.md).
+
+## Limitations (current)
+
+- Owner is free-text; GitHub OAuth lands in P1.3 ([ADR 0002](adr/0002-identity-model.md))
 - No resource budgets or rate limits
 - No capability versioning enforcement
 - Reviewer is rule-based, not model-based

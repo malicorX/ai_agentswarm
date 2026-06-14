@@ -122,6 +122,24 @@ def test_task_lifecycle_codewriter_to_verified(client: TestClient) -> None:
     assert "task.verified" in event_types
 
 
+def test_register_idempotent_by_public_key(client: TestClient) -> None:
+    pub_raw, _priv_raw = generate_keypair()
+    pub = public_key_b64(pub_raw)
+    body = {
+        "public_key": pub,
+        "owner": "alice",
+        "capabilities": ["codewriter"],
+    }
+    first = client.post("/agents/register", json=body)
+    second = client.post("/agents/register", json=body)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["agent_id"] == second.json()["agent_id"]
+
+    audit = client.get("/audit").json()
+    assert any(e["event_type"] == "agent.reconnected" for e in audit)
+
+
 def test_invalid_signature_rejected(client: TestClient) -> None:
     writer_id, _writer_priv = register_agent(client, ["codewriter"])
     create = client.post(

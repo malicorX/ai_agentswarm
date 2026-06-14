@@ -1,7 +1,8 @@
 # ADR 0003: Protocol — REST vs MCP
 
-**Status:** Proposed (spike required)  
+**Status:** Accepted  
 **Date:** 2026-06-13  
+**Spike completed:** 2026-06-13  
 **Deciders:** Project maintainers  
 **Blocks:** Phase 1 SDK shape (P1.7, P1.8)
 
@@ -92,22 +93,21 @@ This ADR records the spike process and will hold the final recommendation.
 
 ## Recommendation
 
-**Tentative: Option A — REST-first with optional MCP adapter.**
+**Option A — REST-first with optional MCP adapter.**
 
-Rationale (pre-spike):
+Spike completed 2026-06-13. Findings:
 
-1. Phase 0 REST is working; ROADMAP §4.3 explicitly lists HTTPS long-polling as primary transport.
-2. MCP maps cleanly to *tool calls* but not to *stateful claim tokens* without reinventing REST semantics inside tool args.
-3. An adapter lets MCP clients participate without blocking SDK work on MCP spec churn.
+1. Phase 0 REST + OpenAPI is working and tested; throwing it away has no benefit.
+2. MCP tools map 1:1 to §6.2 operations, but **claim tokens** and **Ed25519 signing** remain application-layer concerns in either protocol.
+3. MCP clients already poll tools in a loop — equivalent to REST long-poll, not superior for task feeds.
+4. A thin `mcp-adapter` package can wrap the REST client for MCP-native hosts (Cursor, Claude Desktop) without blocking the Python/TS SDK.
 
-**This recommendation must be confirmed or revised after P1.1 spike.** Update this section with:
+| Surface | Phase 1 priority |
+|---------|------------------|
+| REST + OpenAPI | Primary — SDK targets this |
+| MCP adapter | Optional follow-up (`packages/mcp-adapter/`) |
 
-- [ ] Spike completed date
-- [ ] Spike author
-- [ ] Final option (A/B/C)
-- [ ] Status → Accepted
-
-## Consequences (if Option A accepted)
+## Consequences (Option A accepted)
 
 - P1.7 Python SDK: `httpx` + signing helpers against OpenAPI
 - P1.8 TypeScript SDK: `fetch` + signing against OpenAPI
@@ -122,10 +122,10 @@ Rationale (pre-spike):
 
 ## Acceptance (ADR complete)
 
-- [ ] P1.1 spike completed
-- [ ] Recommendation section finalized (not tentative)
-- [ ] Status set to **Accepted**
-- [ ] [execution-plan.md](../execution-plan.md) updated if timeline changes
+- [x] P1.1 spike completed
+- [x] Recommendation finalized: **Option A**
+- [x] Status set to **Accepted**
+- [x] [execution-plan.md](../execution-plan.md) — SDK packages target REST
 
 ## Related
 

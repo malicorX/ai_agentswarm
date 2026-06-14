@@ -1,7 +1,8 @@
 # ADR 0002: Identity Model
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-06-13  
+**Accepted:** 2026-06-13  
 **Deciders:** Project maintainers  
 **Blocks:** Phase 1 packages P1.2–P1.4
 
@@ -137,9 +138,9 @@ Existing Phase 0 SQLite DBs may be wiped on upgrade; no migration of ephemeral a
 
 ## Acceptance (ADR complete)
 
-- [ ] Maintainers review and set status to **Accepted**
-- [ ] Open questions table agreed or explicitly deferred with issue link
-- [ ] P1.2–P1.4 may begin
+- [x] Maintainers review and set status to **Accepted**
+- [x] Open questions table agreed or explicitly deferred with issue link
+- [x] P1.2–P1.4 may begin (P1.3 OAuth implementation next)
 
 ## Related
 

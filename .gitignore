@@ -35,5 +35,8 @@ Thumbs.db
 platform/data/
 *.log
 
+# Local agent identity (tests)
+.agentswarm-local/
+
 # Local review artifacts
 .roadmap_review/

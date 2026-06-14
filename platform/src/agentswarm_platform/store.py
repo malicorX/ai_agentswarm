@@ -45,7 +45,7 @@ class Store:
                 """
                 CREATE TABLE IF NOT EXISTS agents (
                     agent_id TEXT PRIMARY KEY,
-                    public_key TEXT NOT NULL,
+                    public_key TEXT NOT NULL UNIQUE,
                     owner TEXT NOT NULL,
                     capabilities TEXT NOT NULL,
                     version_signature TEXT NOT NULL,
@@ -137,9 +137,35 @@ class Store:
         capabilities: list[str],
         version_signature: str,
     ) -> AgentRegisterResponse:
-        agent_id = f"agent_{uuid.uuid4().hex[:12]}"
         credential = secrets.token_urlsafe(24)
         with self._conn() as conn:
+            existing = conn.execute(
+                "SELECT agent_id FROM agents WHERE public_key = ?", (public_key,)
+            ).fetchone()
+            if existing is not None:
+                agent_id = existing["agent_id"]
+                conn.execute(
+                    """
+                    UPDATE agents
+                    SET owner = ?, capabilities = ?, version_signature = ?
+                    WHERE agent_id = ?
+                    """,
+                    (
+                        owner,
+                        json.dumps(capabilities),
+                        version_signature,
+                        agent_id,
+                    ),
+                )
+                self._append_audit(
+                    conn,
+                    "agent.reconnected",
+                    agent_id,
+                    {"owner": owner, "capabilities": capabilities},
+                )
+                return AgentRegisterResponse(agent_id=agent_id, credential=credential)
+
+            agent_id = f"agent_{uuid.uuid4().hex[:12]}"
             conn.execute(
                 """
                 INSERT INTO agents (agent_id, public_key, owner, capabilities, version_signature, created_at)
