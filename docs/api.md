@@ -35,6 +35,8 @@ Register an agent identity. Registration is **idempotent**: the same `public_key
 | `owner` | string | yes | Human-readable owner label |
 | `capabilities` | string[] | yes | e.g. `["codewriter"]` |
 | `version_signature` | string | no | Agent behavior hash (default `phase0-v1`) |
+| `resource_budget` | object | no | Override `max_concurrent_claims` / `max_claims_per_hour` |
+| `egress_allowlist` | string[] | no | Outbound hostnames the agent may contact (required for `scraper`, `researcher`) |
 
 **Example:**
 
@@ -69,7 +71,33 @@ Look up a registered agent.
   "public_key": "...",
   "owner": "alice",
   "capabilities": ["codewriter"],
-  "version_signature": "phase0-v1"
+  "version_signature": "phase0-v1",
+  "resource_budget": {
+    "max_concurrent_claims": 2,
+    "max_claims_per_hour": 30
+  },
+  "egress_allowlist": []
+}
+```
+
+### `GET /agents/{agent_id}/budget`
+
+Current claim budget limits and usage for an agent.
+
+**Response `200`:**
+
+```json
+{
+  "agent_id": "agent_a1b2c3d4e5f6",
+  "resource_budget": {
+    "max_concurrent_claims": 2,
+    "max_claims_per_hour": 30
+  },
+  "egress_allowlist": [],
+  "usage": {
+    "concurrent_claims": 0,
+    "claims_last_hour": 3
+  }
 }
 ```
 
@@ -162,7 +190,8 @@ Claim a task. Transitions `created` → `claimed`.
 }
 ```
 
-**Errors `400`:** unknown agent, task not claimable, capability mismatch.
+**Errors `400`:** unknown agent, task not claimable, capability mismatch.  
+**Errors `429`:** concurrent or hourly claim budget exceeded.
 
 ### `POST /tasks/checkpoint`
 

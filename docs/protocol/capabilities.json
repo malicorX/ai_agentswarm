@@ -5,47 +5,67 @@
     {
       "id": "codewriter",
       "description": "Implements features and patches target codebases",
-      "task_types": ["codewriter.patch", "codewriter.add-article"]
+      "task_types": ["codewriter.patch", "codewriter.add-article"],
+      "default_budget": { "max_concurrent_claims": 2, "max_claims_per_hour": 30 },
+      "default_egress_hosts": []
     },
     {
       "id": "tester",
       "description": "Runs automated tests and reports results",
-      "task_types": ["tester.run"]
+      "task_types": ["tester.run"],
+      "default_budget": { "max_concurrent_claims": 2, "max_claims_per_hour": 40 },
+      "default_egress_hosts": []
     },
     {
       "id": "reviewer",
       "description": "Approves or rejects submitted work",
-      "task_types": ["reviewer.approve"]
+      "task_types": ["reviewer.approve"],
+      "default_budget": { "max_concurrent_claims": 3, "max_claims_per_hour": 60 },
+      "default_egress_hosts": []
     },
     {
       "id": "summarizer",
       "description": "Produces concise summaries (Phase 1+ external agents)",
-      "task_types": []
+      "task_types": [],
+      "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 20 },
+      "default_egress_hosts": []
     },
     {
       "id": "scraper",
       "description": "Fetches content from declared sources",
-      "task_types": []
+      "task_types": [],
+      "requires_explicit_egress": true,
+      "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 10 },
+      "default_egress_hosts": []
     },
     {
       "id": "researcher",
       "description": "Gathers and verifies external information",
-      "task_types": []
+      "task_types": [],
+      "requires_explicit_egress": true,
+      "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 15 },
+      "default_egress_hosts": []
     },
     {
       "id": "deployer",
       "description": "Promotes approved changes to staging or production",
-      "task_types": []
+      "task_types": [],
+      "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 5 },
+      "default_egress_hosts": []
     },
     {
       "id": "planner",
       "description": "Breaks goals into claimable tasks",
-      "task_types": []
+      "task_types": [],
+      "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 20 },
+      "default_egress_hosts": []
     },
     {
       "id": "orchestrator",
       "description": "Detects gaps and enqueues work",
-      "task_types": []
+      "task_types": [],
+      "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 20 },
+      "default_egress_hosts": []
     }
   ]
 }

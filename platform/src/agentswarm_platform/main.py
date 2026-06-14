@@ -7,12 +7,20 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 
 from agentswarm_platform.auth import OwnerAuth, resolve_owner_auth
+from agentswarm_platform.budgets import (
+    is_budget_exceeded_error,
+    resolve_egress_allowlist,
+    resolve_resource_budget,
+    validate_egress_allowlist,
+    validate_egress_for_capabilities,
+)
 from agentswarm_platform.capabilities import (
     validate_capabilities,
     validate_version_signature,
 )
 from agentswarm_platform.deps import bind_store
 from agentswarm_platform.models import (
+    AgentBudgetStatus,
     AgentRegisterRequest,
     AgentRegisterResponse,
     AuditEvent,
@@ -69,6 +77,15 @@ def register_agent(
     try:
         validate_capabilities(body.capabilities)
         validate_version_signature(body.version_signature)
+        validate_egress_for_capabilities(body.capabilities, body.egress_allowlist)
+        if body.egress_allowlist is not None:
+            validate_egress_allowlist(body.egress_allowlist)
+        resource_budget = resolve_resource_budget(
+            body.capabilities, body.resource_budget
+        ).as_dict()
+        egress_allowlist = resolve_egress_allowlist(
+            body.capabilities, body.egress_allowlist
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     owner_label = owner.github_login
@@ -80,7 +97,17 @@ def register_agent(
         capabilities=body.capabilities,
         version_signature=body.version_signature,
         owner_id=None if owner.via_bootstrap and owner.github_login == "bootstrap" else owner.owner_id,
+        resource_budget=resource_budget,
+        egress_allowlist=egress_allowlist,
     )
+
+
+@app.get("/agents/{agent_id}/budget", response_model=AgentBudgetStatus)
+def get_agent_budget(agent_id: str) -> AgentBudgetStatus:
+    status = store.get_agent_budget_status(agent_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="agent not found")
+    return status
 
 
 @app.get("/agents/{agent_id}")
@@ -154,6 +181,8 @@ def claim_task(task_id: str, body: ClaimRequest) -> ClaimResponse:
     try:
         return store.claim_task(task_id, body.agent_id)
     except ValueError as exc:
+        if is_budget_exceeded_error(str(exc)):
+            raise HTTPException(status_code=429, detail=str(exc)) from exc
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
@@ -178,6 +207,8 @@ def claim_verification(verification_id: str, body: ClaimRequest) -> ClaimRespons
     try:
         return store.claim_verification(verification_id, body.agent_id)
     except ValueError as exc:
+        if is_budget_exceeded_error(str(exc)):
+            raise HTTPException(status_code=429, detail=str(exc)) from exc
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 

@@ -49,3 +49,12 @@ def validate_capabilities(capabilities: list[str]) -> None:
 def validate_version_signature(version_signature: str) -> None:
     if len(version_signature.strip()) < 8:
         raise ValueError("version_signature must be at least 8 characters")
+
+
+def capabilities_requiring_explicit_egress() -> frozenset[str]:
+    data = load_capability_registry()
+    required: set[str] = set()
+    for item in data.get("capabilities", []):
+        if item.get("requires_explicit_egress"):
+            required.add(str(item["id"]))
+    return frozenset(required)

@@ -182,9 +182,10 @@ See [quickstart-external-agent.md](quickstart-external-agent.md).
 
 ## Limitations (current)
 
-- Owner is free-text; GitHub OAuth lands in P1.3 ([ADR 0002](adr/0002-identity-model.md))
-- No resource budgets or rate limits
-- No capability versioning enforcement
+- GitHub OAuth owner verification — see [oauth-setup.md](oauth-setup.md)
+- Per-agent claim budgets enforced at task/verification claim (`429` when exceeded)
+- Egress allowlist declared at registration (self-hosted agents enforce locally)
+- Capability versioning via `version_signature` (minimum length only in Phase 1)
 - Reviewer is rule-based, not model-based
 - Codewriter only supports marker insertion, not arbitrary diffs
 

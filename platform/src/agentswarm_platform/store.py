@@ -10,7 +10,15 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from agentswarm_platform.budgets import (
+    default_budget_for_capabilities,
+    default_egress_for_capabilities,
+    resolve_egress_allowlist,
+    resolve_resource_budget,
+)
 from agentswarm_platform.models import (
+    AgentBudgetStatus,
+    AgentBudgetUsage,
     AgentRegisterResponse,
     AuditEvent,
     ClaimResponse,
@@ -115,6 +123,10 @@ class Store:
         }
         if "owner_id" not in columns:
             conn.execute("ALTER TABLE agents ADD COLUMN owner_id TEXT")
+        if "resource_budget" not in columns:
+            conn.execute("ALTER TABLE agents ADD COLUMN resource_budget TEXT")
+        if "egress_allowlist" not in columns:
+            conn.execute("ALTER TABLE agents ADD COLUMN egress_allowlist TEXT")
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -194,8 +206,12 @@ class Store:
         version_signature: str,
         *,
         owner_id: str | None = None,
+        resource_budget: dict[str, int] | None = None,
+        egress_allowlist: list[str] | None = None,
     ) -> AgentRegisterResponse:
         credential = secrets.token_urlsafe(24)
+        budget_json = json.dumps(resource_budget) if resource_budget is not None else None
+        egress_json = json.dumps(egress_allowlist) if egress_allowlist is not None else None
         with self._conn() as conn:
             existing = conn.execute(
                 "SELECT agent_id FROM agents WHERE public_key = ?", (public_key,)
@@ -205,7 +221,9 @@ class Store:
                 conn.execute(
                     """
                     UPDATE agents
-                    SET owner = ?, owner_id = ?, capabilities = ?, version_signature = ?
+                    SET owner = ?, owner_id = ?, capabilities = ?, version_signature = ?,
+                        resource_budget = COALESCE(?, resource_budget),
+                        egress_allowlist = COALESCE(?, egress_allowlist)
                     WHERE agent_id = ?
                     """,
                     (
@@ -213,6 +231,8 @@ class Store:
                         owner_id,
                         json.dumps(capabilities),
                         version_signature,
+                        budget_json,
+                        egress_json,
                         agent_id,
                     ),
                 )
@@ -233,9 +253,9 @@ class Store:
                 """
                 INSERT INTO agents (
                     agent_id, public_key, owner, owner_id, capabilities,
-                    version_signature, created_at
+                    version_signature, created_at, resource_budget, egress_allowlist
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     agent_id,
@@ -245,6 +265,8 @@ class Store:
                     json.dumps(capabilities),
                     version_signature,
                     utc_now_iso(),
+                    budget_json,
+                    egress_json,
                 ),
             )
             self._append_audit(
@@ -274,7 +296,88 @@ class Store:
             "owner_id": row["owner_id"] if "owner_id" in keys else None,
             "capabilities": json.loads(row["capabilities"]),
             "version_signature": row["version_signature"],
+            "resource_budget": self._agent_resource_budget(row),
+            "egress_allowlist": self._agent_egress_allowlist(row),
         }
+
+    def _agent_resource_budget(self, row: sqlite3.Row) -> dict[str, int]:
+        capabilities = json.loads(row["capabilities"])
+        keys = row.keys()
+        if "resource_budget" in keys and row["resource_budget"]:
+            stored = json.loads(row["resource_budget"])
+            return resolve_resource_budget(capabilities, stored).as_dict()
+        return default_budget_for_capabilities(capabilities).as_dict()
+
+    def _agent_egress_allowlist(self, row: sqlite3.Row) -> list[str]:
+        capabilities = json.loads(row["capabilities"])
+        keys = row.keys()
+        if "egress_allowlist" in keys and row["egress_allowlist"]:
+            stored = json.loads(row["egress_allowlist"])
+            return resolve_egress_allowlist(capabilities, stored)
+        return default_egress_for_capabilities(capabilities)
+
+    def get_agent_budget_status(self, agent_id: str) -> AgentBudgetStatus | None:
+        agent = self.get_agent(agent_id)
+        if agent is None:
+            return None
+        usage = self._claim_usage(agent_id)
+        return AgentBudgetStatus(
+            agent_id=agent_id,
+            resource_budget=agent["resource_budget"],
+            egress_allowlist=agent["egress_allowlist"],
+            usage=usage,
+        )
+
+    def _claim_usage(self, agent_id: str) -> AgentBudgetUsage:
+        hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).replace(
+            microsecond=0
+        ).isoformat()
+        with self._conn() as conn:
+            task_concurrent = conn.execute(
+                """
+                SELECT COUNT(*) AS n FROM tasks
+                WHERE claimed_by = ? AND status = ?
+                """,
+                (agent_id, TaskStatus.CLAIMED.value),
+            ).fetchone()["n"]
+            verification_concurrent = conn.execute(
+                """
+                SELECT COUNT(*) AS n FROM verifications
+                WHERE claimed_by = ? AND status = ? AND claim_token IS NOT NULL
+                """,
+                (agent_id, VerificationStatus.PENDING.value),
+            ).fetchone()["n"]
+            claims_last_hour = conn.execute(
+                """
+                SELECT COUNT(*) AS n FROM audit_log
+                WHERE actor_id = ? AND event_type IN ('task.claimed', 'verification.claimed')
+                  AND timestamp >= ?
+                """,
+                (agent_id, hour_ago),
+            ).fetchone()["n"]
+        return AgentBudgetUsage(
+            concurrent_claims=int(task_concurrent) + int(verification_concurrent),
+            claims_last_hour=int(claims_last_hour),
+        )
+
+    def _assert_claim_budget(self, conn: sqlite3.Connection, agent_id: str) -> None:
+        agent_row = conn.execute(
+            "SELECT * FROM agents WHERE agent_id = ?", (agent_id,)
+        ).fetchone()
+        if agent_row is None:
+            raise ValueError("unknown agent")
+        budget = self._agent_resource_budget(agent_row)
+        usage = self._claim_usage(agent_id)
+        if usage.concurrent_claims >= budget["max_concurrent_claims"]:
+            raise ValueError(
+                "budget: concurrent claim limit exceeded "
+                f"({usage.concurrent_claims}/{budget['max_concurrent_claims']})"
+            )
+        if usage.claims_last_hour >= budget["max_claims_per_hour"]:
+            raise ValueError(
+                "budget: hourly claim limit exceeded "
+                f"({usage.claims_last_hour}/{budget['max_claims_per_hour']})"
+            )
 
     def create_task(
         self,
@@ -356,6 +459,7 @@ class Store:
         claim_token = secrets.token_urlsafe(32)
         deadline = (datetime.now(timezone.utc) + timedelta(hours=1)).replace(microsecond=0)
         with self._conn() as conn:
+            self._assert_claim_budget(conn, agent_id)
             row = conn.execute(
                 "SELECT * FROM tasks WHERE task_id = ?", (task_id,)
             ).fetchone()
@@ -581,6 +685,7 @@ class Store:
         claim_token = secrets.token_urlsafe(32)
         deadline = (datetime.now(timezone.utc) + timedelta(hours=1)).replace(microsecond=0)
         with self._conn() as conn:
+            self._assert_claim_budget(conn, agent_id)
             row = conn.execute(
                 "SELECT * FROM verifications WHERE verification_id = ?",
                 (verification_id,),
@@ -596,6 +701,12 @@ class Store:
                 WHERE verification_id = ?
                 """,
                 (agent_id, claim_token, deadline.isoformat(), verification_id),
+            )
+            self._append_audit(
+                conn,
+                "verification.claimed",
+                agent_id,
+                {"verification_id": verification_id, "claim_token": claim_token},
             )
         return ClaimResponse(claim_token=claim_token, deadline=deadline.isoformat())
 

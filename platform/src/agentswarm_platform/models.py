@@ -26,6 +26,20 @@ class AgentRegisterRequest(BaseModel):
     owner: str
     capabilities: list[str]
     version_signature: str = "phase0-v1"
+    resource_budget: dict[str, int] | None = None
+    egress_allowlist: list[str] | None = None
+
+
+class AgentBudgetUsage(BaseModel):
+    concurrent_claims: int
+    claims_last_hour: int
+
+
+class AgentBudgetStatus(BaseModel):
+    agent_id: str
+    resource_budget: dict[str, int]
+    egress_allowlist: list[str]
+    usage: AgentBudgetUsage
 
 
 class AgentRegisterResponse(BaseModel):
