@@ -133,14 +133,21 @@ def apply_moderator_action(
 ) -> dict[str, Any]:
     action_type = action.get("type")
     if action_type == "flag":
+        subject_type = str(action["subject_type"])
+        subject_id = str(action["subject_id"])
+        severity = str(action.get("severity", "medium"))
         flag_id = create_flag(
             conn,
-            subject_type=str(action["subject_type"]),
-            subject_id=str(action["subject_id"]),
+            subject_type=subject_type,
+            subject_id=subject_id,
             reason=str(action.get("reason", "moderator flag")),
-            severity=str(action.get("severity", "medium")),
+            severity=severity,
             details=action.get("details") or {},
         )
+        if subject_type == "agent" and severity == "high":
+            from agentswarm_platform.owner_anchoring import apply_flag_high_owner_penalty
+
+            apply_flag_high_owner_penalty(conn, agent_id=subject_id)
         return {"type": "flag", "flag_id": flag_id}
     if action_type == "quarantine":
         agent_id = str(action["agent_id"])

@@ -207,7 +207,7 @@ Owner-level credibility anchoring summary (read-only):
 }
 ```
 
-`penalty_score` increases when a moderator quarantines an agent linked to this owner. New capability seeds for that owner's agents use `anchored_initial_score` instead of `INITIAL_SCORE`. Returns `404` when the owner is unknown.
+`penalty_score` increases when linked agents trigger moderation or canary events (see [credibility-spec.md](credibility-spec.md) §4.6). New capability seeds for that owner's agents use `anchored_initial_score` instead of `INITIAL_SCORE`. Returns `404` when the owner is unknown.
 
 ---
 

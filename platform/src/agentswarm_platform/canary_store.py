@@ -105,6 +105,10 @@ def evaluate_canary(
         result=result,
         passed=passed,
     )
+    if not passed:
+        from agentswarm_platform.owner_anchoring import apply_canary_failure_owner_penalty
+
+        apply_canary_failure_owner_penalty(conn, agent_id=agent_id)
     if not passed and credibility_enabled():
         from agentswarm_platform.credibility_ledger import _apply_delta
 

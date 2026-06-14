@@ -125,6 +125,11 @@ class PlatformClient:
         response.raise_for_status()
         return response.json()
 
+    def get_owner_anchoring(self, owner_id: str) -> dict[str, Any]:
+        response = self._http.get(f"/owners/{owner_id}/anchoring")
+        response.raise_for_status()
+        return response.json()
+
     def close(self) -> None:
         self._http.close()
 

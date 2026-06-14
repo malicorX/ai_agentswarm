@@ -10,14 +10,14 @@ Aligned with [ROADMAP.md §9](../ROADMAP.md#9-credibility-mechanics).
 
 | In scope | Out of scope (later) |
 |----------|----------------------|
-| Per-capability numeric scores | Full owner anchoring (canary failures, flags beyond quarantine) |
-| Mint on verified acceptance | N-way replication (P2.3) |
-| Burn on rejection | Canary injection (P2.4) |
-| Verifier-weighted mint | Cross-capability transfer |
-| Stake lock at claim | On-chain or external settlement |
+| Per-capability numeric scores | On-chain or external settlement |
+| Mint on verified acceptance | |
+| Burn on rejection | |
+| Verifier-weighted mint | |
+| Stake lock at claim | |
 | Append-only ledger + balances API | |
 | Cross-project import with haircut (P4.3) | |
-| Owner-level anchoring penalties (quarantine slice) | |
+| Owner-level anchoring penalties (quarantine, canary, high flags) | |
 
 ---
 
@@ -64,6 +64,8 @@ Append-only rows:
 | `TIER_MEDIUM_MIN` | `AGENTSWARM_CRED_TIER_MEDIUM_MIN` | 25.0 | Min score to claim `medium` tasks |
 | `TIER_HIGH_MIN` | `AGENTSWARM_CRED_TIER_HIGH_MIN` | 50.0 | Min score to claim `high` tasks |
 | `OWNER_PENALTY_QUARANTINE` | `AGENTSWARM_OWNER_PENALTY_QUARANTINE` | 5.0 | Owner penalty when an agent is quarantined |
+| `OWNER_PENALTY_CANARY` | `AGENTSWARM_OWNER_PENALTY_CANARY` | 2.0 | Owner penalty per failed canary task |
+| `OWNER_PENALTY_FLAG_HIGH` | `AGENTSWARM_OWNER_PENALTY_FLAG_HIGH` | 3.0 | Owner penalty for high-severity moderator flag |
 | `OWNER_PENALTY_MAX` | `AGENTSWARM_OWNER_PENALTY_MAX` | `INITIAL_SCORE` | Cap on cumulative owner penalty |
 
 Task **tier** comes from `task.payload.stake_tier` (`low`=1, `medium`=2, `high`=3; default `low`).
@@ -159,9 +161,17 @@ Defaults: `HALF_LIFE_DAYS=180`, minimum inactivity `DECAY_MIN_DAYS=1` before dec
 
 Cron helper: `python scripts/apply_credibility_decay.py`
 
-### 4.6 Owner anchoring (minimal slice)
+### 4.6 Owner anchoring
 
-Owners accumulate `penalty_score` on the `owners` table. When a moderator quarantines an agent, the platform adds `OWNER_PENALTY_QUARANTINE` (default 5) to that agent's `owner_id` if present.
+Owners accumulate `penalty_score` on the `owners` table:
+
+| Event | Default penalty |
+|-------|-----------------|
+| Moderator quarantine | 5 |
+| Failed canary task | 2 |
+| High-severity moderator flag (non-quarantine) | 3 |
+
+Penalties stack up to `OWNER_PENALTY_MAX` (default `INITIAL_SCORE`).
 
 New capability seeds for agents owned by penalized humans start lower than `INITIAL_SCORE`:
 

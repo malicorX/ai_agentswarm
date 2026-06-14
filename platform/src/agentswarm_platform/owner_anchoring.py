@@ -6,6 +6,8 @@ import sqlite3
 import agentswarm_platform.credibility as credibility
 
 QUARANTINE_PENALTY = float(os.environ.get("AGENTSWARM_OWNER_PENALTY_QUARANTINE", "5"))
+CANARY_PENALTY = float(os.environ.get("AGENTSWARM_OWNER_PENALTY_CANARY", "2"))
+FLAG_HIGH_PENALTY = float(os.environ.get("AGENTSWARM_OWNER_PENALTY_FLAG_HIGH", "3"))
 
 
 def _penalty_max() -> float:
@@ -84,11 +86,30 @@ def owner_anchoring_summary(
     }
 
 
-def apply_quarantine_owner_penalty(conn: sqlite3.Connection, *, agent_id: str) -> float | None:
+def apply_owner_penalty_for_agent(
+    conn: sqlite3.Connection,
+    *,
+    agent_id: str,
+    delta: float,
+) -> float | None:
     row = conn.execute(
         "SELECT owner_id FROM agents WHERE agent_id = ?",
         (agent_id,),
     ).fetchone()
     if row is None or not row["owner_id"]:
         return None
-    return add_owner_penalty(conn, str(row["owner_id"]), QUARANTINE_PENALTY)
+    return add_owner_penalty(conn, str(row["owner_id"]), delta)
+
+
+def apply_quarantine_owner_penalty(conn: sqlite3.Connection, *, agent_id: str) -> float | None:
+    return apply_owner_penalty_for_agent(
+        conn, agent_id=agent_id, delta=QUARANTINE_PENALTY
+    )
+
+
+def apply_canary_failure_owner_penalty(conn: sqlite3.Connection, *, agent_id: str) -> float | None:
+    return apply_owner_penalty_for_agent(conn, agent_id=agent_id, delta=CANARY_PENALTY)
+
+
+def apply_flag_high_owner_penalty(conn: sqlite3.Connection, *, agent_id: str) -> float | None:
+    return apply_owner_penalty_for_agent(conn, agent_id=agent_id, delta=FLAG_HIGH_PENALTY)

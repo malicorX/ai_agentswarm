@@ -147,4 +147,22 @@ export class PlatformClient {
     }
     return (await response.json()) as Record<string, unknown>;
   }
+
+  async getOwnerAnchoring(ownerId: string): Promise<{
+    owner_id: string;
+    github_login: string;
+    penalty_score: number;
+    anchored_initial_score: number;
+  }> {
+    const response = await fetch(`${this.baseUrl}/owners/${ownerId}/anchoring`);
+    if (!response.ok) {
+      throw new Error(`get owner anchoring failed: ${response.status}`);
+    }
+    return (await response.json()) as {
+      owner_id: string;
+      github_login: string;
+      penalty_score: number;
+      anchored_initial_score: number;
+    };
+  }
 }

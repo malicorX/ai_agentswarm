@@ -265,6 +265,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Tag v0.5.0-phase5
 ✅ Credibility inactivity decay
 ✅ Owner anchoring (quarantine penalty + anchored seeds)
+✅ Owner anchoring: canary failures and high-severity flags
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 
