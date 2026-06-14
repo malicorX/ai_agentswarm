@@ -73,6 +73,13 @@
       "task_types": ["orchestrator.scan"],
       "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 20 },
       "default_egress_hosts": []
+    },
+    {
+      "id": "moderator",
+      "description": "Flags abuse and quarantines misbehaving agents",
+      "task_types": ["moderator.scan"],
+      "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 20 },
+      "default_egress_hosts": []
     }
   ]
 }

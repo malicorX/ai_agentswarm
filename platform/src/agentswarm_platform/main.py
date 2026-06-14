@@ -9,6 +9,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from agentswarm_platform.auth import OwnerAuth, resolve_owner_auth
 from agentswarm_platform.budgets import (
     is_budget_exceeded_error,
+    is_quarantine_error,
     resolve_egress_allowlist,
     resolve_resource_budget,
     validate_egress_allowlist,
@@ -64,6 +65,14 @@ def list_capabilities() -> dict:
     from agentswarm_platform.capabilities import load_capability_registry
 
     return load_capability_registry()
+
+
+@app.get("/moderation/flags")
+def list_moderation_flags(
+    status: str | None = Query(default="open"),
+    limit: int = Query(default=50, le=200),
+) -> dict:
+    return {"flags": store.list_moderation_flags(status=status, limit=limit)}
 
 
 @app.get("/platform/summary", response_model=PlatformSummary)
@@ -242,6 +251,10 @@ def submit_task(body: SubmitRequest) -> SubmitResponse:
             return store.complete_orchestrator_submit(
                 body.claim_token, body.result, body.signature
             )
+        if task_type == "moderator.scan":
+            return store.complete_moderator_submit(
+                body.claim_token, body.result, body.signature
+            )
         return store.submit_task(body.claim_token, body.result, body.signature)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -262,6 +275,8 @@ def claim_task(task_id: str, body: ClaimRequest) -> ClaimResponse:
     except ValueError as exc:
         if is_budget_exceeded_error(str(exc)):
             raise HTTPException(status_code=429, detail=str(exc)) from exc
+        if is_quarantine_error(str(exc)):
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 

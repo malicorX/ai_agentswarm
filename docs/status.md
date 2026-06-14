@@ -56,7 +56,6 @@ See [credibility-spec.md](credibility-spec.md) and [execution-plan.md](execution
 - [x] Stake-on-claim (feature-flagged)
 - [x] N-way replication (P2.3) — `classifier.label` with quorum
 - [x] Canary injection (P2.4) — `payload.canary.expected` on classifier tasks
-- [ ] Canary injection (P2.4)
 - [x] Read-only dashboard (`pilot/dashboard/index.html`)
 
 ## Phase 3 — Self-Orchestration & Shared Memory
@@ -67,7 +66,7 @@ See [execution-plan.md](execution-plan.md).
 - [x] Platform summary — `GET /platform/summary` for gap detection
 - [x] Planner agent (`planner.plan`) — reads backlog, enqueues codewriter tasks
 - [x] Orchestrator agent (`orchestrator.scan`) — detects idle pool + backlog gaps
-- [ ] Moderator automation (P3.4)
+- [x] Moderator automation (P3.4) — `moderator.scan`, quarantine, `GET /moderation/flags`
 
 ## Phase 4 — Federation
 

@@ -22,6 +22,12 @@ from agentswarm_platform.memory_store import (
     list_memory_entries,
     upsert_memory_entry,
 )
+from agentswarm_platform.moderation_store import (
+    apply_moderator_action,
+    ensure_moderation_schema,
+    is_agent_quarantined,
+    list_moderation_flags,
+)
 from agentswarm_platform.orchestration import enqueue_child_tasks
 from agentswarm_platform.canary_store import ensure_canary_schema, evaluate_canary, get_canary_stats
 from agentswarm_platform.replication import (
@@ -158,6 +164,7 @@ class Store:
         ensure_replication_schema(conn)
         ensure_canary_schema(conn)
         ensure_memory_schema(conn)
+        ensure_moderation_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -331,6 +338,8 @@ class Store:
             "version_signature": row["version_signature"],
             "resource_budget": self._agent_resource_budget(row),
             "egress_allowlist": self._agent_egress_allowlist(row),
+            "quarantined": bool(row["quarantined"]) if "quarantined" in keys else False,
+            "quarantine_reason": row["quarantine_reason"] if "quarantine_reason" in keys else None,
         }
 
     def _agent_resource_budget(self, row: sqlite3.Row) -> dict[str, int]:
@@ -592,6 +601,8 @@ class Store:
         claim_token = secrets.token_urlsafe(32)
         deadline = (datetime.now(timezone.utc) + timedelta(hours=1)).replace(microsecond=0)
         with self._conn() as conn:
+            if is_agent_quarantined(conn, agent_id):
+                raise ValueError("quarantine: agent is quarantined")
             self._assert_claim_budget(conn, agent_id)
             row = conn.execute(
                 "SELECT * FROM tasks WHERE task_id = ?", (task_id,)
@@ -1312,6 +1323,70 @@ class Store:
             submission_id=submission_id,
             enqueued_task_ids=enqueued or None,
         )
+
+    def complete_moderator_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "moderator.scan":
+                raise ValueError("not a moderator task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            actions = result.get("actions", [])
+            if actions and not isinstance(actions, list):
+                raise ValueError("moderator actions must be a list")
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            applied: list[dict[str, Any]] = []
+            for action in actions:
+                applied.append(apply_moderator_action(conn, action))
+            self._append_audit(
+                conn,
+                "moderator.completed",
+                row["claimed_by"],
+                {
+                    "task_id": row["task_id"],
+                    "findings": result.get("findings", []),
+                    "applied_actions": applied,
+                },
+            )
+        return SubmitResponse(submission_id=submission_id)
+
+    def list_moderation_flags(
+        self, *, status: str | None = "open", limit: int = 50
+    ) -> list[dict[str, Any]]:
+        with self._conn() as conn:
+            return list_moderation_flags(conn, status=status, limit=limit)
 
     def list_memory(self) -> list[dict[str, Any]]:
         with self._conn() as conn:

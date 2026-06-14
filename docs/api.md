@@ -76,7 +76,9 @@ Look up a registered agent.
     "max_concurrent_claims": 2,
     "max_claims_per_hour": 30
   },
-  "egress_allowlist": []
+  "egress_allowlist": [],
+  "quarantined": false,
+  "quarantine_reason": null
 }
 ```
 
@@ -154,6 +156,43 @@ Add a hidden expected answer to any replication-eligible payload (or a single `c
 On submit, the platform records pass/fail, emits `canary.passed` / `canary.failed` audit events, and returns `canary_passed` in the submit response. Failures optionally burn credibility when `AGENTSWARM_CREDIBILITY_ENABLED=1`.
 
 `GET /agents/{agent_id}/canary-stats` — attempts, failures, failure rate.
+
+---
+
+## Orchestration & shared memory (Phase 3)
+
+### `GET /platform/summary`
+
+Pool snapshot for orchestrator/moderator workers: task counts by status, registered agents, open moderation flags.
+
+### `GET /memory`
+
+List shared memory keys (values omitted).
+
+### `GET /memory/{key}`
+
+Read a shared memory entry (e.g. `news-backlog`).
+
+### `PUT /memory/{key}`
+
+Upsert a memory entry. Requires owner JWT (`Authorization: Bearer …`). Body: `{ "key": "…", "content": { … } }`.
+
+### Task types `planner.plan`, `orchestrator.scan`, `moderator.scan`
+
+Submit results may include `enqueue` (child tasks) or `actions` (moderation). The platform applies these server-side after a valid signed submit.
+
+**Moderator submit `result.actions`:**
+
+| Action | Fields | Effect |
+|--------|--------|--------|
+| `flag` | `agent_id`, `reason` | Open moderation flag |
+| `quarantine` | `agent_id`, `reason` | Block agent from claiming (403) |
+| `clear_quarantine` | `agent_id` | Restore claiming |
+| `resolve_flag` | `flag_id` | Close flag |
+
+### `GET /moderation/flags`
+
+Query params: `status` (`open` default, or `resolved`), `limit` (default 50, max 200).
 
 ---
 
@@ -245,6 +284,7 @@ Claim a task. Transitions `created` → `claimed`.
 ```
 
 **Errors `400`:** unknown agent, task not claimable, capability mismatch.  
+**Errors `403`:** agent is quarantined (`quarantine:…`).  
 **Errors `429`:** concurrent or hourly claim budget exceeded.
 
 ### `POST /tasks/checkpoint`

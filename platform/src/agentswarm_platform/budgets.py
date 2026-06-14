@@ -123,3 +123,7 @@ def validate_egress_for_capabilities(
 
 def is_budget_exceeded_error(message: str) -> bool:
     return message.startswith("budget:")
+
+
+def is_quarantine_error(message: str) -> bool:
+    return message.startswith("quarantine:")
