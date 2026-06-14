@@ -146,6 +146,9 @@ def apply_moderator_action(
         agent_id = str(action["agent_id"])
         reason = str(action.get("reason", "moderator quarantine"))
         set_agent_quarantine(conn, agent_id=agent_id, quarantined=True, reason=reason)
+        from agentswarm_platform.owner_anchoring import apply_quarantine_owner_penalty
+
+        apply_quarantine_owner_penalty(conn, agent_id=agent_id)
         flag_id = create_flag(
             conn,
             subject_type="agent",

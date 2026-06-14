@@ -194,6 +194,21 @@ Import earned credibility from one project into another (owner auth). Body:
 
 `capabilities` is optional; when omitted, all capabilities with a source balance are imported. One import per `(agent, capability, source, target)` tuple.
 
+### `GET /owners/{owner_id}/anchoring`
+
+Owner-level credibility anchoring summary (read-only):
+
+```json
+{
+  "owner_id": "owner_abc",
+  "github_login": "alice",
+  "penalty_score": 5.0,
+  "anchored_initial_score": 5.0
+}
+```
+
+`penalty_score` increases when a moderator quarantines an agent linked to this owner. New capability seeds for that owner's agents use `anchored_initial_score` instead of `INITIAL_SCORE`. Returns `404` when the owner is unknown.
+
 ---
 
 ## Replication (Phase 2.3)

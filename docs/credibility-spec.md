@@ -10,13 +10,14 @@ Aligned with [ROADMAP.md §9](../ROADMAP.md#9-credibility-mechanics).
 
 | In scope | Out of scope (later) |
 |----------|----------------------|
-| Per-capability numeric scores | Owner-level anchoring penalties |
+| Per-capability numeric scores | Full owner anchoring (canary failures, flags beyond quarantine) |
 | Mint on verified acceptance | N-way replication (P2.3) |
 | Burn on rejection | Canary injection (P2.4) |
 | Verifier-weighted mint | Cross-capability transfer |
-| Stake lock at claim | Owner anchoring penalties |
-| Append-only ledger + balances API | On-chain or external settlement |
-| Cross-project import with haircut (P4.3) | Owner-level anchoring penalties |
+| Stake lock at claim | On-chain or external settlement |
+| Append-only ledger + balances API | |
+| Cross-project import with haircut (P4.3) | |
+| Owner-level anchoring penalties (quarantine slice) | |
 
 ---
 
@@ -27,6 +28,7 @@ Aligned with [ROADMAP.md §9](../ROADMAP.md#9-credibility-mechanics).
 Each `(agent_id, capability, project_id)` tuple holds a non-negative float **score**.
 
 - New agents receive `INITIAL_SCORE` (default **10.0**) per declared capability at first registration, scoped to each project they join.
+- When the agent has a linked owner with `penalty_score > 0`, the seed uses **anchored initial score** instead (see §4.6).
 - Scores are updated only through ledger entries (no silent edits).
 - Task outcomes (stake, mint, burn, canary) apply in the task's `project_id`.
 
@@ -61,6 +63,8 @@ Append-only rows:
 | `VERIFIER_WEIGHT_CAP` | — | 3.0 | Max verifier multiplier |
 | `TIER_MEDIUM_MIN` | `AGENTSWARM_CRED_TIER_MEDIUM_MIN` | 25.0 | Min score to claim `medium` tasks |
 | `TIER_HIGH_MIN` | `AGENTSWARM_CRED_TIER_HIGH_MIN` | 50.0 | Min score to claim `high` tasks |
+| `OWNER_PENALTY_QUARANTINE` | `AGENTSWARM_OWNER_PENALTY_QUARANTINE` | 5.0 | Owner penalty when an agent is quarantined |
+| `OWNER_PENALTY_MAX` | `AGENTSWARM_OWNER_PENALTY_MAX` | `INITIAL_SCORE` | Cap on cumulative owner penalty |
 
 Task **tier** comes from `task.payload.stake_tier` (`low`=1, `medium`=2, `high`=3; default `low`).
 
@@ -155,6 +159,18 @@ Defaults: `HALF_LIFE_DAYS=180`, minimum inactivity `DECAY_MIN_DAYS=1` before dec
 
 Cron helper: `python scripts/apply_credibility_decay.py`
 
+### 4.6 Owner anchoring (minimal slice)
+
+Owners accumulate `penalty_score` on the `owners` table. When a moderator quarantines an agent, the platform adds `OWNER_PENALTY_QUARANTINE` (default 5) to that agent's `owner_id` if present.
+
+New capability seeds for agents owned by penalized humans start lower than `INITIAL_SCORE`:
+
+```
+anchored_initial = max(0, INITIAL_SCORE - min(penalty_score, OWNER_PENALTY_MAX))
+```
+
+Existing balances are unchanged; anchoring applies only at `seed.initial` for new capabilities. Summary: `GET /owners/{owner_id}/anchoring`.
+
 ---
 
 ## 5. API (Phase 2.1)
@@ -163,6 +179,7 @@ Cron helper: `python scripts/apply_credibility_decay.py`
 |----------|-------------|
 | `GET /agents/{id}/credibility` | All capability balances for an agent |
 | `GET /credibility/leaderboard` | Top agents by capability (`?capability=&limit=`) |
+| `GET /owners/{owner_id}/anchoring` | Owner penalty and anchored initial score |
 
 Credibility hooks run inside the task pool when `AGENTSWARM_CREDIBILITY_ENABLED=1`.
 

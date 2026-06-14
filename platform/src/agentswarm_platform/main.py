@@ -326,6 +326,14 @@ def apply_credibility_decay(
     return store.apply_credibility_decay(project_id=project_id)
 
 
+@app.get("/owners/{owner_id}/anchoring")
+def get_owner_anchoring(owner_id: str) -> dict:
+    summary = store.get_owner_anchoring(owner_id)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="owner not found")
+    return summary
+
+
 @app.get("/credibility/leaderboard")
 def get_credibility_leaderboard(
     capability: str | None = Query(default=None),

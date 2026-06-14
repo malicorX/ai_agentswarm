@@ -29,6 +29,7 @@ from agentswarm_platform.moderation_store import (
     is_agent_quarantined,
     list_moderation_flags,
 )
+from agentswarm_platform.owner_anchoring import owner_anchoring_summary
 from agentswarm_platform.project_bootstrap import apply_project_bootstrap
 from agentswarm_platform.project_store import (
     DEFAULT_PROJECT_ID,
@@ -191,6 +192,9 @@ class Store:
         ensure_canary_schema(conn)
         ensure_memory_schema(conn)
         ensure_moderation_schema(conn)
+        from agentswarm_platform.owner_anchoring import ensure_owner_anchoring_schema
+
+        ensure_owner_anchoring_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -1702,6 +1706,10 @@ class Store:
     ) -> dict[str, int]:
         with self._conn() as conn:
             return apply_inactivity_decay_all(conn, project_id=project_id)
+
+    def get_owner_anchoring(self, owner_id: str) -> dict[str, float | str] | None:
+        with self._conn() as conn:
+            return owner_anchoring_summary(conn, owner_id)
 
     def import_agent_credibility(
         self,

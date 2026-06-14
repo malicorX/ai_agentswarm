@@ -60,6 +60,7 @@ See [credibility-spec.md](credibility-spec.md) and [execution-plan.md](execution
 - [x] Stake-on-claim (feature-flagged)
 - [x] Reputation-gated task tiers — `payload.stake_tier` floors at claim (low/medium/high)
 - [x] Credibility inactivity decay — lazy on read + `POST /credibility/apply-decay`
+- [x] Owner anchoring (minimal) — quarantine bumps owner penalty; anchored seed scores; `GET /owners/{id}/anchoring`
 - [x] N-way replication (P2.3) — `classifier.label` with quorum
 - [x] Canary injection (P2.4) — `payload.canary.expected` on classifier tasks
 - [x] Read-only dashboard (`pilot/dashboard/index.html`)

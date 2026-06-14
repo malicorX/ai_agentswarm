@@ -1,11 +1,23 @@
 openapi: 3.1.0
 info:
   title: AgentSwarm Task Pool
-  version: 0.3.0
-  description: AgentSwarm pull-based task pool (Phases 0–4)
+  version: 0.5.0
+  description: AgentSwarm pull-based task pool (Phases 0–4, credibility gamification, memory gating)
 servers:
   - url: http://localhost:8000
 paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+  /capabilities:
+    get:
+      summary: Capability registry
+      responses:
+        "200":
+          description: Registry JSON
   /projects:
     get:
       summary: List projects
@@ -13,43 +25,108 @@ paths:
         "200":
           description: Project list
     post:
-      summary: Create a project
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ProjectCreateRequest"
+      summary: Create a project (owner auth)
       responses:
         "200":
           description: Created
+  /projects/{project_id}:
+    get:
+      summary: Get project
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project
+  /projects/{project_id}/governance:
+    get:
+      summary: Resolved governance config
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Governance config
   /governance/templates:
     get:
       summary: List governance templates
       responses:
         "200":
           description: Template summaries
-  /credibility/leaderboard:
+  /governance/templates/{template_id}:
     get:
-      summary: Credibility leaderboard
+      summary: Get governance template
       parameters:
-        - name: project_id
+        - name: template_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Template envelope
+  /platform/summary:
+    get:
+      summary: Platform summary for orchestration
+      responses:
+        "200":
+          description: Task counts, memory keys, canary stats
+  /memory:
+    get:
+      summary: List memory keys
+      responses:
+        "200":
+          description: Memory index
+  /memory/{memory_key}:
+    get:
+      summary: Read shared memory entry
+      parameters:
+        - name: memory_key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Memory entry
+    put:
+      summary: Upsert memory (owner JWT or signed agent write)
+      parameters:
+        - name: memory_key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryUpsertRequest"
+      responses:
+        "200":
+          description: Updated entry
+  /moderation/flags:
+    get:
+      summary: List moderation flags
+      parameters:
+        - name: status
           in: query
           schema:
             type: string
-            default: default
+            default: open
       responses:
         "200":
-          description: Leaderboard entries
-  /health:
-    get:
-      summary: Health check
-      responses:
-        "200":
-          description: OK
+          description: Flags
   /agents/register:
     post:
-      summary: Register an agent
+      summary: Register an agent (owner auth)
       requestBody:
         required: true
         content:
@@ -59,13 +136,153 @@ paths:
       responses:
         "200":
           description: Registered
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AgentRegisterResponse"
+  /agents/{agent_id}:
+    get:
+      summary: Get agent record
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent
+  /agents/{agent_id}/budget:
+    get:
+      summary: Agent resource budget status
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Budget status
+  /agents/{agent_id}/credibility:
+    get:
+      summary: Per-capability credibility balances
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            default: default
+      responses:
+        "200":
+          description: Credibility balances
+  /agents/{agent_id}/profile:
+    get:
+      summary: Gamification profile (levels, badges)
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            default: default
+      responses:
+        "200":
+          description: Agent profile
+  /agents/{agent_id}/canary-stats:
+    get:
+      summary: Canary pass/fail stats
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Canary stats
+  /agents/{agent_id}/credibility/import:
+    post:
+      summary: Cross-project credibility import (owner auth)
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Import results
+  /owners/{owner_id}/anchoring:
+    get:
+      summary: Owner penalty and anchored initial credibility
+      parameters:
+        - name: owner_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Owner anchoring summary
+  /credibility/leaderboard:
+    get:
+      summary: Credibility leaderboard with levels and badges
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            default: default
+        - name: capability
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Leaderboard entries
+  /credibility/apply-decay:
+    post:
+      summary: Apply inactivity decay batch (owner auth)
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "{ checked, updated }"
+  /credibility/transfer-rules:
+    get:
+      summary: Cross-project import rules
+      responses:
+        "200":
+          description: Haircut formula and rate
+  /replication/{group_id}:
+    get:
+      summary: Replication group status
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Group status
   /tasks:
     post:
-      summary: Create a task
+      summary: Create a task (owner auth)
       requestBody:
         required: true
         content:
@@ -91,6 +308,18 @@ paths:
       responses:
         "200":
           description: Task list
+  /tasks/{task_id}:
+    get:
+      summary: Get task by id
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task envelope
   /tasks/{task_id}/claim:
     post:
       summary: Claim a task
@@ -135,7 +364,7 @@ paths:
           description: Submitted
   /verifications/poll:
     get:
-      summary: Poll pending verifications (reviewer agents)
+      summary: Poll pending verifications
       parameters:
         - name: agent_id
           in: query
@@ -157,6 +386,18 @@ paths:
       responses:
         "200":
           description: Acknowledged
+  /verifications/{verification_id}/claim:
+    post:
+      summary: Claim a verification
+      parameters:
+        - name: verification_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Claimed
   /audit:
     get:
       summary: Read append-only audit log
@@ -185,6 +426,10 @@ components:
             type: string
         version_signature:
           type: string
+        project_ids:
+          type: array
+          items:
+            type: string
     AgentRegisterResponse:
       type: object
       properties:
@@ -202,7 +447,12 @@ components:
           type: string
         payload:
           type: object
+          description: May include stake_tier (low, medium, high)
         project_id:
+          type: string
+        parent_task_id:
+          type: string
+        parent_submission_id:
           type: string
     ProjectCreateRequest:
       type: object
@@ -216,6 +466,24 @@ components:
           type: string
         governance_template_id:
           type: string
+    MemoryUpsertRequest:
+      type: object
+      required: [key]
+      properties:
+        key:
+          type: string
+        content:
+          type: object
+        tags:
+          type: array
+          items:
+            type: string
+        agent_id:
+          type: string
+          description: For signed agent writes
+        signature:
+          type: string
+          description: Ed25519 signature for agent writes
     ClaimRequest:
       type: object
       required: [agent_id]

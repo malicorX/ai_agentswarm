@@ -24,6 +24,10 @@ from agentswarm_platform.credibility_transfer import (
     CROSS_PROJECT_HAIRCUT,
     compute_imported_score,
 )
+from agentswarm_platform.owner_anchoring import (
+    anchored_initial_score,
+    get_owner_penalty,
+)
 from agentswarm_platform.project_store import (
     DEFAULT_PROJECT_ID,
     agent_project_ids,
@@ -127,6 +131,13 @@ def seed_agent_capabilities(
 ) -> None:
     if not credibility_enabled():
         return
+    owner_row = conn.execute(
+        "SELECT owner_id FROM agents WHERE agent_id = ?",
+        (agent_id,),
+    ).fetchone()
+    owner_id = str(owner_row["owner_id"]) if owner_row and owner_row["owner_id"] else None
+    penalty = get_owner_penalty(conn, owner_id)
+    initial_score = anchored_initial_score(penalty)
     for capability in capabilities:
         existing = conn.execute(
             """
@@ -142,11 +153,16 @@ def seed_agent_capabilities(
             agent_id=agent_id,
             capability=capability,
             project_id=project_id,
-            delta=INITIAL_SCORE,
+            delta=initial_score,
             reason="seed.initial",
             ref_type="agent",
             ref_id=agent_id,
-            details={"initial_score": INITIAL_SCORE, "project_id": project_id},
+            details={
+                "initial_score": initial_score,
+                "project_id": project_id,
+                "owner_penalty": penalty,
+            },
+            apply_decay_before=False,
         )
 
 

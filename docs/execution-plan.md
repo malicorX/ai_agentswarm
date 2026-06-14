@@ -264,6 +264,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Dashboard profile panel; planner/orchestrator memory writes
 ✅ Tag v0.5.0-phase5
 ✅ Credibility inactivity decay
+✅ Owner anchoring (quarantine penalty + anchored seeds)
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 
