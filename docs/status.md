@@ -70,4 +70,7 @@ See [execution-plan.md](execution-plan.md).
 
 ## Phase 4 — Federation
 
-Not started. See ROADMAP.md §17.
+Not started beyond P4.1. See ROADMAP.md §17.
+
+- [x] Multi-project task pool (P4.1) — `project_id` on tasks, `GET/POST /projects`, agent project membership
+- [ ] Per-project credibility (P4.2)

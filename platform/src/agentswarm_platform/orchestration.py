@@ -30,6 +30,7 @@ def enqueue_child_tasks(
     specs: list[dict[str, Any]],
     trigger: str,
     append_audit: Callable[[sqlite3.Connection, str, str | None, dict[str, Any]], None],
+    project_id: str = "default",
 ) -> list[str]:
     created_at = utc_now_iso()
     task_ids: list[str] = []
@@ -40,8 +41,8 @@ def enqueue_child_tasks(
             """
             INSERT INTO tasks (
                 task_id, task_type, capability_required, status, payload,
-                parent_task_id, parent_submission_id, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                parent_task_id, parent_submission_id, created_at, project_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 task_id,
@@ -52,6 +53,7 @@ def enqueue_child_tasks(
                 parent_task_id,
                 None,
                 created_at,
+                project_id,
             ),
         )
         task_ids.append(task_id)
@@ -64,6 +66,7 @@ def enqueue_child_tasks(
                 "task_type": task_type,
                 "trigger": trigger,
                 "parent_task_id": parent_task_id,
+                "project_id": project_id,
             },
         )
     return task_ids

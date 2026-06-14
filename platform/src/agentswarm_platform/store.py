@@ -28,6 +28,16 @@ from agentswarm_platform.moderation_store import (
     is_agent_quarantined,
     list_moderation_flags,
 )
+from agentswarm_platform.project_store import (
+    DEFAULT_PROJECT_ID,
+    agent_project_ids,
+    create_project as create_project_row,
+    ensure_projects_schema,
+    get_project,
+    join_agent_to_project,
+    list_projects,
+    validate_project_id,
+)
 from agentswarm_platform.orchestration import enqueue_child_tasks
 from agentswarm_platform.canary_store import ensure_canary_schema, evaluate_canary, get_canary_stats
 from agentswarm_platform.replication import (
@@ -160,6 +170,14 @@ class Store:
             conn.execute("ALTER TABLE agents ADD COLUMN resource_budget TEXT")
         if "egress_allowlist" not in columns:
             conn.execute("ALTER TABLE agents ADD COLUMN egress_allowlist TEXT")
+        task_columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
+        }
+        if "project_id" not in task_columns:
+            conn.execute(
+                "ALTER TABLE tasks ADD COLUMN project_id TEXT NOT NULL DEFAULT 'default'"
+            )
+        ensure_projects_schema(conn)
         ensure_credibility_schema(conn)
         ensure_replication_schema(conn)
         ensure_canary_schema(conn)
@@ -246,6 +264,7 @@ class Store:
         owner_id: str | None = None,
         resource_budget: dict[str, int] | None = None,
         egress_allowlist: list[str] | None = None,
+        project_ids: list[str] | None = None,
     ) -> AgentRegisterResponse:
         credential = secrets.token_urlsafe(24)
         budget_json = json.dumps(resource_budget) if resource_budget is not None else None
@@ -285,6 +304,8 @@ class Store:
                     },
                 )
                 seed_agent_capabilities(conn, agent_id, capabilities)
+                if project_ids is not None:
+                    self._join_agent_projects(conn, agent_id, project_ids)
                 return AgentRegisterResponse(agent_id=agent_id, credential=credential)
 
             agent_id = f"agent_{uuid.uuid4().hex[:12]}"
@@ -319,7 +340,49 @@ class Store:
                 },
             )
             seed_agent_capabilities(conn, agent_id, capabilities)
+            self._join_agent_projects(conn, agent_id, project_ids)
         return AgentRegisterResponse(agent_id=agent_id, credential=credential)
+
+    def _join_agent_projects(
+        self,
+        conn: sqlite3.Connection,
+        agent_id: str,
+        project_ids: list[str] | None,
+    ) -> None:
+        if project_ids is None:
+            targets = {DEFAULT_PROJECT_ID}
+        else:
+            targets = {validate_project_id(raw_id) for raw_id in project_ids}
+            if not targets:
+                targets = {DEFAULT_PROJECT_ID}
+        for project_id in targets:
+            join_agent_to_project(conn, agent_id, project_id)
+
+    def create_project(
+        self,
+        *,
+        name: str,
+        description: str | None = None,
+        project_id: str | None = None,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        with self._conn() as conn:
+            return create_project_row(
+                conn,
+                name=name,
+                description=description,
+                project_id=project_id,
+                append_audit=self._append_audit,
+                actor_id=actor_id,
+            )
+
+    def list_projects(self) -> list[dict[str, Any]]:
+        with self._conn() as conn:
+            return list_projects(conn)
+
+    def get_project(self, project_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            return get_project(conn, validate_project_id(project_id))
 
     def get_agent(self, agent_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
@@ -428,7 +491,12 @@ class Store:
         payload: dict[str, Any],
         parent_task_id: str | None = None,
         parent_submission_id: str | None = None,
+        project_id: str | None = None,
     ) -> TaskEnvelope:
+        resolved_project = validate_project_id(project_id or DEFAULT_PROJECT_ID)
+        with self._conn() as conn:
+            if get_project(conn, resolved_project) is None:
+                raise ValueError(f"unknown project: {resolved_project}")
         replication = parse_replication_config(task_type, payload)
         if replication is not None:
             return self._create_replication_tasks(
@@ -436,6 +504,7 @@ class Store:
                 capability_required=capability_required,
                 payload=payload,
                 config=replication,
+                project_id=resolved_project,
             )
         task_id = f"task_{uuid.uuid4().hex[:12]}"
         created_at = utc_now_iso()
@@ -444,8 +513,8 @@ class Store:
                 """
                 INSERT INTO tasks (
                     task_id, task_type, capability_required, status, payload,
-                    parent_task_id, parent_submission_id, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    parent_task_id, parent_submission_id, created_at, project_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     task_id,
@@ -456,6 +525,7 @@ class Store:
                     parent_task_id,
                     parent_submission_id,
                     created_at,
+                    resolved_project,
                 ),
             )
             self._append_audit(
@@ -466,6 +536,7 @@ class Store:
                     "task_id": task_id,
                     "task_type": task_type,
                     "capability_required": capability_required,
+                    "project_id": resolved_project,
                 },
             )
         return TaskEnvelope(
@@ -476,6 +547,7 @@ class Store:
             payload=payload,
             created_at=created_at,
             parent_task_id=parent_task_id,
+            project_id=resolved_project,
         )
 
     def _create_replication_tasks(
@@ -485,6 +557,7 @@ class Store:
         capability_required: str,
         payload: dict[str, Any],
         config: ReplicationConfig,
+        project_id: str = DEFAULT_PROJECT_ID,
     ) -> TaskEnvelope:
         group_id = f"repl_{uuid.uuid4().hex[:12]}"
         created_at = utc_now_iso()
@@ -521,8 +594,8 @@ class Store:
                     INSERT INTO tasks (
                         task_id, task_type, capability_required, status, payload,
                         parent_task_id, parent_submission_id, created_at,
-                        replication_group_id, replication_slot
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        replication_group_id, replication_slot, project_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         task_id,
@@ -535,6 +608,7 @@ class Store:
                         created_at,
                         group_id,
                         slot,
+                        project_id,
                     ),
                 )
                 envelope = TaskEnvelope(
@@ -544,6 +618,7 @@ class Store:
                     status=TaskStatus.CREATED,
                     payload=slot_payload,
                     created_at=created_at,
+                    project_id=project_id,
                 )
                 if slot == 0:
                     first_envelope = envelope
@@ -568,6 +643,7 @@ class Store:
         capabilities = set(agent["capabilities"])
         tasks: list[TaskEnvelope] = []
         with self._conn() as conn:
+            memberships = agent_project_ids(conn, agent_id)
             rows = conn.execute(
                 """
                 SELECT * FROM tasks
@@ -583,6 +659,13 @@ class Store:
                 if cap not in capabilities:
                     continue
                 keys = row.keys()
+                task_project = (
+                    row["project_id"]
+                    if "project_id" in keys and row["project_id"]
+                    else DEFAULT_PROJECT_ID
+                )
+                if task_project not in memberships:
+                    continue
                 group_id = row["replication_group_id"] if "replication_group_id" in keys else None
                 if group_id:
                     group = conn.execute(
@@ -798,12 +881,13 @@ class Store:
             "parent_task_id": parent_task_id,
             "result_summary": result_summary,
         }
+        project_id = self._project_id_for_task(conn, parent_task_id)
         conn.execute(
             """
             INSERT INTO tasks (
                 task_id, task_type, capability_required, status, payload,
-                parent_task_id, parent_submission_id, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                parent_task_id, parent_submission_id, created_at, project_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 tester_task_id,
@@ -814,6 +898,7 @@ class Store:
                 parent_task_id,
                 parent_submission_id,
                 created_at,
+                project_id,
             ),
         )
         self._append_audit(
@@ -845,12 +930,13 @@ class Store:
             "tester_task_id": tester_task_id,
             "test_result": test_result,
         }
+        project_id = self._project_id_for_task(conn, parent_task_id)
         conn.execute(
             """
             INSERT INTO tasks (
                 task_id, task_type, capability_required, status, payload,
-                parent_task_id, parent_submission_id, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                parent_task_id, parent_submission_id, created_at, project_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 reviewer_task_id,
@@ -861,6 +947,7 @@ class Store:
                 parent_task_id,
                 parent_submission_id,
                 created_at,
+                project_id,
             ),
         )
         self._append_audit(
@@ -1241,6 +1328,7 @@ class Store:
                 specs=enqueue_specs,
                 trigger="planner.plan",
                 append_audit=self._append_audit,
+                project_id=self._project_id_for_task(conn, row["task_id"]),
             )
             self._append_audit(
                 conn,
@@ -1308,6 +1396,7 @@ class Store:
                     specs=enqueue_specs,
                     trigger="orchestrator.scan",
                     append_audit=self._append_audit,
+                    project_id=self._project_id_for_task(conn, row["task_id"]),
                 )
             self._append_audit(
                 conn,
@@ -1520,6 +1609,12 @@ class Store:
         return events
 
     def _row_to_task(self, row: sqlite3.Row) -> TaskEnvelope:
+        keys = row.keys()
+        project_id = (
+            row["project_id"]
+            if "project_id" in keys and row["project_id"]
+            else DEFAULT_PROJECT_ID
+        )
         return TaskEnvelope(
             task_id=row["task_id"],
             task_type=row["task_type"],
@@ -1528,7 +1623,23 @@ class Store:
             payload=json.loads(row["payload"]),
             created_at=row["created_at"],
             parent_task_id=row["parent_task_id"],
+            project_id=project_id,
         )
+
+    def _project_id_for_task(
+        self, conn: sqlite3.Connection, task_id: str | None
+    ) -> str:
+        if not task_id:
+            return DEFAULT_PROJECT_ID
+        row = conn.execute(
+            "SELECT project_id FROM tasks WHERE task_id = ?", (task_id,)
+        ).fetchone()
+        if row is None:
+            return DEFAULT_PROJECT_ID
+        keys = row.keys()
+        if "project_id" not in keys or not row["project_id"]:
+            return DEFAULT_PROJECT_ID
+        return row["project_id"]
 
     def _row_to_verification(self, row: sqlite3.Row) -> VerificationEnvelope:
         return VerificationEnvelope(

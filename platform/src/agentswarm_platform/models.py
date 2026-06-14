@@ -28,6 +28,7 @@ class AgentRegisterRequest(BaseModel):
     version_signature: str = "phase0-v1"
     resource_budget: dict[str, int] | None = None
     egress_allowlist: list[str] | None = None
+    project_ids: list[str] | None = None
 
 
 class AgentBudgetUsage(BaseModel):
@@ -53,6 +54,20 @@ class TaskCreateRequest(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
     parent_task_id: str | None = None
     parent_submission_id: str | None = None
+    project_id: str | None = None
+
+
+class ProjectCreateRequest(BaseModel):
+    project_id: str | None = None
+    name: str
+    description: str | None = None
+
+
+class ProjectEnvelope(BaseModel):
+    project_id: str
+    name: str
+    description: str | None = None
+    created_at: str
 
 
 class TaskEnvelope(BaseModel):
@@ -63,6 +78,7 @@ class TaskEnvelope(BaseModel):
     payload: dict[str, Any]
     created_at: str
     parent_task_id: str | None = None
+    project_id: str = "default"
 
 
 class ClaimRequest(BaseModel):

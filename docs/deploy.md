@@ -140,8 +140,10 @@ The pilot is static HTML under `pilot/news-hub/`. Deploy separately from the API
 A workflow at `.github/workflows/pages.yml` publishes `pilot/news-hub/` on push to `main`.
 
 1. Enable **GitHub Pages** in repo Settings → Pages → Source: **GitHub Actions**.
-2. Push to `main`; the workflow uploads `pilot/news-hub` as the site artifact.
-3. Record the Pages URL in [deploy.md](deploy.md) checklist.
+2. Push to `main` (or run the **Deploy pilot site** workflow manually).
+3. Record the Pages URL in the checklist below.
+
+**If the workflow fails with `Create Pages site failed` / `Resource not accessible by integration`:** a repository admin must enable Pages once in Settings → Pages (GitHub Actions source). The workflow's `enablement: true` flag cannot create the site without that permission.
 
 Example workflow (already in repo):
 

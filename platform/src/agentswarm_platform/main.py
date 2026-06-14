@@ -29,6 +29,8 @@ from agentswarm_platform.models import (
     ClaimRequest,
     ClaimResponse,
     ReplicationGroupStatus,
+    ProjectCreateRequest,
+    ProjectEnvelope,
     SubmitRequest,
     SubmitResponse,
     TaskCreateRequest,
@@ -65,6 +67,36 @@ def list_capabilities() -> dict:
     from agentswarm_platform.capabilities import load_capability_registry
 
     return load_capability_registry()
+
+
+@app.get("/projects", response_model=list[ProjectEnvelope])
+def list_projects() -> list[ProjectEnvelope]:
+    return [ProjectEnvelope(**project) for project in store.list_projects()]
+
+
+@app.post("/projects", response_model=ProjectEnvelope)
+def create_project(
+    body: ProjectCreateRequest,
+    owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> ProjectEnvelope:
+    try:
+        project = store.create_project(
+            name=body.name,
+            description=body.description,
+            project_id=body.project_id,
+            actor_id=None if owner.via_bootstrap else owner.owner_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ProjectEnvelope(**project)
+
+
+@app.get("/projects/{project_id}", response_model=ProjectEnvelope)
+def get_project(project_id: str) -> ProjectEnvelope:
+    project = store.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return ProjectEnvelope(**project)
 
 
 @app.get("/moderation/flags")
@@ -144,6 +176,7 @@ def register_agent(
         owner_id=None if owner.via_bootstrap and owner.github_login == "bootstrap" else owner.owner_id,
         resource_budget=resource_budget,
         egress_allowlist=egress_allowlist,
+        project_ids=body.project_ids,
     )
 
 
@@ -203,13 +236,17 @@ def create_task(
     body: TaskCreateRequest,
     _owner: Annotated[OwnerAuth, Depends(get_owner)],
 ) -> TaskEnvelope:
-    return store.create_task(
-        task_type=body.task_type,
-        capability_required=body.capability_required,
-        payload=body.payload,
-        parent_task_id=body.parent_task_id,
-        parent_submission_id=body.parent_submission_id,
-    )
+    try:
+        return store.create_task(
+            task_type=body.task_type,
+            capability_required=body.capability_required,
+            payload=body.payload,
+            parent_task_id=body.parent_task_id,
+            parent_submission_id=body.parent_submission_id,
+            project_id=body.project_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/tasks/poll", response_model=list[TaskEnvelope])

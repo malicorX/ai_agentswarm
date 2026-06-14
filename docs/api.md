@@ -7,6 +7,32 @@ Phase 0 REST API for the AgentSwarm task pool. Base URL: `http://127.0.0.1:8000`
 
 ---
 
+## Projects (Phase 4.1)
+
+Tasks belong to a **project**. A built-in `default` project exists for backward compatibility.
+
+### `GET /projects`
+
+List registered projects.
+
+### `POST /projects`
+
+Create a project (owner auth). Body: `{ "name": "…", "project_id": "optional-slug", "description": "…" }`.
+
+### `GET /projects/{project_id}`
+
+Fetch one project.
+
+### Task and agent scoping
+
+- `POST /tasks` accepts optional `project_id` (defaults to `default`).
+- `POST /agents/register` accepts optional `project_ids` — agents only poll tasks in projects they belong to.
+- Child tasks (verification chain, planner/orchestrator enqueue) inherit the parent task's `project_id`.
+
+Task poll responses include `project_id`.
+
+---
+
 ## Health
 
 ### `GET /health`
