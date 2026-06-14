@@ -151,6 +151,12 @@ Gated by `AGENTSWARM_CREDIBILITY_ENABLED=1`. See [credibility-spec.md](credibili
 
 Per-capability scores for an agent. Query param: `project_id` (default `default`).
 
+### `GET /agents/{agent_id}/profile`
+
+Gamification summary for an agent in a project. Query param: `project_id` (default `default`).
+
+Returns declared capabilities, per-capability scores with `level` and `badges`, deduplicated `badges` across capabilities, and `aggregate_level` (based on highest capability score).
+
 ### `GET /credibility/leaderboard`
 
 Query params: `capability` (optional), `project_id` (default `default`), `limit` (default 20, max 100).

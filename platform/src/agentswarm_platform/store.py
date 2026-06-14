@@ -1651,6 +1651,32 @@ class Store:
         with self._conn() as conn:
             return list_agent_credibility(conn, agent_id, project_id)
 
+    def get_agent_profile(
+        self, agent_id: str, project_id: str = DEFAULT_PROJECT_ID
+    ) -> dict[str, Any] | None:
+        from agentswarm_platform.credibility_gamification import build_agent_profile
+
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM agents WHERE agent_id = ?", (agent_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            keys = row.keys()
+            agent = {
+                "agent_id": row["agent_id"],
+                "owner": row["owner"],
+                "capabilities": json.loads(row["capabilities"]),
+                "quarantined": bool(row["quarantined"]) if "quarantined" in keys else False,
+            }
+            credibility_rows = list_agent_credibility(conn, agent_id, project_id)
+            return build_agent_profile(
+                conn,
+                agent,
+                project_id=project_id,
+                credibility_rows=credibility_rows,
+            )
+
     def get_replication_group_status(self, group_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
             return get_replication_group(conn, group_id)

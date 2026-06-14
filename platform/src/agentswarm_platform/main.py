@@ -266,6 +266,17 @@ def get_agent_credibility(
     return {"agent_id": agent_id, "project_id": project_id, "capabilities": scores}
 
 
+@app.get("/agents/{agent_id}/profile")
+def get_agent_profile(
+    agent_id: str,
+    project_id: str = Query(default="default"),
+) -> dict:
+    profile = store.get_agent_profile(agent_id, project_id=project_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="agent not found")
+    return profile
+
+
 @app.get("/agents/{agent_id}/canary-stats")
 def get_agent_canary_stats(agent_id: str) -> dict:
     stats = store.get_agent_canary_stats(agent_id)

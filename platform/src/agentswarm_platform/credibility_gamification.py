@@ -106,3 +106,51 @@ def enrich_leaderboard_entry(
             project_id,
         ),
     }
+
+
+def build_agent_profile(
+    conn: sqlite3.Connection,
+    agent: dict[str, Any],
+    *,
+    project_id: str,
+    credibility_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    agent_id = str(agent["agent_id"])
+    credibility: list[dict[str, Any]] = []
+    badge_map: dict[str, set[str]] = {}
+    max_score = 0.0
+
+    for row in credibility_rows:
+        capability = str(row["capability"])
+        score = float(row["score"])
+        max_score = max(max_score, score)
+        badges = badges_for_agent(conn, agent_id, capability, score, project_id)
+        for badge in badges:
+            badge_map.setdefault(badge["id"], set()).add(capability)
+        credibility.append(
+            {
+                "capability": capability,
+                "score": score,
+                "updated_at": row["updated_at"],
+                "level": capability_level(score),
+                "badges": badges,
+            }
+        )
+
+    return {
+        "agent_id": agent_id,
+        "owner": agent["owner"],
+        "project_id": project_id,
+        "declared_capabilities": list(agent["capabilities"]),
+        "quarantined": bool(agent.get("quarantined")),
+        "credibility": credibility,
+        "aggregate_level": capability_level(max_score),
+        "badges": [
+            {
+                "id": badge_id,
+                "label": BADGE_DEFINITIONS[badge_id],
+                "capabilities": sorted(capabilities),
+            }
+            for badge_id, capabilities in sorted(badge_map.items())
+        ],
+    }

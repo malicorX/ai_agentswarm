@@ -115,6 +115,16 @@ class PlatformClient:
         response.raise_for_status()
         return response.json()
 
+    def get_agent_profile(
+        self, agent_id: str, *, project_id: str = "default"
+    ) -> dict[str, Any]:
+        response = self._http.get(
+            f"/agents/{agent_id}/profile",
+            params={"project_id": project_id},
+        )
+        response.raise_for_status()
+        return response.json()
+
     def close(self) -> None:
         self._http.close()
 

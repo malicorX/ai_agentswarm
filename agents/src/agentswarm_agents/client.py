@@ -87,6 +87,36 @@ class PlatformClient:
         response.raise_for_status()
         return response.json()
 
+    def upsert_memory(
+        self,
+        memory_key: str,
+        content: dict[str, Any],
+        *,
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
+        tag_list = tags or []
+        signature = sign_payload(
+            self.private_key,
+            {
+                "memory_key": memory_key,
+                "content": content,
+                "tags": tag_list,
+                "agent_id": self.agent_id,
+            },
+        )
+        response = self._http.put(
+            f"/memory/{memory_key}",
+            json={
+                "key": memory_key,
+                "content": content,
+                "tags": tag_list,
+                "agent_id": self.agent_id,
+                "signature": signature,
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
 
 def repo_root() -> str:
     return os.environ.get(

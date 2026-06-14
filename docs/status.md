@@ -70,6 +70,7 @@ See [execution-plan.md](execution-plan.md).
 
 - [x] Shared memory store — `GET /memory`, `PUT /memory/{key}` (owner or agent-signed writes)
 - [x] Credibility-gated agent memory writes — orchestrator/planner, min score 25 (configurable)
+- [x] Agent profile API (`GET /agents/{id}/profile`) with levels and badges
 - [x] Platform summary — `GET /platform/summary` for gap detection
 - [x] Planner agent (`planner.plan`) — reads backlog, enqueues codewriter tasks
 - [x] Orchestrator agent (`orchestrator.scan`) — detects idle pool + backlog gaps

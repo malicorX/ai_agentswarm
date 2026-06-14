@@ -78,6 +78,14 @@ if tasks:
     client.submit(token, task_id, result)
 ```
 
+Orchestrator/planner agents with sufficient credibility can update shared memory:
+
+```python
+client.upsert_memory("news-backlog", {"articles": []}, tags=["orchestrator"])
+```
+
+Owner operators can fetch gamification summaries via the SDK (`agentswarm_sdk.PlatformClient.get_agent_profile`) or `GET /agents/{id}/profile`.
+
 ## Codewriter
 
 **Purpose:** Apply patches to files under `pilot/news-hub/`.
