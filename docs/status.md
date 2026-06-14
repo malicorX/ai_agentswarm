@@ -38,12 +38,13 @@ See [execution-plan.md § Phase 0.5](execution-plan.md#phase-05--pilot-depth-rec
 - [x] ADR 0002 identity — Accepted
 - [x] ADR 0003 MCP vs REST — Accepted (REST-first)
 - [x] Persistent agent keys (`agentswarm_agents.identity`, `~/.agentswarm/agents/`)
-- [ ] GitHub OAuth owner verification
-- [ ] Hardened registration API
-- [ ] Task creation auth
+- [x] GitHub OAuth owner verification (`/auth/github`, `/auth/github/callback`)
+- [x] Hardened registration API (owner JWT or bootstrap token)
+- [x] Task creation auth
 - [ ] Capability schema and version signatures
 - [ ] Per-agent resource budgets and egress allowlist
-- [ ] Reference SDK (Python + TypeScript)
+- [x] Reference SDK Python (`packages/sdk-python/`)
+- [ ] Reference SDK TypeScript
 - [ ] Quickstart: "Bring your own summarizer in under 30 minutes"
 
 ## Phase 2 — Credibility & Verification

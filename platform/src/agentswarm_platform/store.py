@@ -97,6 +97,62 @@ class Store:
                 );
                 """
             )
+            self._migrate_schema(conn)
+
+    def _migrate_schema(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS owners (
+                owner_id TEXT PRIMARY KEY,
+                github_user_id TEXT NOT NULL UNIQUE,
+                github_login TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            """
+        )
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(agents)").fetchall()
+        }
+        if "owner_id" not in columns:
+            conn.execute("ALTER TABLE agents ADD COLUMN owner_id TEXT")
+
+    def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
+        from agentswarm_platform.auth import new_owner_id
+
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM owners WHERE github_user_id = ?", (github_user_id,)
+            ).fetchone()
+            if row is not None:
+                conn.execute(
+                    "UPDATE owners SET github_login = ? WHERE owner_id = ?",
+                    (github_login, row["owner_id"]),
+                )
+                return {
+                    "owner_id": row["owner_id"],
+                    "github_user_id": github_user_id,
+                    "github_login": github_login,
+                }
+            owner_id = new_owner_id()
+            created_at = utc_now_iso()
+            conn.execute(
+                """
+                INSERT INTO owners (owner_id, github_user_id, github_login, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (owner_id, github_user_id, github_login, created_at),
+            )
+            self._append_audit(
+                conn,
+                "owner.registered",
+                owner_id,
+                {"github_user_id": github_user_id, "github_login": github_login},
+            )
+            return {
+                "owner_id": owner_id,
+                "github_user_id": github_user_id,
+                "github_login": github_login,
+            }
 
     def _append_audit(
         self,
@@ -136,6 +192,8 @@ class Store:
         owner: str,
         capabilities: list[str],
         version_signature: str,
+        *,
+        owner_id: str | None = None,
     ) -> AgentRegisterResponse:
         credential = secrets.token_urlsafe(24)
         with self._conn() as conn:
@@ -147,11 +205,12 @@ class Store:
                 conn.execute(
                     """
                     UPDATE agents
-                    SET owner = ?, capabilities = ?, version_signature = ?
+                    SET owner = ?, owner_id = ?, capabilities = ?, version_signature = ?
                     WHERE agent_id = ?
                     """,
                     (
                         owner,
+                        owner_id,
                         json.dumps(capabilities),
                         version_signature,
                         agent_id,
@@ -161,20 +220,28 @@ class Store:
                     conn,
                     "agent.reconnected",
                     agent_id,
-                    {"owner": owner, "capabilities": capabilities},
+                    {
+                        "owner": owner,
+                        "owner_id": owner_id,
+                        "capabilities": capabilities,
+                    },
                 )
                 return AgentRegisterResponse(agent_id=agent_id, credential=credential)
 
             agent_id = f"agent_{uuid.uuid4().hex[:12]}"
             conn.execute(
                 """
-                INSERT INTO agents (agent_id, public_key, owner, capabilities, version_signature, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO agents (
+                    agent_id, public_key, owner, owner_id, capabilities,
+                    version_signature, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     agent_id,
                     public_key,
                     owner,
+                    owner_id,
                     json.dumps(capabilities),
                     version_signature,
                     utc_now_iso(),
@@ -184,7 +251,11 @@ class Store:
                 conn,
                 "agent.registered",
                 agent_id,
-                {"owner": owner, "capabilities": capabilities},
+                {
+                    "owner": owner,
+                    "owner_id": owner_id,
+                    "capabilities": capabilities,
+                },
             )
         return AgentRegisterResponse(agent_id=agent_id, credential=credential)
 
@@ -195,10 +266,12 @@ class Store:
             ).fetchone()
         if row is None:
             return None
+        keys = row.keys()
         return {
             "agent_id": row["agent_id"],
             "public_key": row["public_key"],
             "owner": row["owner"],
+            "owner_id": row["owner_id"] if "owner_id" in keys else None,
             "capabilities": json.loads(row["capabilities"]),
             "version_signature": row["version_signature"],
         }

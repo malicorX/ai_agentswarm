@@ -12,6 +12,8 @@ from typing import Any
 
 import httpx
 
+from agentswarm_agents.owner_auth import owner_auth_headers
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Enqueue AgentSwarm tasks")
@@ -60,7 +62,12 @@ def main() -> None:
             },
         }
 
-    response = httpx.post(f"{base_url.rstrip('/')}/tasks", json=body, timeout=30.0)
+    response = httpx.post(
+        f"{base_url.rstrip('/')}/tasks",
+        json=body,
+        headers=owner_auth_headers(),
+        timeout=30.0,
+    )
     response.raise_for_status()
     print(json.dumps(response.json(), indent=2))
 

@@ -127,11 +127,11 @@ Packages are **sequential within a phase** unless marked parallel. Do not skip a
 | P1.0 | ADR 0002 — Identity model | ✅ Accepted | P0.9 |
 | P1.1 | ADR 0003 — MCP vs REST spike | ✅ Accepted | P0.9 |
 | P1.2 | Persistent agent key storage | ✅ Done | P1.0 |
-| P1.3 | GitHub OAuth owner verification | 🔲 | P1.0 |
-| P1.4 | Hardened registration API | 🔲 | P1.2, P1.3 |
-| P1.5 | Task creation auth | 🔲 | P1.4 |
+| P1.3 | GitHub OAuth owner verification | ✅ Done | P1.0 |
+| P1.4 | Hardened registration API | ✅ Done | P1.2, P1.3 |
+| P1.5 | Task creation auth | ✅ Done | P1.4 |
 | P1.6 | Capability schema + version signatures | 🔲 | P1.4 |
-| P1.7 | Python SDK (`packages/sdk-python/`) | 🔲 | P1.1, P1.4 |
+| P1.7 | Python SDK (`packages/sdk-python/`) | ✅ Done | P1.1, P1.4 |
 | P1.8 | TypeScript SDK | 🔲 | P1.7, ADR 0003 |
 | P1.9 | Quickstart doc + external machine test | 🔲 | P1.7 |
 | P1.10 | Resource budgets + egress allowlist (minimal) | 🔲 | P1.4 |
@@ -244,9 +244,8 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P0.8 demo_phase0.sh
 →  P0.7  Deploy (enable GitHub Pages + optional VPS)
 →  P0.9  Tag v0.1.0-phase0
-→  P1.3  GitHub OAuth owner verification
-→  P1.5  Task creation auth
-→  P1.7  Python SDK (`packages/sdk-python/`)
+→  P1.8  TypeScript SDK
+→  P1.6  Capability schema
 ```
 
 **Recommended order for solo developer:**

@@ -16,6 +16,7 @@ pip install -q -e "./platform[dev]" -e "./agents" pytest
 export AGENTSWARM_REPO_ROOT="$ROOT"
 export AGENTSWARM_DB="$ROOT/platform/data/demo.db"
 export AGENTSWARM_PLATFORM_URL="${AGENTSWARM_PLATFORM_URL:-http://127.0.0.1:8000}"
+export AGENTSWARM_AUTH_DISABLED=1
 
 rm -f "$AGENTSWARM_DB"
 

@@ -14,6 +14,7 @@ pip install -q -e "./platform[dev]" -e "./agents" pytest
 $env:AGENTSWARM_REPO_ROOT = $RepoRoot
 $env:AGENTSWARM_DB = Join-Path $RepoRoot "platform\data\demo.db"
 $env:AGENTSWARM_PLATFORM_URL = "http://127.0.0.1:8000"
+$env:AGENTSWARM_AUTH_DISABLED = "1"
 
 if (Test-Path $env:AGENTSWARM_DB) { Remove-Item $env:AGENTSWARM_DB -Force }
 

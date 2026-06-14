@@ -12,6 +12,7 @@ import httpx
 from agentswarm_platform.crypto import generate_keypair, public_key_b64
 
 from agentswarm_agents.client import PlatformClient, platform_url
+from agentswarm_agents.owner_auth import owner_auth_headers
 
 
 @dataclass
@@ -96,6 +97,7 @@ def connect_agent(
             "owner": owner,
             "capabilities": capabilities,
         },
+        headers=owner_auth_headers(),
         timeout=30.0,
     )
     response.raise_for_status()

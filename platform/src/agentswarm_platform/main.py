@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 
+from agentswarm_platform.auth import OwnerAuth, resolve_owner_auth
+from agentswarm_platform.deps import bind_store
 from agentswarm_platform.models import (
     AgentRegisterRequest,
     AgentRegisterResponse,
@@ -19,16 +22,27 @@ from agentswarm_platform.models import (
     VerificationEnvelope,
     VerifyRequest,
 )
+from agentswarm_platform.oauth import router as auth_router
 from agentswarm_platform.store import Store
 
 DB_PATH = Path(os.environ.get("AGENTSWARM_DB", "platform/data/agentswarm.db"))
 store = Store(DB_PATH)
+bind_store(store)
 
 app = FastAPI(
     title="AgentSwarm Task Pool",
     version="0.1.0",
     description="Phase 0 pull-based task pool per ROADMAP.md §6.2",
 )
+
+app.include_router(auth_router)
+
+
+def get_owner(
+    authorization: Annotated[str | None, Header()] = None,
+    x_bootstrap_token: Annotated[str | None, Header()] = None,
+) -> OwnerAuth:
+    return resolve_owner_auth(authorization, x_bootstrap_token)
 
 
 @app.get("/health")
@@ -37,12 +51,19 @@ def health() -> dict[str, str]:
 
 
 @app.post("/agents/register", response_model=AgentRegisterResponse)
-def register_agent(body: AgentRegisterRequest) -> AgentRegisterResponse:
+def register_agent(
+    body: AgentRegisterRequest,
+    owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> AgentRegisterResponse:
+    owner_label = owner.github_login
+    if not owner.via_bootstrap and body.owner and body.owner != owner.github_login:
+        raise HTTPException(status_code=400, detail="owner field must match authenticated login")
     return store.register_agent(
         public_key=body.public_key,
-        owner=body.owner,
+        owner=owner_label,
         capabilities=body.capabilities,
         version_signature=body.version_signature,
+        owner_id=None if owner.via_bootstrap and owner.github_login == "bootstrap" else owner.owner_id,
     )
 
 
@@ -55,7 +76,10 @@ def get_agent(agent_id: str) -> dict:
 
 
 @app.post("/tasks", response_model=TaskEnvelope)
-def create_task(body: TaskCreateRequest) -> TaskEnvelope:
+def create_task(
+    body: TaskCreateRequest,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> TaskEnvelope:
     return store.create_task(
         task_type=body.task_type,
         capability_required=body.capability_required,

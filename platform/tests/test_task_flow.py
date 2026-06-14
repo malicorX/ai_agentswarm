@@ -12,6 +12,7 @@ from agentswarm_platform.store import Store
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    monkeypatch.setenv("AGENTSWARM_AUTH_DISABLED", "1")
     with tempfile.TemporaryDirectory() as tmp:
         db_path = Path(tmp) / "test.db"
         monkeypatch.setenv("AGENTSWARM_DB", str(db_path))
