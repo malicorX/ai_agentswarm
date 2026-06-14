@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import json
 import time
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from agentswarm_platform.crypto import generate_keypair
 
 from agentswarm_agents.client import PlatformClient, pilot_dir, platform_url
+
+REQUIRED_ARTICLE_FIELDS = ("id", "title", "summary", "url", "source", "published_at")
 
 
 def apply_patch(payload: dict) -> dict:
@@ -24,15 +29,62 @@ def apply_patch(payload: dict) -> dict:
     return {"file": rel_path, "applied": True, "bytes_written": len(new_content)}
 
 
+def validate_article(article: dict[str, Any]) -> None:
+    for field in REQUIRED_ARTICLE_FIELDS:
+        if field not in article or not str(article[field]).strip():
+            raise ValueError(f"article missing required field: {field}")
+    if not isinstance(article.get("topics", []), list):
+        raise ValueError("article.topics must be a list")
+
+
+def add_article(payload: dict) -> dict:
+    article = payload.get("article")
+    if not isinstance(article, dict):
+        raise ValueError("payload.article must be an object")
+    validate_article(article)
+    if "topics" not in article:
+        article = {**article, "topics": []}
+
+    data_path = Path(pilot_dir()) / "data" / "articles.json"
+    if data_path.exists():
+        data = json.loads(data_path.read_text(encoding="utf-8"))
+    else:
+        data = {"articles": []}
+
+    articles: list[dict[str, Any]] = data.get("articles", [])
+    if any(a.get("id") == article["id"] for a in articles):
+        raise ValueError(f"duplicate article id: {article['id']}")
+
+    articles.append(article)
+    data["articles"] = articles
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+    data_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return {
+        "article_id": article["id"],
+        "applied": True,
+        "article_count": len(articles),
+    }
+
+
+def execute_task(task: dict) -> dict:
+    task_type = task["task_type"]
+    payload = task["payload"]
+    if task_type == "codewriter.patch":
+        return apply_patch(payload)
+    if task_type == "codewriter.add-article":
+        return add_article(payload)
+    raise ValueError(f"unsupported task type: {task_type}")
+
+
 def run_once(client: PlatformClient) -> bool:
     tasks = client.poll_tasks(capability="codewriter")
     if not tasks:
         return False
     task = tasks[0]
     claim_token = client.claim(task["task_id"])
-    result = apply_patch(task["payload"])
+    result = execute_task(task)
     client.submit(claim_token, task["task_id"], result)
-    print(f"codewriter: completed {task['task_id']}")
+    print(f"codewriter: completed {task['task_id']} ({task['task_type']})")
     return True
 
 

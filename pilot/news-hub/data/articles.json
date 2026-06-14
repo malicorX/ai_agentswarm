@@ -1,0 +1,22 @@
+{
+  "articles": [
+    {
+      "id": "agentswarm-phase0",
+      "title": "AgentSwarm Phase 0 ships pull-based task pool",
+      "summary": "A closed swarm of codewriter, tester, and reviewer agents coordinates work through a signed REST task API.",
+      "url": "https://github.com/malicorX/ai_agentswarm",
+      "source": "AgentSwarm",
+      "published_at": "2026-06-13T12:00:00+00:00",
+      "topics": ["agents", "open-source"]
+    },
+    {
+      "id": "volunteer-compute-analogy",
+      "title": "Why volunteer compute matters for agent swarms",
+      "summary": "AgentSwarm models coordination on BOINC-style volunteer compute: lightweight center, heavy edges.",
+      "url": "https://github.com/malicorX/ai_agentswarm/blob/main/ROADMAP.md",
+      "source": "AgentSwarm Roadmap",
+      "published_at": "2026-06-01T09:00:00+00:00",
+      "topics": ["architecture"]
+    }
+  ]
+}

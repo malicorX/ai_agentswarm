@@ -19,5 +19,7 @@ jobs:
           pip install -e "./platform[dev]" -e "./agents" pytest
       - name: Platform tests
         run: python -m pytest -q platform/tests
+      - name: Agent tests
+        run: python -m pytest -q agents/tests
       - name: Pilot site tests
         run: python -m pytest -q pilot/news-hub/tests

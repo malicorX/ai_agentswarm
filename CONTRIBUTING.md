@@ -11,6 +11,7 @@ We are in **Phase 0** — a **closed swarm** with three hand-built reference age
 ## How to contribute now
 
 1. **Read the docs**
+   - [**Execution plan**](docs/execution-plan.md) — what to build next
    - [Getting started](docs/getting-started.md) — run the project locally
    - [Development guide](docs/development.md) — testing, structure, conventions
    - [ROADMAP.md](ROADMAP.md) — product vision
@@ -18,7 +19,7 @@ We are in **Phase 0** — a **closed swarm** with three hand-built reference age
 
 2. **Find or propose work**
    - Check [GitHub Issues](https://github.com/malicorX/ai_agentswarm/issues)
-   - Phase 0 gaps: manual deploy docs, bash demo script, OpenAPI sync automation
+   - Phase 0 gaps: complete [P0.7 deploy](docs/execution-plan.md#p07--deploy-runbook--manual-deploy), accept ADR 0002/0003
    - Stay within [ADR 0001](docs/adr/0001-phase0-scope.md) unless discussing a phase change
 
 3. **Make changes**

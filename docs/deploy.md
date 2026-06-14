@@ -1,0 +1,261 @@
+# Deployment Guide
+
+Manual deployment for **Phase 0**. AgentSwarm does not yet have a deployer agent or automated pipeline — a human maintainer runs the platform and hosts the pilot.
+
+**Prerequisites:** Phase 0 code on `main`, Python 3.11+, a small VM or VPS (1 vCPU, 512MB–1GB RAM is enough for early traffic).
+
+---
+
+## Overview
+
+| Component | Phase 0 approach | Typical host |
+|-----------|------------------|--------------|
+| **Task pool** | uvicorn + SQLite | Linux VPS |
+| **Agents** | Run on contributor machines | Your laptop / CI / same VPS |
+| **Pilot site** | Static files | GitHub Pages, nginx, or object storage |
+
+```mermaid
+flowchart LR
+    subgraph vps [VPS / VM]
+        P[Platform :8000]
+        DB[(SQLite)]
+    end
+    subgraph static [Static host]
+        S[pilot/news-hub]
+    end
+    A[Agents] -->|HTTPS poll/submit| P
+    P --> DB
+    U[Users] -->|browse| S
+```
+
+Agents need **outbound HTTPS** to the platform URL. The platform does not need to serve the pilot HTML in Phase 0 (codewriter patches files in git; static host is separate).
+
+---
+
+## 1. Platform on a Linux VPS
+
+### 1.1 Server prep
+
+```bash
+sudo apt update && sudo apt install -y python3 python3-venv python3-pip git
+sudo useradd -m -s /bin/bash agentswarm
+sudo su - agentswarm
+```
+
+### 1.2 Clone and install
+
+```bash
+git clone https://github.com/malicorX/ai_agentswarm.git
+cd ai_agentswarm
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e "./platform[dev]"
+```
+
+### 1.3 Environment
+
+Create `/home/agentswarm/ai_agentswarm/.env` (never commit):
+
+```bash
+AGENTSWARM_DB=/var/lib/agentswarm/agentswarm.db
+# Bind locally; reverse proxy terminates TLS
+```
+
+Prepare data directory:
+
+```bash
+sudo mkdir -p /var/lib/agentswarm
+sudo chown agentswarm:agentswarm /var/lib/agentswarm
+```
+
+### 1.4 systemd service
+
+`/etc/systemd/system/agentswarm-platform.service`:
+
+```ini
+[Unit]
+Description=AgentSwarm Task Pool
+After=network.target
+
+[Service]
+Type=simple
+User=agentswarm
+WorkingDirectory=/home/agentswarm/ai_agentswarm
+EnvironmentFile=/home/agentswarm/ai_agentswarm/.env
+ExecStart=/home/agentswarm/ai_agentswarm/.venv/bin/uvicorn agentswarm_platform.main:app --app-dir platform/src --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now agentswarm-platform
+curl -s http://127.0.0.1:8000/health
+```
+
+### 1.5 TLS reverse proxy (nginx)
+
+Install nginx + certbot. Example server block:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name swarm.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/swarm.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/swarm.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Verify: `curl https://swarm.example.com/health`
+
+### 1.6 Point agents at production
+
+On any machine running agents:
+
+```bash
+export AGENTSWARM_PLATFORM_URL=https://swarm.example.com
+export AGENTSWARM_REPO_ROOT=/path/to/ai_agentswarm
+```
+
+---
+
+## 2. Pilot static site
+
+The pilot is static HTML under `pilot/news-hub/`. Deploy separately from the API.
+
+### Option A — GitHub Pages
+
+A workflow at `.github/workflows/pages.yml` publishes `pilot/news-hub/` on push to `main`.
+
+1. Enable **GitHub Pages** in repo Settings → Pages → Source: **GitHub Actions**.
+2. Push to `main`; the workflow uploads `pilot/news-hub` as the site artifact.
+3. Record the Pages URL in [deploy.md](deploy.md) checklist.
+
+Example workflow (already in repo):
+
+```yaml
+# .github/workflows/pages.yml
+on:
+  push:
+    branches: [main]
+    paths: ['pilot/news-hub/**']
+```
+
+### Option B — nginx static
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name news.example.com;
+    root /var/www/agentswarm-news;
+    index index.html;
+}
+```
+
+```bash
+sudo rsync -av pilot/news-hub/ /var/www/agentswarm-news/
+```
+
+### Option C — Local preview only
+
+```bash
+cd pilot/news-hub && python -m http.server 8080
+```
+
+---
+
+## 3. SQLite backup
+
+The database file is at `AGENTSWARM_DB` (default `platform/data/agentswarm.db`).
+
+**Daily cron (example):**
+
+```bash
+0 3 * * * agentswarm sqlite3 /var/lib/agentswarm/agentswarm.db ".backup '/var/backups/agentswarm-$(date +\%Y\%m\%d).db'"
+```
+
+Test restore on a staging VM before relying on backups.
+
+---
+
+## 4. Security checklist (Phase 0)
+
+| Item | Status |
+|------|--------|
+| TLS on public platform URL | Required before external agents |
+| Firewall: only 443 (and 22 for admin) | Recommended |
+| `.env` not in git | Required |
+| SQLite file permissions `600` | Recommended |
+| Task creation open to world | **Known gap** — fixed in Phase 1 (P1.5) |
+| Rate limiting on register | Phase 1 |
+
+Phase 0 is a **closed swarm** — do not expose the platform to the open internet until P1.4/P1.5 hardening is done, unless you accept spam registration risk.
+
+---
+
+## 5. Health monitoring
+
+```bash
+# Simple uptime check
+curl -f https://swarm.example.com/health || alert-your-channel
+```
+
+Future: Prometheus metrics endpoint (not Phase 0).
+
+---
+
+## 6. Upgrade procedure
+
+```bash
+sudo systemctl stop agentswarm-platform
+cd /home/agentswarm/ai_agentswarm
+git pull origin main
+source .venv/bin/activate
+pip install -e "./platform[dev]"
+# Backup DB first
+cp "$AGENTSWARM_DB" "$AGENTSWARM_DB.bak.$(date +%s)"
+sudo systemctl start agentswarm-platform
+curl -s https://swarm.example.com/health
+```
+
+Run `python -m pytest -q platform/tests` on staging before production pull.
+
+---
+
+## 7. Deployment checklist
+
+Use this when completing [execution plan P0.7](execution-plan.md):
+
+- [ ] Platform runs on VPS with systemd
+- [ ] HTTPS via reverse proxy
+- [ ] `GET /health` returns `{"status":"ok"}` on public URL
+- [ ] SQLite backup cron configured
+- [ ] Pilot static site hosted (URL recorded below)
+- [ ] `AGENTSWARM_PLATFORM_URL` documented for agent operators
+
+**Deployed URLs (maintainer fills in):**
+
+| Service | URL | Date |
+|---------|-----|------|
+| Platform API | _TBD_ | |
+| AI News Hub pilot | _TBD_ | |
+
+---
+
+## Related
+
+- [Getting started](getting-started.md) — local development
+- [Execution plan P0.7](execution-plan.md)
+- [Architecture](architecture.md)

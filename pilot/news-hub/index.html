@@ -5,10 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI News Hub</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+    body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
     header { border-bottom: 1px solid #ddd; margin-bottom: 1.5rem; padding-bottom: 1rem; }
     h1 { margin: 0; font-size: 1.75rem; }
     .tagline { color: #555; margin-top: 0.25rem; }
+    .feed { list-style: none; padding: 0; margin: 0; }
+    .feed li { border-bottom: 1px solid #eee; padding: 1rem 0; }
+    .feed h2 { font-size: 1.1rem; margin: 0 0 0.35rem; }
+    .feed .meta { font-size: 0.85rem; color: #666; margin-bottom: 0.5rem; }
+    .feed .topics { font-size: 0.8rem; color: #888; }
+    .feed a { color: #0645ad; }
+    #feed-empty { color: #666; font-style: italic; }
   </style>
 </head>
 <body>
@@ -17,9 +24,45 @@
     <p class="tagline">Phase 0 pilot — curated AI news, built by the swarm.</p>
   </header>
   <main>
-    <p>Welcome. This static site is the target codebase for AgentSwarm codewriter tasks.</p>
+    <p>Latest items from the swarm-maintained feed (<code>data/articles.json</code>).</p>
+    <ul id="feed" class="feed" aria-live="polite"></ul>
+    <p id="feed-empty" hidden>No articles yet.</p>
     <!-- agentswarm -->
-<p id="swarm-demo">Patched by AgentSwarm codewriter.</p>
   </main>
+  <script>
+    async function loadFeed() {
+      const list = document.getElementById("feed");
+      const empty = document.getElementById("feed-empty");
+      try {
+        const res = await fetch("data/articles.json");
+        if (!res.ok) throw new Error(res.statusText);
+        const data = await res.json();
+        const articles = (data.articles || []).slice().sort(
+          (a, b) => new Date(b.published_at) - new Date(a.published_at)
+        );
+        list.innerHTML = "";
+        if (articles.length === 0) {
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        for (const item of articles) {
+          const li = document.createElement("li");
+          const topics = (item.topics || []).join(", ");
+          li.innerHTML = `
+            <h2><a href="${item.url}" rel="noopener noreferrer">${item.title}</a></h2>
+            <div class="meta">${item.source} · ${new Date(item.published_at).toLocaleDateString()}</div>
+            <p>${item.summary}</p>
+            ${topics ? `<div class="topics">${topics}</div>` : ""}
+          `;
+          list.appendChild(li);
+        }
+      } catch (err) {
+        empty.textContent = "Could not load feed (serve over HTTP, not file://).";
+        empty.hidden = false;
+      }
+    }
+    loadFeed();
+  </script>
 </body>
 </html>

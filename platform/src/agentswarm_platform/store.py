@@ -355,7 +355,10 @@ class Store:
                 {"task_id": row["task_id"], "submission_id": submission_id},
             )
 
-            if enqueue_followups and row["task_type"] == "codewriter.patch":
+            if enqueue_followups and row["task_type"] in (
+                "codewriter.patch",
+                "codewriter.add-article",
+            ):
                 self._enqueue_verification_chain(
                     conn,
                     parent_task_id=row["task_id"],

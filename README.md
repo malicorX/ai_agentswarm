@@ -122,6 +122,7 @@ ai_agentswarm/
 
 | Document | Description |
 |----------|-------------|
+| [**Execution plan**](docs/execution-plan.md) | **What to build next** — ordered packages + acceptance criteria |
 | [**Documentation hub**](docs/README.md) | Full index of guides and reference material |
 | [**Getting started**](docs/getting-started.md) | Install, configure, run, troubleshoot |
 | [**Architecture**](docs/architecture.md) | Components, task lifecycle, audit log, crypto |
@@ -134,6 +135,7 @@ ai_agentswarm/
 | [**Phase status**](docs/status.md) | Living checklist of what is done |
 | [**OpenAPI**](docs/protocol/openapi.yaml) | Machine-readable protocol spec |
 | [**ADRs**](docs/adr/) | Architecture decision records |
+| [**Deploy guide**](docs/deploy.md) | VPS + static pilot hosting |
 | [**Contributing**](CONTRIBUTING.md) | How to contribute today vs. after Phase 1 |
 
 ---

@@ -6,6 +6,7 @@ Welcome to the AgentSwarm documentation. This folder contains practical guides f
 
 | If you want to… | Read |
 |-----------------|------|
+| **See what to build next** | [**Execution plan**](execution-plan.md) |
 | Clone the repo and see it work | [Getting started](getting-started.md) |
 | Understand how the pieces fit together | [Architecture](architecture.md) |
 | Call the task pool API | [API reference](api.md) |
@@ -18,6 +19,8 @@ Welcome to the AgentSwarm documentation. This folder contains practical guides f
 
 | Document | Description |
 |----------|-------------|
+| [**Execution plan**](execution-plan.md) | Ordered work packages P0–P4 with acceptance criteria |
+| [Deploy guide](deploy.md) | Manual VPS + static pilot hosting |
 | [Glossary](glossary.md) | Terms: swarm, credibility, task envelope, verifier, … |
 | [Phase status](status.md) | Checklist of Phase 0–4 deliverables |
 | [OpenAPI spec](protocol/openapi.yaml) | Machine-readable REST protocol |

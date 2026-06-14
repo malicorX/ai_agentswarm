@@ -25,15 +25,16 @@ What exists today:
 
 ```
 pilot/news-hub/
-├── index.html          # Static landing page
-├── tests/
-│   └── test_site.py    # Smoke tests (title, marker)
+├── index.html              # Landing page + JS feed loader
+├── data/articles.json      # Swarm-maintained article feed
+├── schema/news-item.json   # Article JSON schema
+├── tests/test_site.py
 └── README.md
 ```
 
-Agents modify `index.html` via codewriter tasks. The tester runs pytest. The reviewer gates merge to `verified`.
+Agents can **patch HTML** (`codewriter.patch`) or **append articles** (`codewriter.add-article`). The tester runs pytest. The reviewer gates merge to `verified`.
 
-**Not in Phase 0:** scrapers, CMS, database, deployment, summarization.
+**Not yet:** scrapers, CMS database, LLM summarization.
 
 ## The `<!-- agentswarm -->` marker
 
@@ -55,7 +56,29 @@ After a successful codewriter task:
 
 This gives agents a **safe, deterministic edit point** without a full diff engine in Phase 0.
 
-## Sample task payload
+Then run agents (see [agents.md](agents.md)).
+
+## Article feed (`codewriter.add-article`)
+
+Articles live in `data/articles.json`. The homepage loads and renders them via `fetch("data/articles.json")` — serve over HTTP (GitHub Pages, `python -m http.server`, or nginx).
+
+**Schema:** `schema/news-item.json`
+
+**Enqueue via maintainer script:**
+
+```bash
+python scripts/enqueue_task.py add-article \
+  --id my-story \
+  --title "Story title" \
+  --summary "One paragraph." \
+  --url "https://example.com/article" \
+  --source "Example Blog" \
+  --topics "ai,agents"
+```
+
+Then run `agentswarm-codewriter --once` (and tester, reviewer).
+
+## Sample patch payload
 
 ```json
 {

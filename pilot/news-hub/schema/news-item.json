@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentswarm.local/schema/news-item.json",
+  "title": "NewsItem",
+  "type": "object",
+  "required": ["id", "title", "summary", "url", "source", "published_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Stable slug, e.g. openai-gpt-5-preview"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "url": { "type": "string", "format": "uri" },
+    "source": { "type": "string", "minLength": 1 },
+    "published_at": { "type": "string", "format": "date-time" },
+    "topics": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}
