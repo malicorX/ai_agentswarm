@@ -254,6 +254,8 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P2.4 Canary injection
 ✅ P3.1–P3.4 Planner, orchestrator, shared memory, moderator
 ✅ P4.1–P4.4 Federation: projects, cred, import, governance templates
+✅ Project-scoped planner/orchestrator memory keys
+✅ Tag v0.4.0-phase4
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 
