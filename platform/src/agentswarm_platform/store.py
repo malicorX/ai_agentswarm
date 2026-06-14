@@ -16,6 +16,7 @@ from agentswarm_platform.budgets import (
     resolve_egress_allowlist,
     resolve_resource_budget,
 )
+from agentswarm_platform.canary_store import ensure_canary_schema, evaluate_canary, get_canary_stats
 from agentswarm_platform.replication import (
     ReplicationConfig,
     parse_replication_config,
@@ -148,6 +149,7 @@ class Store:
             conn.execute("ALTER TABLE agents ADD COLUMN egress_allowlist TEXT")
         ensure_credibility_schema(conn)
         ensure_replication_schema(conn)
+        ensure_canary_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -656,6 +658,8 @@ class Store:
         *,
         enqueue_followups: bool = True,
     ) -> SubmitResponse:
+        replication_status: str | None = None
+        canary_passed: bool | None = None
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
@@ -699,7 +703,8 @@ class Store:
                 {"task_id": row["task_id"], "submission_id": submission_id},
             )
 
-            replication_status: str | None = None
+            task_payload = json.loads(row["payload"])
+            shared_payload: dict[str, Any] | None = None
             group_id = row["replication_group_id"] if "replication_group_id" in row.keys() else None
             if group_id:
                 shared_payload = json.loads(
@@ -708,6 +713,27 @@ class Store:
                         (group_id,),
                     ).fetchone()["payload"]
                 )
+            canary_passed = evaluate_canary(
+                conn,
+                agent_id=row["claimed_by"],
+                task_id=row["task_id"],
+                task_type=row["task_type"],
+                task_payload=task_payload,
+                shared_payload=shared_payload,
+                result=result,
+                capability=row["capability_required"],
+            )
+            if canary_passed is not None:
+                self._append_audit(
+                    conn,
+                    "canary.passed" if canary_passed else "canary.failed",
+                    row["claimed_by"],
+                    {
+                        "task_id": row["task_id"],
+                        "passed": canary_passed,
+                    },
+                )
+            if group_id and shared_payload is not None:
                 resolution = record_replication_submit(
                     conn,
                     group_id=group_id,
@@ -736,6 +762,7 @@ class Store:
         return SubmitResponse(
             submission_id=submission_id,
             replication_status=replication_status,
+            canary_passed=canary_passed,
         )
 
     def _enqueue_verification_chain(
@@ -1155,6 +1182,12 @@ class Store:
     def get_replication_group_status(self, group_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
             return get_replication_group(conn, group_id)
+
+    def get_agent_canary_stats(self, agent_id: str) -> dict[str, Any] | None:
+        if self.get_agent(agent_id) is None:
+            return None
+        with self._conn() as conn:
+            return get_canary_stats(conn, agent_id)
 
     def get_credibility_leaderboard(
         self, capability: str | None, limit: int

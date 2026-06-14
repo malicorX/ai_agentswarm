@@ -119,6 +119,14 @@ def get_agent_credibility(agent_id: str) -> dict:
     return {"agent_id": agent_id, "capabilities": scores}
 
 
+@app.get("/agents/{agent_id}/canary-stats")
+def get_agent_canary_stats(agent_id: str) -> dict:
+    stats = store.get_agent_canary_stats(agent_id)
+    if stats is None:
+        raise HTTPException(status_code=404, detail="agent not found")
+    return stats
+
+
 @app.get("/replication/{group_id}", response_model=ReplicationGroupStatus)
 def get_replication_group(group_id: str) -> ReplicationGroupStatus:
     status = store.get_replication_group_status(group_id)

@@ -143,6 +143,18 @@ Group status, per-slot tasks, submissions, and fingerprint counts.
 
 Submit response may include `replication_status`: `pending`, `quorum_met`, or `disputed`.
 
+### Canary tasks (Phase 2.4)
+
+Add a hidden expected answer to any replication-eligible payload (or a single `classifier.label` task with `"replication": false`):
+
+```json
+"canary": { "expected": { "label": "tech" } }
+```
+
+On submit, the platform records pass/fail, emits `canary.passed` / `canary.failed` audit events, and returns `canary_passed` in the submit response. Failures optionally burn credibility when `AGENTSWARM_CREDIBILITY_ENABLED=1`.
+
+`GET /agents/{agent_id}/canary-stats` — attempts, failures, failure rate.
+
 ---
 
 ## Tasks
