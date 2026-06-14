@@ -1,0 +1,206 @@
+openapi: 3.1.0
+info:
+  title: AgentSwarm Task Pool
+  version: 0.1.0
+  description: Phase 0 pull-based protocol per ROADMAP.md section 6.2
+servers:
+  - url: http://localhost:8000
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+  /agents/register:
+    post:
+      summary: Register an agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentRegisterRequest"
+      responses:
+        "200":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRegisterResponse"
+  /tasks:
+    post:
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCreateRequest"
+      responses:
+        "200":
+          description: Created
+  /tasks/poll:
+    get:
+      summary: Poll eligible tasks
+      parameters:
+        - name: agent_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: capability
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task list
+  /tasks/{task_id}/claim:
+    post:
+      summary: Claim a task
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimRequest"
+      responses:
+        "200":
+          description: Claimed
+  /tasks/checkpoint:
+    post:
+      summary: Checkpoint partial progress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckpointRequest"
+      responses:
+        "200":
+          description: Acknowledged
+  /tasks/submit:
+    post:
+      summary: Submit signed result
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitRequest"
+      responses:
+        "200":
+          description: Submitted
+  /verifications/poll:
+    get:
+      summary: Poll pending verifications (reviewer agents)
+      parameters:
+        - name: agent_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verification list
+  /verifications/verify:
+    post:
+      summary: Submit signed verdict
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyRequest"
+      responses:
+        "200":
+          description: Acknowledged
+  /audit:
+    get:
+      summary: Read append-only audit log
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Audit events
+components:
+  schemas:
+    AgentRegisterRequest:
+      type: object
+      required: [public_key, owner, capabilities]
+      properties:
+        public_key:
+          type: string
+        owner:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        version_signature:
+          type: string
+    AgentRegisterResponse:
+      type: object
+      properties:
+        agent_id:
+          type: string
+        credential:
+          type: string
+    TaskCreateRequest:
+      type: object
+      required: [task_type, capability_required]
+      properties:
+        task_type:
+          type: string
+        capability_required:
+          type: string
+        payload:
+          type: object
+    ClaimRequest:
+      type: object
+      required: [agent_id]
+      properties:
+        agent_id:
+          type: string
+    CheckpointRequest:
+      type: object
+      required: [claim_token]
+      properties:
+        claim_token:
+          type: string
+        partial_state:
+          type: object
+    SubmitRequest:
+      type: object
+      required: [claim_token, result, signature]
+      properties:
+        claim_token:
+          type: string
+        result:
+          type: object
+        signature:
+          type: string
+    VerifyRequest:
+      type: object
+      required: [claim_token, verdict, signature]
+      properties:
+        claim_token:
+          type: string
+        verdict:
+          type: string
+          enum: [approve, reject]
+        notes:
+          type: string
+        signature:
+          type: string
