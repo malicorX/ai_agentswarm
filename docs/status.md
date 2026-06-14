@@ -81,6 +81,8 @@ See [execution-plan.md](execution-plan.md).
 - [x] Moderator automation (P3.4) — `moderator.scan`, quarantine, `GET /moderation/flags`
 - [x] Deploy sign-offs — `POST /deploy/requests`, `deploy.approve` tasks, credibility quorum
 - [x] Deployer agent — `deploy.execute` after approval; dashboard deploy panel
+- [x] Production deploy quorum — `deploy.environments.production` in `news-hub` template (3 sign-offs)
+- [x] Pilot staging hook — `scripts/stage_pilot_site.py` + `AGENTSWARM_DEPLOY_STAGING=1`
 
 ## Phase 4 — Federation
 
