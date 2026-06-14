@@ -13,7 +13,7 @@ Aligned with [ROADMAP.md §9](../ROADMAP.md#9-credibility-mechanics).
 | Per-capability numeric scores | Owner-level anchoring penalties |
 | Mint on verified acceptance | N-way replication (P2.3) |
 | Burn on rejection | Canary injection (P2.4) |
-| Verifier-weighted mint | Cross-capability transfer |
+| Cross-capability transfer | Cross-project import with haircut (P4.3) |
 | Stake lock at claim | Scheduled decay job |
 | Append-only ledger + balances API | On-chain or external settlement |
 
@@ -60,6 +60,16 @@ Append-only rows:
 | `VERIFIER_WEIGHT_CAP` | — | 3.0 | Max verifier multiplier |
 
 Task **tier** comes from `task.payload.stake_tier` (`low`=1, `medium`=2, `high`=3; default 1).
+
+### 3.1 Cross-project import (Phase 4.3)
+
+When an agent joins a new project, earned credibility may be imported once per capability from a source project:
+
+```
+imported = INITIAL + max(0, source_score - INITIAL) * HAIRCUT_RATE
+```
+
+Default `HAIRCUT_RATE` (`AGENTSWARM_CRED_CROSS_PROJECT_HAIRCUT`) is **0.5**. Only the earned portion above `INITIAL_SCORE` is discounted; seed scores do not inflate transfers.
 
 ---
 

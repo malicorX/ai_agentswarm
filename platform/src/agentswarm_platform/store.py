@@ -54,6 +54,7 @@ from agentswarm_platform.replication_store import (
 from agentswarm_platform.credibility_ledger import (
     apply_task_outcome,
     ensure_credibility_schema,
+    import_cross_project_credibility,
     leaderboard as credibility_leaderboard,
     list_agent_credibility,
     lock_claim_stake,
@@ -1594,6 +1595,24 @@ class Store:
     ) -> list[dict[str, Any]]:
         with self._conn() as conn:
             return credibility_leaderboard(conn, capability, limit, project_id)
+
+    def import_agent_credibility(
+        self,
+        agent_id: str,
+        source_project_id: str,
+        target_project_id: str,
+        capabilities: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if self.get_agent(agent_id) is None:
+            raise ValueError("unknown agent")
+        with self._conn() as conn:
+            return import_cross_project_credibility(
+                conn,
+                agent_id=agent_id,
+                source_project_id=source_project_id,
+                target_project_id=target_project_id,
+                capabilities=capabilities,
+            )
 
     def get_task_type_by_claim_token(self, claim_token: str) -> str | None:
         with self._conn() as conn:

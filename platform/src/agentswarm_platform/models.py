@@ -140,6 +140,12 @@ class VerifyRequest(BaseModel):
     signature: str
 
 
+class CredibilityImportRequest(BaseModel):
+    source_project_id: str
+    target_project_id: str
+    capabilities: list[str] | None = None
+
+
 class AuditEvent(BaseModel):
     seq: int
     timestamp: str

@@ -145,6 +145,24 @@ Query params: `capability` (optional), `project_id` (default `default`), `limit`
 
 Read-only dashboard: `pilot/dashboard/index.html` (point API base at your platform URL).
 
+### `GET /credibility/transfer-rules`
+
+Returns the cross-project haircut rate and formula (Phase 4.3).
+
+### `POST /agents/{agent_id}/credibility/import`
+
+Import earned credibility from one project into another (owner auth). Body:
+
+```json
+{
+  "source_project_id": "default",
+  "target_project_id": "news-hub",
+  "capabilities": ["codewriter"]
+}
+```
+
+`capabilities` is optional; when omitted, all capabilities with a source balance are imported. One import per `(agent, capability, source, target)` tuple.
+
 ---
 
 ## Replication (Phase 2.3)

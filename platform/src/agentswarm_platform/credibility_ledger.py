@@ -13,7 +13,16 @@ from agentswarm_platform.credibility import (
     task_stake_tier,
 )
 from agentswarm_platform.models import utc_now_iso
-from agentswarm_platform.project_store import DEFAULT_PROJECT_ID
+from agentswarm_platform.credibility_transfer import (
+    CROSS_PROJECT_HAIRCUT,
+    compute_imported_score,
+)
+from agentswarm_platform.project_store import (
+    DEFAULT_PROJECT_ID,
+    agent_project_ids,
+    get_project,
+    validate_project_id,
+)
 
 
 def project_id_from_task_row(row: sqlite3.Row) -> str:
@@ -85,6 +94,22 @@ def ensure_credibility_schema(conn: sqlite3.Connection) -> None:
     }
     if "stake_amount" not in task_columns:
         conn.execute("ALTER TABLE tasks ADD COLUMN stake_amount REAL")
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS credibility_imports (
+            import_id TEXT PRIMARY KEY,
+            agent_id TEXT NOT NULL,
+            capability TEXT NOT NULL,
+            source_project_id TEXT NOT NULL,
+            target_project_id TEXT NOT NULL,
+            source_score REAL NOT NULL,
+            imported_score REAL NOT NULL,
+            haircut_rate REAL NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(agent_id, capability, source_project_id, target_project_id)
+        );
+        """
+    )
 
 
 def seed_agent_capabilities(
@@ -366,3 +391,125 @@ def _apply_delta(
         ),
     )
     return new_score
+
+
+def import_cross_project_credibility(
+    conn: sqlite3.Connection,
+    *,
+    agent_id: str,
+    source_project_id: str,
+    target_project_id: str,
+    capabilities: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    if not credibility_enabled():
+        raise ValueError("credibility is disabled")
+    source = validate_project_id(source_project_id)
+    target = validate_project_id(target_project_id)
+    if source == target:
+        raise ValueError("source and target project must differ")
+    if get_project(conn, source) is None:
+        raise ValueError(f"unknown source project: {source}")
+    if get_project(conn, target) is None:
+        raise ValueError(f"unknown target project: {target}")
+
+    memberships = agent_project_ids(conn, agent_id)
+    if target not in memberships:
+        raise ValueError(f"agent is not a member of target project: {target}")
+
+    if capabilities is None:
+        rows = conn.execute(
+            """
+            SELECT capability, score FROM credibility_balances
+            WHERE agent_id = ? AND project_id = ?
+            ORDER BY capability ASC
+            """,
+            (agent_id, source),
+        ).fetchall()
+        capability_scores = [(row["capability"], float(row["score"])) for row in rows]
+    else:
+        capability_scores = []
+        for capability in capabilities:
+            capability_scores.append(
+                (capability, get_balance(conn, agent_id, capability, source))
+            )
+
+    if not capability_scores:
+        raise ValueError("no capabilities to import")
+
+    imported_entries: list[dict[str, Any]] = []
+    now = utc_now_iso()
+    for capability, source_score in capability_scores:
+        if source_score <= 0:
+            continue
+        duplicate = conn.execute(
+            """
+            SELECT 1 FROM credibility_imports
+            WHERE agent_id = ? AND capability = ?
+              AND source_project_id = ? AND target_project_id = ?
+            """,
+            (agent_id, capability, source, target),
+        ).fetchone()
+        if duplicate is not None:
+            raise ValueError(
+                f"credibility already imported for {capability} "
+                f"from {source} to {target}"
+            )
+
+        imported_score = compute_imported_score(source_score)
+        target_current = get_balance(conn, agent_id, capability, target)
+        delta = imported_score - target_current
+        if abs(delta) < 1e-9:
+            continue
+
+        balance_after = _apply_delta(
+            conn,
+            agent_id=agent_id,
+            capability=capability,
+            project_id=target,
+            delta=delta,
+            reason="import.cross_project",
+            ref_type="project",
+            ref_id=source,
+            details={
+                "source_project_id": source,
+                "target_project_id": target,
+                "source_score": source_score,
+                "imported_score": imported_score,
+                "haircut_rate": CROSS_PROJECT_HAIRCUT,
+            },
+        )
+        import_id = f"import_{new_ledger_entry_id().removeprefix('cred_')}"
+        conn.execute(
+            """
+            INSERT INTO credibility_imports (
+                import_id, agent_id, capability, source_project_id, target_project_id,
+                source_score, imported_score, haircut_rate, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                import_id,
+                agent_id,
+                capability,
+                source,
+                target,
+                source_score,
+                imported_score,
+                CROSS_PROJECT_HAIRCUT,
+                now,
+            ),
+        )
+        imported_entries.append(
+            {
+                "capability": capability,
+                "source_project_id": source,
+                "target_project_id": target,
+                "source_score": source_score,
+                "imported_score": imported_score,
+                "balance_after": balance_after,
+                "haircut_rate": CROSS_PROJECT_HAIRCUT,
+            }
+        )
+
+    if not imported_entries:
+        raise ValueError("no credibility available to import for requested capabilities")
+    return imported_entries

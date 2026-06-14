@@ -29,6 +29,7 @@ from agentswarm_platform.models import (
     ClaimRequest,
     ClaimResponse,
     ReplicationGroupStatus,
+    CredibilityImportRequest,
     ProjectCreateRequest,
     ProjectEnvelope,
     SubmitRequest,
@@ -213,6 +214,31 @@ def get_replication_group(group_id: str) -> ReplicationGroupStatus:
     if status is None:
         raise HTTPException(status_code=404, detail="replication group not found")
     return ReplicationGroupStatus(**status)
+
+
+@app.get("/credibility/transfer-rules")
+def credibility_transfer_rules() -> dict:
+    from agentswarm_platform.credibility_transfer import transfer_rules
+
+    return transfer_rules()
+
+
+@app.post("/agents/{agent_id}/credibility/import")
+def import_agent_credibility(
+    agent_id: str,
+    body: CredibilityImportRequest,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> dict:
+    try:
+        imports = store.import_agent_credibility(
+            agent_id=agent_id,
+            source_project_id=body.source_project_id,
+            target_project_id=body.target_project_id,
+            capabilities=body.capabilities,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"agent_id": agent_id, "imports": imports}
 
 
 @app.get("/credibility/leaderboard")
