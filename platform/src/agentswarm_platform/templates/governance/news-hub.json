@@ -1,0 +1,31 @@
+{
+  "template_id": "news-hub",
+  "name": "AI News Hub",
+  "description": "Pilot defaults for content + engineering swarm (replication, moderation, backlog memory).",
+  "defaults": {
+    "replication": {
+      "slots": 3,
+      "quorum": 2
+    },
+    "moderation": {
+      "canary_failure_rate_threshold": 0.5,
+      "min_canary_attempts": 2
+    },
+    "memory_seeds": {
+      "news-backlog": {
+        "content": {
+          "articles": []
+        }
+      }
+    },
+    "bootstrap_tasks": [
+      {
+        "task_type": "orchestrator.scan",
+        "capability_required": "orchestrator",
+        "payload": {
+          "reason": "project-bootstrap"
+        }
+      }
+    ]
+  }
+}

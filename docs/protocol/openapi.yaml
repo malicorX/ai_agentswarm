@@ -1,11 +1,46 @@
 openapi: 3.1.0
 info:
   title: AgentSwarm Task Pool
-  version: 0.1.0
-  description: Phase 0 pull-based protocol per ROADMAP.md section 6.2
+  version: 0.3.0
+  description: AgentSwarm pull-based task pool (Phases 0–4)
 servers:
   - url: http://localhost:8000
 paths:
+  /projects:
+    get:
+      summary: List projects
+      responses:
+        "200":
+          description: Project list
+    post:
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreateRequest"
+      responses:
+        "200":
+          description: Created
+  /governance/templates:
+    get:
+      summary: List governance templates
+      responses:
+        "200":
+          description: Template summaries
+  /credibility/leaderboard:
+    get:
+      summary: Credibility leaderboard
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            default: default
+      responses:
+        "200":
+          description: Leaderboard entries
   /health:
     get:
       summary: Health check
@@ -167,6 +202,20 @@ components:
           type: string
         payload:
           type: object
+        project_id:
+          type: string
+    ProjectCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        project_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        governance_template_id:
+          type: string
     ClaimRequest:
       type: object
       required: [agent_id]

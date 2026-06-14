@@ -30,6 +30,8 @@ from agentswarm_platform.models import (
     ClaimResponse,
     ReplicationGroupStatus,
     CredibilityImportRequest,
+    GovernanceTemplateEnvelope,
+    GovernanceTemplateSummary,
     ProjectCreateRequest,
     ProjectEnvelope,
     SubmitRequest,
@@ -70,6 +72,23 @@ def list_capabilities() -> dict:
     return load_capability_registry()
 
 
+@app.get("/governance/templates", response_model=list[GovernanceTemplateSummary])
+def list_governance_templates() -> list[GovernanceTemplateSummary]:
+    from agentswarm_platform.governance_templates import list_governance_templates
+
+    return [GovernanceTemplateSummary(**item) for item in list_governance_templates()]
+
+
+@app.get("/governance/templates/{template_id}", response_model=GovernanceTemplateEnvelope)
+def get_governance_template(template_id: str) -> GovernanceTemplateEnvelope:
+    from agentswarm_platform.governance_templates import get_governance_template
+
+    template = get_governance_template(template_id)
+    if template is None:
+        raise HTTPException(status_code=404, detail="governance template not found")
+    return GovernanceTemplateEnvelope(**template)
+
+
 @app.get("/projects", response_model=list[ProjectEnvelope])
 def list_projects() -> list[ProjectEnvelope]:
     return [ProjectEnvelope(**project) for project in store.list_projects()]
@@ -85,11 +104,19 @@ def create_project(
             name=body.name,
             description=body.description,
             project_id=body.project_id,
+            governance_template_id=body.governance_template_id,
             actor_id=None if owner.via_bootstrap else owner.owner_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return ProjectEnvelope(**project)
+    return ProjectEnvelope(
+        project_id=project["project_id"],
+        name=project["name"],
+        description=project["description"],
+        created_at=project["created_at"],
+        governance_template_id=project.get("governance_template_id"),
+        governance_config=project.get("governance_config") or {},
+    )
 
 
 @app.get("/projects/{project_id}", response_model=ProjectEnvelope)
@@ -98,6 +125,18 @@ def get_project(project_id: str) -> ProjectEnvelope:
     if project is None:
         raise HTTPException(status_code=404, detail="project not found")
     return ProjectEnvelope(**project)
+
+
+@app.get("/projects/{project_id}/governance")
+def get_project_governance(project_id: str) -> dict:
+    project = store.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return {
+        "project_id": project["project_id"],
+        "governance_template_id": project.get("governance_template_id"),
+        "governance_config": project.get("governance_config") or {},
+    }
 
 
 @app.get("/moderation/flags")

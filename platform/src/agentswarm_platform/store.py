@@ -28,6 +28,7 @@ from agentswarm_platform.moderation_store import (
     is_agent_quarantined,
     list_moderation_flags,
 )
+from agentswarm_platform.project_bootstrap import apply_project_bootstrap
 from agentswarm_platform.project_store import (
     DEFAULT_PROJECT_ID,
     agent_project_ids,
@@ -381,6 +382,7 @@ class Store:
         name: str,
         description: str | None = None,
         project_id: str | None = None,
+        governance_template_id: str | None = None,
         actor_id: str | None = None,
     ) -> dict[str, Any]:
         with self._conn() as conn:
@@ -389,8 +391,10 @@ class Store:
                 name=name,
                 description=description,
                 project_id=project_id,
+                governance_template_id=governance_template_id,
                 append_audit=self._append_audit,
                 actor_id=actor_id,
+                apply_bootstrap=apply_project_bootstrap,
             )
 
     def list_projects(self) -> list[dict[str, Any]]:

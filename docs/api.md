@@ -17,11 +17,23 @@ List registered projects.
 
 ### `POST /projects`
 
-Create a project (owner auth). Body: `{ "name": "…", "project_id": "optional-slug", "description": "…" }`.
+Create a project (owner auth). Body: `{ "name": "…", "project_id": "optional-slug", "description": "…", "governance_template_id": "news-hub" }`.
 
 ### `GET /projects/{project_id}`
 
 Fetch one project.
+
+### `GET /projects/{project_id}/governance`
+
+Resolved governance config for a project.
+
+### `GET /governance/templates`
+
+List built-in templates (`minimal`, `news-hub`).
+
+### `GET /governance/templates/{template_id}`
+
+Template defaults (replication, moderation, memory seeds, bootstrap tasks). Applying a template on project create seeds memory at `{project_id}.{key}` and may enqueue bootstrap tasks.
 
 ### Task and agent scoping
 

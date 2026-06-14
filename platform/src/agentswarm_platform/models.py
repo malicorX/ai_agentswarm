@@ -61,6 +61,7 @@ class ProjectCreateRequest(BaseModel):
     project_id: str | None = None
     name: str
     description: str | None = None
+    governance_template_id: str | None = None
 
 
 class ProjectEnvelope(BaseModel):
@@ -68,6 +69,18 @@ class ProjectEnvelope(BaseModel):
     name: str
     description: str | None = None
     created_at: str
+    governance_template_id: str | None = None
+    governance_config: dict[str, Any] = Field(default_factory=dict)
+
+
+class GovernanceTemplateSummary(BaseModel):
+    template_id: str
+    name: str
+    description: str | None = None
+
+
+class GovernanceTemplateEnvelope(GovernanceTemplateSummary):
+    defaults: dict[str, Any] = Field(default_factory=dict)
 
 
 class TaskEnvelope(BaseModel):

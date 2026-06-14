@@ -1,0 +1,6 @@
+{
+  "template_id": "minimal",
+  "name": "Minimal",
+  "description": "Bare project with no bootstrap tasks or memory seeds.",
+  "defaults": {}
+}
