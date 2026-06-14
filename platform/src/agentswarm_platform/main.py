@@ -169,15 +169,42 @@ def get_memory_entry(memory_key: str) -> dict:
 def put_memory_entry(
     memory_key: str,
     body: MemoryUpsertRequest,
-    owner: Annotated[OwnerAuth, Depends(get_owner)],
+    authorization: Annotated[str | None, Header()] = None,
+    x_bootstrap_token: Annotated[str | None, Header()] = None,
 ) -> dict:
+    from agentswarm_platform.auth import auth_enforced
+
     if body.key != memory_key:
         raise HTTPException(status_code=400, detail="key in body must match path")
+
+    if body.agent_id is not None or body.signature is not None:
+        if not body.agent_id or not body.signature:
+            raise HTTPException(
+                status_code=400,
+                detail="agent memory write requires agent_id and signature",
+            )
+        try:
+            return store.upsert_memory_by_agent(
+                memory_key=memory_key,
+                content=body.content,
+                tags=body.tags,
+                agent_id=body.agent_id,
+                signature=body.signature,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if auth_enforced():
+        owner = resolve_owner_auth(authorization, x_bootstrap_token)
+        updated_by = owner.github_login
+    else:
+        updated_by = resolve_owner_auth(authorization, x_bootstrap_token).github_login
+
     return store.upsert_memory(
         memory_key=memory_key,
         content=body.content,
         tags=body.tags,
-        updated_by=owner.github_login,
+        updated_by=updated_by,
     )
 
 

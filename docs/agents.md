@@ -186,7 +186,7 @@ See [quickstart-external-agent.md](quickstart-external-agent.md).
 - Per-agent claim budgets enforced at task/verification claim (`429` when exceeded)
 - Egress allowlist declared at registration (self-hosted agents enforce locally)
 - Capability versioning via `version_signature` (minimum length only in Phase 1)
-- Shared memory writes require owner auth (agent-gated writes in a later package)
+- Shared memory writes: owner JWT/bootstrap **or** agent-signed `PUT /memory/{key}` with credibility floor (default 25) when credibility is enabled
 - Reviewer is rule-based, not model-based
 - Codewriter only supports marker insertion, not arbitrary diffs
 

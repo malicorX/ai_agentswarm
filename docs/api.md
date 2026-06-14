@@ -238,7 +238,18 @@ Read a shared memory entry (e.g. `news-backlog`, or `{project_id}.news-backlog` 
 
 ### `PUT /memory/{key}`
 
-Upsert a memory entry. Requires owner JWT (`Authorization: Bearer …`). Body: `{ "key": "…", "content": { … } }`.
+Upsert a memory entry.
+
+**Owner write** — requires owner JWT (`Authorization: Bearer …`) or bootstrap token. Body: `{ "key": "…", "content": { … }, "tags": [] }`.
+
+**Agent write** — signed by a registered agent with `orchestrator` or `planner` capability (configurable via `AGENTSWARM_MEMORY_WRITE_CAPABILITIES`). When `AGENTSWARM_CREDIBILITY_ENABLED=1`, the agent needs score ≥ `AGENTSWARM_MEMORY_WRITE_MIN_SCORE` (default 25) in the task's project scope. Body adds:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `agent_id` | yes | Registered agent |
+| `signature` | yes | Ed25519 over `{ memory_key, content, tags, agent_id }` |
+
+Agent must be a member of the project implied by the memory key (`news-backlog` → `default`, else `{project_id}.…`).
 
 ### Task types `planner.plan`, `orchestrator.scan`, `moderator.scan`
 

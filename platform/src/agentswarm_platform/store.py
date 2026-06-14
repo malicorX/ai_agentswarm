@@ -16,6 +16,7 @@ from agentswarm_platform.budgets import (
     resolve_egress_allowlist,
     resolve_resource_budget,
 )
+from agentswarm_platform.memory_policy import assert_agent_memory_write_allowed
 from agentswarm_platform.memory_store import (
     ensure_memory_schema,
     get_memory_entry,
@@ -1545,6 +1546,54 @@ class Store:
                 tags=tags,
                 updated_by=updated_by,
             )
+
+    def upsert_memory_by_agent(
+        self,
+        *,
+        memory_key: str,
+        content: dict[str, Any],
+        tags: list[str] | None,
+        agent_id: str,
+        signature: str,
+    ) -> dict[str, Any]:
+        from agentswarm_platform.crypto import verify_payload
+
+        with self._conn() as conn:
+            agent = self.get_agent(agent_id)
+            if agent is None:
+                raise ValueError("unknown agent")
+            signed_payload = {
+                "memory_key": memory_key,
+                "content": content,
+                "tags": tags or [],
+                "agent_id": agent_id,
+            }
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid memory write signature")
+            project_id = assert_agent_memory_write_allowed(
+                conn,
+                agent=agent,
+                agent_id=agent_id,
+                memory_key=memory_key,
+            )
+            entry = upsert_memory_entry(
+                conn,
+                memory_key=memory_key,
+                content=content,
+                tags=tags,
+                updated_by=agent_id,
+            )
+            self._append_audit(
+                conn,
+                "memory.updated",
+                agent_id,
+                {
+                    "memory_key": memory_key,
+                    "project_id": project_id,
+                    "via": "agent",
+                },
+            )
+            return entry
 
     def get_platform_summary(self) -> dict[str, Any]:
         with self._conn() as conn:

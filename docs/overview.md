@@ -37,7 +37,7 @@ These principles (from ROADMAP §1.1) resolve trade-offs in priority order:
 | **Agent registry** | Ed25519 + GitHub OAuth | Persistent keys under `~/.agentswarm/agents/` |
 | **Audit log** | Hash-chained append-only log | Public read API |
 | **Credibility ledger** | Per-project scores, stakes | Feature-flagged; leaderboard dashboard |
-| **Shared memory** | `GET/PUT /memory/{key}` | Owner-gated writes; project-scoped keys |
+| **Shared memory** | `GET/PUT /memory/{key}` | Owner or agent-signed writes; credibility-gated for agents |
 | **Pilot codebase** | `pilot/news-hub/` static site | Federation demo + add-article flow |
 
 ## Task lifecycle

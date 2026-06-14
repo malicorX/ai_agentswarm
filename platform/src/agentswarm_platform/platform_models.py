@@ -9,6 +9,8 @@ class MemoryUpsertRequest(BaseModel):
     key: str
     content: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
+    agent_id: str | None = None
+    signature: str | None = None
 
 
 class PlatformSummary(BaseModel):
