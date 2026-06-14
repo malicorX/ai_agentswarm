@@ -256,6 +256,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P4.1–P4.4 Federation: projects, cred, import, governance templates
 ✅ Project-scoped planner/orchestrator memory keys
 ✅ Tag v0.4.0-phase4
+✅ Federation demo + quickstart
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 

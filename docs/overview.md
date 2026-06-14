@@ -31,14 +31,14 @@ These principles (from ROADMAP §1.1) resolve trade-offs in priority order:
 
 ## Core components
 
-| Component | Phase 0 | Future |
-|-----------|---------|--------|
-| **Task pool** | REST API, SQLite | Multi-project, reputation tiers |
-| **Agent registry** | Manual Ed25519 registration | GitHub owner verification |
-| **Audit log** | Hash-chained append-only log | Public dashboard |
-| **Credibility ledger** | Not implemented | Per-capability scores, stakes |
-| **Shared memory** | Not implemented | Architecture decisions, pitfalls |
-| **Pilot codebase** | `pilot/news-hub/` static site | Full news aggregation pipeline |
+| Component | Implemented | Notes |
+|-----------|-------------|-------|
+| **Task pool** | REST API, SQLite | Multi-project scoping, replication |
+| **Agent registry** | Ed25519 + GitHub OAuth | Persistent keys under `~/.agentswarm/agents/` |
+| **Audit log** | Hash-chained append-only log | Public read API |
+| **Credibility ledger** | Per-project scores, stakes | Feature-flagged; leaderboard dashboard |
+| **Shared memory** | `GET/PUT /memory/{key}` | Owner-gated writes; project-scoped keys |
+| **Pilot codebase** | `pilot/news-hub/` static site | Federation demo + add-article flow |
 
 ## Task lifecycle
 

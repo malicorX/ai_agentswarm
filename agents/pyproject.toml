@@ -18,6 +18,7 @@ agentswarm-codewriter = "agentswarm_agents.workers.codewriter:main"
 agentswarm-tester = "agentswarm_agents.workers.tester:main"
 agentswarm-reviewer = "agentswarm_agents.workers.reviewer:main"
 agentswarm-demo = "agentswarm_agents.demo:main"
+agentswarm-demo-federation = "agentswarm_agents.federation_demo:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

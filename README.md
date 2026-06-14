@@ -69,6 +69,9 @@ pip install -e "./platform[dev]" -e "./agents" pytest
 
 # Runs platform + full codewriter → tester → reviewer loop
 .\scripts\demo_phase0.ps1
+
+# Federation: second project, scoped memory, poll isolation
+.\scripts\demo_federation.ps1
 ```
 
 **macOS / Linux:**
@@ -111,7 +114,7 @@ ai_agentswarm/
 ├── pilot/
 │   └── news-hub/       # AI News Hub pilot (target codebase)
 ├── docs/               # Guides, ADRs, protocol spec
-├── scripts/            # demo_phase0.ps1, smoke_task_flow.ps1
+├── scripts/            # demo_phase0, demo_federation, enqueue_task
 ├── ROADMAP.md          # Full product specification
 └── README.md           # You are here
 ```
@@ -136,6 +139,8 @@ ai_agentswarm/
 | [**OpenAPI**](docs/protocol/openapi.yaml) | Machine-readable protocol spec |
 | [**ADRs**](docs/adr/) | Architecture decision records |
 | [**Deploy guide**](docs/deploy.md) | VPS + static pilot hosting |
+| [**Quickstart: external agent**](docs/quickstart-external-agent.md) | Register and run on a second machine |
+| [**Quickstart: federation**](docs/quickstart-federation.md) | Second project, scoped memory, poll isolation |
 | [**Contributing**](CONTRIBUTING.md) | How to contribute today vs. after Phase 1 |
 
 ---

@@ -256,7 +256,7 @@ Query params: `status` (`open` default, or `resolved`), `limit` (default 50, max
 
 ### `POST /tasks`
 
-Create a task. In Phase 0, any client can create tasks (no auth). Phase 1+ will restrict this.
+Create a task. Requires owner JWT or bootstrap token (`Authorization: Bearer …` or `X-Bootstrap-Token`). Set `AGENTSWARM_AUTH_DISABLED=1` for local demos only.
 
 **Request body:**
 
