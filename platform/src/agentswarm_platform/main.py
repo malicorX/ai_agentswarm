@@ -318,6 +318,14 @@ def import_agent_credibility(
     return {"agent_id": agent_id, "imports": imports}
 
 
+@app.post("/credibility/apply-decay")
+def apply_credibility_decay(
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+    project_id: str | None = Query(default=None),
+) -> dict:
+    return store.apply_credibility_decay(project_id=project_id)
+
+
 @app.get("/credibility/leaderboard")
 def get_credibility_leaderboard(
     capability: str | None = Query(default=None),

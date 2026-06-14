@@ -14,7 +14,7 @@ Aligned with [ROADMAP.md §9](../ROADMAP.md#9-credibility-mechanics).
 | Mint on verified acceptance | N-way replication (P2.3) |
 | Burn on rejection | Canary injection (P2.4) |
 | Verifier-weighted mint | Cross-capability transfer |
-| Stake lock at claim | Scheduled decay job |
+| Stake lock at claim | Owner anchoring penalties |
 | Append-only ledger + balances API | On-chain or external settlement |
 | Cross-project import with haircut (P4.3) | Owner-level anchoring penalties |
 
@@ -137,15 +137,23 @@ net = burn.reject (−(BASE_BURN * tier))   # stake is not returned
 
 **Reviewer** still receives `mint.verify (+REVIEWER_MINT)` for completing review.
 
-### 4.5 Decay (specified, not yet applied)
+### 4.5 Decay (applied on read + batch job)
 
-Inactive agents lose score slowly:
+Inactive balances decay when read (`GET /agents/{id}/credibility`, leaderboard) or via maintainer batch:
+
+```
+POST /credibility/apply-decay?project_id=optional
+```
+
+Formula:
 
 ```
 score_after = score * 0.5^(days_inactive / HALF_LIFE_DAYS)
 ```
 
-Default `HALF_LIFE_DAYS = 180`. Requires a scheduled job (Phase 2.x).
+Defaults: `HALF_LIFE_DAYS=180`, minimum inactivity `DECAY_MIN_DAYS=1` before decay applies. Ledger reason: `decay.inactivity`.
+
+Cron helper: `python scripts/apply_credibility_decay.py`
 
 ---
 

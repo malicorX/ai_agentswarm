@@ -54,6 +54,7 @@ from agentswarm_platform.replication_store import (
     record_replication_submit,
 )
 from agentswarm_platform.credibility_ledger import (
+    apply_inactivity_decay_all,
     apply_task_outcome,
     assert_claim_tier_allowed,
     agent_can_claim_by_tier,
@@ -1695,6 +1696,12 @@ class Store:
     ) -> list[dict[str, Any]]:
         with self._conn() as conn:
             return credibility_leaderboard(conn, capability, limit, project_id)
+
+    def apply_credibility_decay(
+        self, *, project_id: str | None = None
+    ) -> dict[str, int]:
+        with self._conn() as conn:
+            return apply_inactivity_decay_all(conn, project_id=project_id)
 
     def import_agent_credibility(
         self,

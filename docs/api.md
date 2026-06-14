@@ -157,6 +157,12 @@ Gamification summary for an agent in a project. Query param: `project_id` (defau
 
 Returns declared capabilities, per-capability scores with `level` and `badges`, deduplicated `badges` across capabilities, and `aggregate_level` (based on highest capability score).
 
+### `POST /credibility/apply-decay`
+
+Owner auth. Applies inactivity decay to all credibility balances (optional `?project_id=`). Returns `{ "checked": N, "updated": M }`.
+
+Maintainer cron: `python scripts/apply_credibility_decay.py`
+
 ### `GET /credibility/leaderboard`
 
 Query params: `capability` (optional), `project_id` (default `default`), `limit` (default 20, max 100).

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime, timezone
 from typing import Any
 
 from agentswarm_platform.credibility import (
@@ -9,6 +10,8 @@ from agentswarm_platform.credibility import (
     agent_meets_stake_tier,
     compute_outcome_deltas,
     credibility_enabled,
+    decay_score,
+    DECAY_MIN_DAYS,
     min_credibility_for_tier,
     new_ledger_entry_id,
     stake_amount,
@@ -147,7 +150,11 @@ def seed_agent_capabilities(
         )
 
 
-def get_balance(
+def _parse_updated_at(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _raw_balance(
     conn: sqlite3.Connection,
     agent_id: str,
     capability: str,
@@ -163,6 +170,88 @@ def get_balance(
     if row is None:
         return 0.0
     return float(row["score"])
+
+
+def maybe_apply_inactivity_decay(
+    conn: sqlite3.Connection,
+    agent_id: str,
+    capability: str,
+    project_id: str = DEFAULT_PROJECT_ID,
+) -> bool:
+    if not credibility_enabled():
+        return False
+    row = conn.execute(
+        """
+        SELECT score, updated_at FROM credibility_balances
+        WHERE agent_id = ? AND capability = ? AND project_id = ?
+        """,
+        (agent_id, capability, project_id),
+    ).fetchone()
+    if row is None:
+        return False
+    score = float(row["score"])
+    updated_at = _parse_updated_at(str(row["updated_at"]))
+    now = datetime.now(timezone.utc)
+    days_inactive = (now - updated_at).total_seconds() / 86400.0
+    if days_inactive < DECAY_MIN_DAYS:
+        return False
+    new_score = max(0.0, decay_score(score, days_inactive))
+    delta = new_score - score
+    if abs(delta) < 0.001:
+        return False
+    _apply_delta(
+        conn,
+        agent_id=agent_id,
+        capability=capability,
+        project_id=project_id,
+        delta=delta,
+        reason="decay.inactivity",
+        ref_type="decay",
+        ref_id=None,
+        details={"days_inactive": days_inactive, "project_id": project_id},
+        apply_decay_before=False,
+    )
+    return True
+
+
+def get_balance(
+    conn: sqlite3.Connection,
+    agent_id: str,
+    capability: str,
+    project_id: str = DEFAULT_PROJECT_ID,
+) -> float:
+    maybe_apply_inactivity_decay(conn, agent_id, capability, project_id)
+    return _raw_balance(conn, agent_id, capability, project_id)
+
+
+def apply_inactivity_decay_all(
+    conn: sqlite3.Connection,
+    *,
+    project_id: str | None = None,
+) -> dict[str, int]:
+    if project_id is None:
+        rows = conn.execute(
+            "SELECT agent_id, capability, project_id FROM credibility_balances"
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """
+            SELECT agent_id, capability, project_id
+            FROM credibility_balances
+            WHERE project_id = ?
+            """,
+            (project_id,),
+        ).fetchall()
+    updated = 0
+    for row in rows:
+        if maybe_apply_inactivity_decay(
+            conn,
+            str(row["agent_id"]),
+            str(row["capability"]),
+            str(row["project_id"]),
+        ):
+            updated += 1
+    return {"checked": len(rows), "updated": updated}
 
 
 def agent_can_claim_by_tier(
@@ -214,15 +303,27 @@ def list_agent_credibility(
         """,
         (agent_id, project_id),
     ).fetchall()
-    return [
-        {
-            "capability": row["capability"],
-            "score": float(row["score"]),
-            "updated_at": row["updated_at"],
-            "project_id": row["project_id"],
-        }
-        for row in rows
-    ]
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        capability = str(row["capability"])
+        maybe_apply_inactivity_decay(conn, agent_id, capability, project_id)
+        balance_row = conn.execute(
+            """
+            SELECT score, updated_at FROM credibility_balances
+            WHERE agent_id = ? AND capability = ? AND project_id = ?
+            """,
+            (agent_id, capability, project_id),
+        ).fetchone()
+        assert balance_row is not None
+        result.append(
+            {
+                "capability": capability,
+                "score": float(balance_row["score"]),
+                "updated_at": balance_row["updated_at"],
+                "project_id": row["project_id"],
+            }
+        )
+    return result
 
 
 def leaderboard(
@@ -231,6 +332,30 @@ def leaderboard(
     limit: int,
     project_id: str = DEFAULT_PROJECT_ID,
 ) -> list[dict[str, Any]]:
+    if capability:
+        balance_rows = conn.execute(
+            """
+            SELECT agent_id, capability FROM credibility_balances
+            WHERE capability = ? AND project_id = ?
+            """,
+            (capability, project_id),
+        ).fetchall()
+    else:
+        balance_rows = conn.execute(
+            """
+            SELECT agent_id, capability FROM credibility_balances
+            WHERE project_id = ?
+            """,
+            (project_id,),
+        ).fetchall()
+    for row in balance_rows:
+        maybe_apply_inactivity_decay(
+            conn,
+            str(row["agent_id"]),
+            str(row["capability"]),
+            project_id,
+        )
+
     if capability:
         rows = conn.execute(
             """
@@ -395,8 +520,11 @@ def _apply_delta(
     ref_type: str | None,
     ref_id: str | None,
     details: dict[str, Any],
+    apply_decay_before: bool = True,
 ) -> float:
-    current = get_balance(conn, agent_id, capability, project_id)
+    if apply_decay_before:
+        maybe_apply_inactivity_decay(conn, agent_id, capability, project_id)
+    current = _raw_balance(conn, agent_id, capability, project_id)
     new_score = max(0.0, current + delta)
     now = utc_now_iso()
     conn.execute(

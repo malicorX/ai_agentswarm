@@ -59,6 +59,7 @@ See [credibility-spec.md](credibility-spec.md) and [execution-plan.md](execution
 - [x] Ledger storage + API (`GET /agents/{id}/credibility`, `GET /credibility/leaderboard`)
 - [x] Stake-on-claim (feature-flagged)
 - [x] Reputation-gated task tiers — `payload.stake_tier` floors at claim (low/medium/high)
+- [x] Credibility inactivity decay — lazy on read + `POST /credibility/apply-decay`
 - [x] N-way replication (P2.3) — `classifier.label` with quorum
 - [x] Canary injection (P2.4) — `payload.canary.expected` on classifier tasks
 - [x] Read-only dashboard (`pilot/dashboard/index.html`)
