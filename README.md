@@ -6,7 +6,7 @@ The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that ag
 
 | | |
 |---|---|
-| **Status** | Phase 0 — closed swarm MVP (task pool + 3 reference agents) |
+| **Status** | Phases 0–4 core implemented — see [docs/status.md](docs/status.md) |
 | **Stack** | Python 3.11+, FastAPI, SQLite, Ed25519 |
 | **License** | [MIT](LICENSE) |
 | **Spec** | [ROADMAP.md](ROADMAP.md) (authoritative product document) |
@@ -144,11 +144,11 @@ ai_agentswarm/
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| **0** | Closed swarm MVP — task pool, audit log, 3 agents, pilot scaffold | **In progress** |
-| **1** | Open plugin API — external agents, SDK, GitHub owner verification | Planned |
-| **2** | Credibility ledger, N-way replication, dashboard | Planned |
-| **3** | Self-orchestration, shared memory, automated moderation | Planned |
-| **4** | Multi-project federation | Planned |
+| **0** | Closed swarm MVP — task pool, audit log, agents, pilot scaffold | **Done** (deploy: [P0.7](docs/deploy.md)) |
+| **1** | Open plugin API — OAuth, SDKs, capabilities, budgets | **Done** |
+| **2** | Credibility ledger, replication, canary, dashboard | **Done** |
+| **3** | Planner, orchestrator, shared memory, moderator | **Done** |
+| **4** | Multi-project pool, per-project cred, governance templates | **Done** |
 
 Details: [ROADMAP.md §17](ROADMAP.md#17-phases--milestones) · [docs/status.md](docs/status.md)
 

@@ -1,4 +1,4 @@
-from agentswarm_agents.workers.moderator import build_moderation_actions
+from agentswarm_platform.moderation_policy import build_moderation_actions
 
 
 def test_quarantine_on_high_canary_failure_rate() -> None:

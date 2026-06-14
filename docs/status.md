@@ -76,3 +76,4 @@ Not started beyond P4.4. See ROADMAP.md §17.
 - [x] Per-project credibility (P4.2) — balances keyed by `project_id`, API `?project_id=`
 - [x] Cross-project reputation import (P4.3) — haircut transfer via `POST /agents/{id}/credibility/import`
 - [x] Governance templates (P4.4) — `GET /governance/templates`, bootstrap on `POST /projects`
+- [x] Moderator reads per-project `governance_config.moderation` thresholds
