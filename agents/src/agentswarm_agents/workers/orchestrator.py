@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -58,6 +59,23 @@ def execute_scan(base_url: str, project_id: str = "default") -> dict[str, Any]:
     return {"gaps": gaps, "enqueue": enqueue, "summary": summary, "project_id": project_id}
 
 
+def record_scan_state(client, project_id: str, result: dict[str, Any]) -> None:
+    state_key = memory_key_for_project(project_id, suffix="orchestrator-state")
+    try:
+        client.upsert_memory(
+            state_key,
+            {
+                "project_id": project_id,
+                "gaps": result["gaps"],
+                "enqueue_count": len(result["enqueue"]),
+                "scanned_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            },
+            tags=["orchestrator"],
+        )
+    except httpx.HTTPError as exc:
+        print(f"orchestrator: could not record scan state ({state_key}): {exc}")
+
+
 def run_once(client, base_url: str) -> bool:
     tasks = client.poll_tasks(capability="orchestrator")
     if not tasks:
@@ -66,6 +84,7 @@ def run_once(client, base_url: str) -> bool:
     claim_token = client.claim(task["task_id"])
     project_id = task.get("project_id") or "default"
     result = execute_scan(base_url, project_id=project_id)
+    record_scan_state(client, project_id, result)
     client.submit(claim_token, task["task_id"], result)
     print(
         f"orchestrator: completed {task['task_id']} "

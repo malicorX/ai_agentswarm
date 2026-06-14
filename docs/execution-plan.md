@@ -261,6 +261,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Leaderboard levels and badges
 ✅ Credibility-gated agent memory writes
 ✅ Agent profile API and client memory helper
+✅ Dashboard profile panel; planner/orchestrator memory writes
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 

@@ -31,7 +31,11 @@ def build_enqueue_from_backlog(entry: dict[str, Any], goal: str) -> dict[str, An
     }
 
 
-def execute_task(task: dict[str, Any], base_url: str) -> dict[str, Any]:
+def should_clear_backlog_after_plan(goal: str, planned_count: int) -> bool:
+    return planned_count > 0 and goal in ("drain-news-backlog", "drain")
+
+
+def execute_task(task: dict[str, Any], base_url: str, client=None) -> dict[str, Any]:
     payload = task["payload"]
     memory_key = memory_key_for_project(
         task.get("project_id"),
@@ -40,7 +44,15 @@ def execute_task(task: dict[str, Any], base_url: str) -> dict[str, Any]:
     goal = payload.get("goal", "plan")
     response = httpx.get(f"{base_url.rstrip('/')}/memory/{memory_key}", timeout=30.0)
     response.raise_for_status()
-    return build_enqueue_from_backlog(response.json(), goal)
+    result = build_enqueue_from_backlog(response.json(), goal)
+    if client is not None and should_clear_backlog_after_plan(goal, result["planned_count"]):
+        client.upsert_memory(
+            memory_key,
+            {"articles": []},
+            tags=["planner", "backlog-drained"],
+        )
+        result["backlog_cleared"] = True
+    return result
 
 
 def run_once(client, base_url: str) -> bool:
@@ -49,7 +61,7 @@ def run_once(client, base_url: str) -> bool:
         return False
     task = tasks[0]
     claim_token = client.claim(task["task_id"])
-    result = execute_task(task, base_url)
+    result = execute_task(task, base_url, client=client)
     client.submit(claim_token, task["task_id"], result)
     print(
         f"planner: completed {task['task_id']} "

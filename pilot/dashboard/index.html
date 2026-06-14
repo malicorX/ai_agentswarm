@@ -12,10 +12,14 @@
     }
     body { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
     h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.1rem; margin: 0 0 0.5rem; }
     .controls { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
     input, select, button { font: inherit; padding: 0.35rem 0.6rem; }
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
     th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #8884; vertical-align: top; }
+    tr.agent-row { cursor: pointer; }
+    tr.agent-row:hover { background: #8881; }
+    tr.agent-row.selected { background: #48f2; }
     .muted { opacity: 0.7; font-size: 0.9rem; }
     .error { color: #c00; }
     .level {
@@ -36,11 +40,34 @@
       white-space: nowrap;
     }
     .score-cell { font-variant-numeric: tabular-nums; }
+    #profilePanel {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border: 1px solid #8884;
+      border-radius: 0.5rem;
+    }
+    #profilePanel[hidden] { display: none; }
+    .profile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+    .profile-card {
+      padding: 0.75rem;
+      border: 1px solid #8883;
+      border-radius: 0.35rem;
+    }
+    .profile-card h3 {
+      margin: 0 0 0.35rem;
+      font-size: 0.95rem;
+      text-transform: capitalize;
+    }
   </style>
 </head>
 <body>
   <h1>AgentSwarm Credibility Leaderboard</h1>
-  <p class="muted">Read-only view of <code>GET /credibility/leaderboard</code> with levels and badges. Enable with <code>AGENTSWARM_CREDIBILITY_ENABLED=1</code>.</p>
+  <p class="muted">Read-only view of <code>GET /credibility/leaderboard</code>. Click an agent row for <code>GET /agents/{id}/profile</code>. Enable with <code>AGENTSWARM_CREDIBILITY_ENABLED=1</code>.</p>
 
   <div class="controls">
     <label>
@@ -80,6 +107,12 @@
     <tbody></tbody>
   </table>
 
+  <section id="profilePanel" hidden>
+    <h2>Agent profile</h2>
+    <p id="profileStatus" class="muted">Select an agent row.</p>
+    <div id="profileContent"></div>
+  </section>
+
   <script>
     const apiBaseInput = document.getElementById("apiBase");
     const projectIdInput = document.getElementById("projectId");
@@ -87,6 +120,10 @@
     const statusEl = document.getElementById("status");
     const table = document.getElementById("board");
     const tbody = table.querySelector("tbody");
+    const profilePanel = document.getElementById("profilePanel");
+    const profileStatus = document.getElementById("profileStatus");
+    const profileContent = document.getElementById("profileContent");
+    let selectedAgentId = null;
 
     function renderBadges(badges) {
       if (!badges || !badges.length) {
@@ -105,17 +142,65 @@
       return `<span class="level">${level.label}</span>${next}`;
     }
 
+    function apiBase() {
+      return apiBaseInput.value.replace(/\/$/, "");
+    }
+
+    function projectId() {
+      return projectIdInput.value.trim() || "default";
+    }
+
+    async function loadProfile(agentId) {
+      selectedAgentId = agentId;
+      profilePanel.hidden = false;
+      profileStatus.textContent = "Loading profile…";
+      profileContent.innerHTML = "";
+
+      const url = new URL(`${apiBase()}/agents/${encodeURIComponent(agentId)}/profile`);
+      url.searchParams.set("project_id", projectId());
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const profile = await res.json();
+        profileStatus.textContent = `${profile.agent_id} · owner ${profile.owner} · aggregate ${profile.aggregate_level.label}`;
+        const cards = (profile.credibility || []).map((row) => `
+          <div class="profile-card">
+            <h3>${row.capability}</h3>
+            <div>Score: <strong>${Number(row.score).toFixed(2)}</strong></div>
+            <div>${renderLevel(row.level)}</div>
+            <div class="badges">${renderBadges(row.badges)}</div>
+          </div>
+        `).join("");
+        const allBadges = (profile.badges || []).length
+          ? `<div class="badges">${renderBadges(profile.badges)}</div>`
+          : '<p class="muted">No badges yet.</p>';
+        profileContent.innerHTML = `
+          <div class="profile-grid">${cards || '<p class="muted">No credibility data.</p>'}</div>
+          <h2 style="margin-top:1rem;font-size:1rem;">All badges</h2>
+          ${allBadges}
+        `;
+      } catch (err) {
+        profileStatus.textContent = "Failed to load profile: " + err.message;
+      }
+    }
+
+    function highlightSelectedRow() {
+      tbody.querySelectorAll("tr.agent-row").forEach((row) => {
+        row.classList.toggle("selected", row.dataset.agentId === selectedAgentId);
+      });
+    }
+
     async function loadLeaderboard() {
       statusEl.textContent = "Loading…";
       statusEl.classList.remove("error");
       table.hidden = true;
       tbody.innerHTML = "";
 
-      const base = apiBaseInput.value.replace(/\/$/, "");
       const cap = capabilitySelect.value;
-      const url = new URL(base + "/credibility/leaderboard");
+      const url = new URL(apiBase() + "/credibility/leaderboard");
       if (cap) url.searchParams.set("capability", cap);
-      url.searchParams.set("project_id", projectIdInput.value.trim() || "default");
+      url.searchParams.set("project_id", projectId());
       url.searchParams.set("limit", "25");
 
       try {
@@ -129,6 +214,8 @@
         }
         entries.forEach((row, i) => {
           const tr = document.createElement("tr");
+          tr.className = "agent-row";
+          tr.dataset.agentId = row.agent_id;
           tr.innerHTML = `
             <td>${i + 1}</td>
             <td><code>${row.agent_id}</code></td>
@@ -138,10 +225,15 @@
             <td class="score-cell">${Number(row.score).toFixed(2)}</td>
             <td><div class="badges">${renderBadges(row.badges)}</div></td>
           `;
+          tr.addEventListener("click", () => {
+            loadProfile(row.agent_id);
+            highlightSelectedRow();
+          });
           tbody.appendChild(tr);
         });
-        statusEl.textContent = `Showing ${entries.length} entr${entries.length === 1 ? "y" : "ies"}.`;
+        statusEl.textContent = `Showing ${entries.length} entr${entries.length === 1 ? "y" : "ies"}. Click a row for profile.`;
         table.hidden = false;
+        highlightSelectedRow();
       } catch (err) {
         statusEl.textContent = "Failed to load leaderboard: " + err.message;
         statusEl.classList.add("error");
