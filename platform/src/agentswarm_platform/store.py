@@ -16,6 +16,17 @@ from agentswarm_platform.budgets import (
     resolve_egress_allowlist,
     resolve_resource_budget,
 )
+from agentswarm_platform.replication import (
+    ReplicationConfig,
+    parse_replication_config,
+    shared_replication_payload,
+)
+from agentswarm_platform.replication_store import (
+    agent_already_in_group,
+    ensure_replication_schema,
+    get_replication_group,
+    record_replication_submit,
+)
 from agentswarm_platform.credibility_ledger import (
     apply_task_outcome,
     ensure_credibility_schema,
@@ -136,6 +147,7 @@ class Store:
         if "egress_allowlist" not in columns:
             conn.execute("ALTER TABLE agents ADD COLUMN egress_allowlist TEXT")
         ensure_credibility_schema(conn)
+        ensure_replication_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -398,6 +410,14 @@ class Store:
         parent_task_id: str | None = None,
         parent_submission_id: str | None = None,
     ) -> TaskEnvelope:
+        replication = parse_replication_config(task_type, payload)
+        if replication is not None:
+            return self._create_replication_tasks(
+                task_type=task_type,
+                capability_required=capability_required,
+                payload=payload,
+                config=replication,
+            )
         task_id = f"task_{uuid.uuid4().hex[:12]}"
         created_at = utc_now_iso()
         with self._conn() as conn:
@@ -439,11 +459,95 @@ class Store:
             parent_task_id=parent_task_id,
         )
 
+    def _create_replication_tasks(
+        self,
+        *,
+        task_type: str,
+        capability_required: str,
+        payload: dict[str, Any],
+        config: ReplicationConfig,
+    ) -> TaskEnvelope:
+        group_id = f"repl_{uuid.uuid4().hex[:12]}"
+        created_at = utc_now_iso()
+        shared = shared_replication_payload(payload)
+        first_envelope: TaskEnvelope | None = None
+        with self._conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO replication_groups (
+                    group_id, task_type, capability_required, payload,
+                    slots, quorum, status, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    group_id,
+                    task_type,
+                    capability_required,
+                    json.dumps(shared),
+                    config.slots,
+                    config.quorum,
+                    "pending",
+                    created_at,
+                ),
+            )
+            for slot in range(config.slots):
+                task_id = f"task_{uuid.uuid4().hex[:12]}"
+                slot_payload = {
+                    **shared,
+                    "replication_group_id": group_id,
+                    "replication_slot": slot,
+                }
+                conn.execute(
+                    """
+                    INSERT INTO tasks (
+                        task_id, task_type, capability_required, status, payload,
+                        parent_task_id, parent_submission_id, created_at,
+                        replication_group_id, replication_slot
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        task_id,
+                        task_type,
+                        capability_required,
+                        TaskStatus.CREATED.value,
+                        json.dumps(slot_payload),
+                        None,
+                        None,
+                        created_at,
+                        group_id,
+                        slot,
+                    ),
+                )
+                envelope = TaskEnvelope(
+                    task_id=task_id,
+                    task_type=task_type,
+                    capability_required=capability_required,
+                    status=TaskStatus.CREATED,
+                    payload=slot_payload,
+                    created_at=created_at,
+                )
+                if slot == 0:
+                    first_envelope = envelope
+            self._append_audit(
+                conn,
+                "replication.created",
+                None,
+                {
+                    "group_id": group_id,
+                    "task_type": task_type,
+                    "slots": config.slots,
+                    "quorum": config.quorum,
+                },
+            )
+        assert first_envelope is not None
+        return first_envelope
+
     def poll_tasks(self, agent_id: str, capability_filter: str | None) -> list[TaskEnvelope]:
         agent = self.get_agent(agent_id)
         if agent is None:
             return []
         capabilities = set(agent["capabilities"])
+        tasks: list[TaskEnvelope] = []
         with self._conn() as conn:
             rows = conn.execute(
                 """
@@ -453,14 +557,22 @@ class Store:
                 """,
                 (TaskStatus.CREATED.value,),
             ).fetchall()
-        tasks: list[TaskEnvelope] = []
-        for row in rows:
-            cap = row["capability_required"]
-            if capability_filter and cap != capability_filter:
-                continue
-            if cap not in capabilities:
-                continue
-            tasks.append(self._row_to_task(row))
+            for row in rows:
+                cap = row["capability_required"]
+                if capability_filter and cap != capability_filter:
+                    continue
+                if cap not in capabilities:
+                    continue
+                keys = row.keys()
+                group_id = row["replication_group_id"] if "replication_group_id" in keys else None
+                if group_id:
+                    group = conn.execute(
+                        "SELECT status FROM replication_groups WHERE group_id = ?",
+                        (group_id,),
+                    ).fetchone()
+                    if group is None or group["status"] != "pending":
+                        continue
+                tasks.append(self._row_to_task(row))
         return tasks
 
     def claim_task(self, task_id: str, agent_id: str) -> ClaimResponse:
@@ -480,6 +592,17 @@ class Store:
                 raise ValueError("task not claimable")
             if row["capability_required"] not in agent["capabilities"]:
                 raise ValueError("agent lacks capability")
+            keys = row.keys()
+            group_id = row["replication_group_id"] if "replication_group_id" in keys else None
+            if group_id:
+                group = conn.execute(
+                    "SELECT status FROM replication_groups WHERE group_id = ?",
+                    (group_id,),
+                ).fetchone()
+                if group is None or group["status"] != "pending":
+                    raise ValueError("replication group is not accepting claims")
+                if agent_already_in_group(conn, group_id, agent_id):
+                    raise ValueError("agent already claimed a slot in this replication group")
             if row["task_type"] not in ("tester.run", "reviewer.approve"):
                 lock_claim_stake(
                     conn,
@@ -576,7 +699,30 @@ class Store:
                 {"task_id": row["task_id"], "submission_id": submission_id},
             )
 
-            if enqueue_followups and row["task_type"] in (
+            replication_status: str | None = None
+            group_id = row["replication_group_id"] if "replication_group_id" in row.keys() else None
+            if group_id:
+                shared_payload = json.loads(
+                    conn.execute(
+                        "SELECT payload FROM replication_groups WHERE group_id = ?",
+                        (group_id,),
+                    ).fetchone()["payload"]
+                )
+                resolution = record_replication_submit(
+                    conn,
+                    group_id=group_id,
+                    task_type=row["task_type"],
+                    payload=shared_payload,
+                    result=result,
+                )
+                replication_status = resolution["status"]
+                self._append_audit(
+                    conn,
+                    f"replication.{resolution['status']}",
+                    row["claimed_by"],
+                    {"group_id": group_id, **resolution},
+                )
+            elif enqueue_followups and row["task_type"] in (
                 "codewriter.patch",
                 "codewriter.add-article",
             ):
@@ -587,7 +733,10 @@ class Store:
                     result_summary=result,
                 )
 
-        return SubmitResponse(submission_id=submission_id)
+        return SubmitResponse(
+            submission_id=submission_id,
+            replication_status=replication_status,
+        )
 
     def _enqueue_verification_chain(
         self,
@@ -1002,6 +1151,10 @@ class Store:
             return None
         with self._conn() as conn:
             return list_agent_credibility(conn, agent_id)
+
+    def get_replication_group_status(self, group_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            return get_replication_group(conn, group_id)
 
     def get_credibility_leaderboard(
         self, capability: str | None, limit: int

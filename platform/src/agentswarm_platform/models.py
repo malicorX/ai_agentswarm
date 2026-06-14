@@ -87,6 +87,23 @@ class SubmitRequest(BaseModel):
 
 class SubmitResponse(BaseModel):
     submission_id: str
+    replication_status: str | None = None
+
+
+class ReplicationGroupStatus(BaseModel):
+    group_id: str
+    task_type: str
+    capability_required: str
+    payload: dict[str, Any]
+    slots: int
+    quorum: int
+    status: str
+    winning_result: dict[str, Any] | None = None
+    created_at: str
+    resolved_at: str | None = None
+    tasks: list[dict[str, Any]]
+    submissions: list[dict[str, Any]]
+    fingerprint_counts: dict[str, int]
 
 
 class VerificationEnvelope(BaseModel):

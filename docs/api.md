@@ -119,6 +119,32 @@ Read-only dashboard: `pilot/dashboard/index.html` (point API base at your platfo
 
 ---
 
+## Replication (Phase 2.3)
+
+Task type **`classifier.label`** fans out to N independent slots when `payload.replication` is set (default 3 slots, quorum 2).
+
+```json
+{
+  "task_type": "classifier.label",
+  "capability_required": "classifier",
+  "payload": {
+    "text": "Article body…",
+    "labels": ["tech", "politics", "sports"],
+    "replication": { "slots": 3, "quorum": 2 }
+  }
+}
+```
+
+Submit result: `{ "label": "tech" }`. Quorum compares normalized label fingerprints; mismatch across all slots yields `disputed`.
+
+### `GET /replication/{group_id}`
+
+Group status, per-slot tasks, submissions, and fingerprint counts.
+
+Submit response may include `replication_status`: `pending`, `quorum_met`, or `disputed`.
+
+---
+
 ## Tasks
 
 ### `POST /tasks`

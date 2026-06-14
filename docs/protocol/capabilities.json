@@ -24,6 +24,13 @@
       "default_egress_hosts": []
     },
     {
+      "id": "classifier",
+      "description": "Labels or categorizes content (N-way replication supported)",
+      "task_types": ["classifier.label"],
+      "default_budget": { "max_concurrent_claims": 2, "max_claims_per_hour": 30 },
+      "default_egress_hosts": []
+    },
+    {
       "id": "summarizer",
       "description": "Produces concise summaries (Phase 1+ external agents)",
       "task_types": [],

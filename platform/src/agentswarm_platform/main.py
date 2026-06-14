@@ -27,6 +27,7 @@ from agentswarm_platform.models import (
     CheckpointRequest,
     ClaimRequest,
     ClaimResponse,
+    ReplicationGroupStatus,
     SubmitRequest,
     SubmitResponse,
     TaskCreateRequest,
@@ -116,6 +117,14 @@ def get_agent_credibility(agent_id: str) -> dict:
     if scores is None:
         raise HTTPException(status_code=404, detail="agent not found")
     return {"agent_id": agent_id, "capabilities": scores}
+
+
+@app.get("/replication/{group_id}", response_model=ReplicationGroupStatus)
+def get_replication_group(group_id: str) -> ReplicationGroupStatus:
+    status = store.get_replication_group_status(group_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="replication group not found")
+    return ReplicationGroupStatus(**status)
 
 
 @app.get("/credibility/leaderboard")
