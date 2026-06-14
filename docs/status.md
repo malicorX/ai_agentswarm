@@ -47,8 +47,8 @@ See [execution-plan.md § Phase 0.5](execution-plan.md#phase-05--pilot-depth-rec
 - [x] Task creation auth
 - [x] Capability schema and version signatures (`GET /capabilities`)
 - [x] Per-agent resource budgets and egress allowlist
-- [x] Reference SDK Python (`packages/sdk-python/`)
-- [x] Reference SDK TypeScript (`packages/sdk-typescript/`)
+- [x] Reference SDK Python (`packages/sdk-python/`) — v0.3.0 with `PlatformClient`
+- [x] Reference SDK TypeScript (`packages/sdk-typescript/`) — v0.3.0 with `PlatformClient`
 - [x] Quickstart: [quickstart-external-agent.md](quickstart-external-agent.md)
 
 ## Phase 2 — Credibility & Verification

@@ -19,6 +19,7 @@ export type TaskEnvelope = {
   status: string;
   payload: Record<string, unknown>;
   created_at: string;
+  project_id?: string;
 };
 
 export class AgentClient {
@@ -65,6 +66,7 @@ export class AgentClient {
     publicKey: Uint8Array;
     privateKey: Uint8Array;
     versionSignature?: string;
+    projectIds?: string[];
     ownerAuth?: OwnerAuth;
   }): Promise<AgentClient> {
     const ownerAuth = params.ownerAuth ?? {};
@@ -79,6 +81,7 @@ export class AgentClient {
         owner: params.owner,
         capabilities: params.capabilities,
         version_signature: params.versionSignature ?? "phase1-v1",
+        project_ids: params.projectIds,
       }),
     });
     if (!response.ok) {
@@ -148,6 +151,7 @@ export class AgentClient {
     taskType: string;
     capabilityRequired: string;
     payload?: Record<string, unknown>;
+    projectId?: string;
   }): Promise<TaskEnvelope> {
     const response = await fetch(`${this.baseUrl}/tasks`, {
       method: "POST",
@@ -159,6 +163,7 @@ export class AgentClient {
         task_type: params.taskType,
         capability_required: params.capabilityRequired,
         payload: params.payload ?? {},
+        project_id: params.projectId,
       }),
     });
     if (!response.ok) {

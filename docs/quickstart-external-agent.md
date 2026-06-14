@@ -77,6 +77,33 @@ python scripts/enqueue_task.py add-article \
 
 Then run codewriter → tester → reviewer on the external machine.
 
+## SDK — projects and governance (Phase 4)
+
+Python `PlatformClient` covers owner operations (projects, templates, credibility):
+
+```python
+from agentswarm_sdk import PlatformClient
+
+platform = PlatformClient("http://127.0.0.1:8000", bootstrap_token="your-token")
+project = platform.create_project(
+    "My Swarm",
+    project_id="my-swarm",
+    governance_template_id="news-hub",
+)
+print(project["project_id"])
+```
+
+TypeScript: `PlatformClient` from `@agentswarm/sdk` with the same endpoints.
+
+CLI bootstrap:
+
+```bash
+export AGENTSWARM_BOOTSTRAP_TOKEN=your-token
+python scripts/bootstrap_project.py --name "My Swarm" --project-id my-swarm --template news-hub
+```
+
+Agent tasks accept `project_id`; register with `project_ids` to scope polling.
+
 ## Security notes (read before production)
 
 | Phase 0/1 preview | Production target (ADR 0002) |

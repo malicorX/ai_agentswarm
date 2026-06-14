@@ -47,6 +47,7 @@ class AgentClient:
         *,
         owner_token: str | None = None,
         bootstrap_token: str | None = None,
+        project_ids: list[str] | None = None,
     ) -> AgentClient:
         headers: dict[str, str] = {}
         token = owner_token or os.environ.get("AGENTSWARM_OWNER_TOKEN")
@@ -56,13 +57,17 @@ class AgentClient:
         elif bootstrap:
             headers["X-Bootstrap-Token"] = bootstrap
 
+        payload = {
+            "public_key": public_key_b64(public_key_raw),
+            "owner": owner,
+            "capabilities": capabilities,
+        }
+        if project_ids is not None:
+            payload["project_ids"] = project_ids
+
         response = httpx.post(
             f"{base_url.rstrip('/')}/agents/register",
-            json={
-                "public_key": public_key_b64(public_key_raw),
-                "owner": owner,
-                "capabilities": capabilities,
-            },
+            json=payload,
             headers=headers,
             timeout=30.0,
         )
@@ -112,14 +117,19 @@ class AgentClient:
         task_type: str,
         capability_required: str,
         payload: dict[str, Any],
+        *,
+        project_id: str | None = None,
     ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "task_type": task_type,
+            "capability_required": capability_required,
+            "payload": payload,
+        }
+        if project_id is not None:
+            body["project_id"] = project_id
         response = self._http.post(
             "/tasks",
-            json={
-                "task_type": task_type,
-                "capability_required": capability_required,
-                "payload": payload,
-            },
+            json=body,
             headers=self._owner_headers(),
         )
         response.raise_for_status()
