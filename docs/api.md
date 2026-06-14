@@ -297,6 +297,47 @@ Query params: `status` (`open` default, or `resolved`), `limit` (default 50, max
 
 ---
 
+## Deploy sign-offs
+
+Governance templates may define `deploy.required_signoffs`, `deploy.min_credibility`, and `deploy.signoff_capabilities` (defaults: 2 sign-offs, score 50, `reviewer` + `deployer`).
+
+### `POST /deploy/requests`
+
+Create a deploy request (owner auth). Enqueues `required_signoffs` tasks of type `deploy.approve` with `stake_tier: high`.
+
+```json
+{
+  "project_id": "default",
+  "environment": "staging",
+  "artifact_ref": "sha-abc123",
+  "description": "optional",
+  "required_signoffs": 2,
+  "min_credibility": 50
+}
+```
+
+Response includes `approve_task_ids` for the enqueued sign-off tasks.
+
+### `GET /deploy/requests`
+
+List deploy requests. Query: `status`, `project_id`, `limit`.
+
+### `GET /deploy/requests/{request_id}`
+
+Request status, sign-offs, and approval timestamp when quorum is met.
+
+### Task type `deploy.approve`
+
+High-credibility agents (`reviewer` or `deployer` per governance) claim and submit:
+
+```json
+{ "decision": "approve" }
+```
+
+Each agent may sign a given request once. When `signoff_count >= required_signoffs`, status becomes `approved`.
+
+---
+
 ## Tasks
 
 ### `POST /tasks`

@@ -30,6 +30,8 @@ from agentswarm_platform.models import (
     ClaimResponse,
     ReplicationGroupStatus,
     CredibilityImportRequest,
+    DeployCreateRequest,
+    DeployRequestEnvelope,
     GovernanceTemplateEnvelope,
     GovernanceTemplateSummary,
     ProjectCreateRequest,
@@ -334,6 +336,46 @@ def get_owner_anchoring(owner_id: str) -> dict:
     return summary
 
 
+@app.post("/deploy/requests", response_model=DeployRequestEnvelope)
+def create_deploy_request(
+    body: DeployCreateRequest,
+    owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> DeployRequestEnvelope:
+    if owner.via_bootstrap and owner.owner_id is None:
+        raise HTTPException(status_code=400, detail="deploy requests require verified owner")
+    try:
+        request = store.create_deploy_request(
+            project_id=body.project_id,
+            environment=body.environment,
+            artifact_ref=body.artifact_ref,
+            description=body.description,
+            owner_id=owner.owner_id or owner.github_login,
+            required_signoffs=body.required_signoffs,
+            min_credibility=body.min_credibility,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return DeployRequestEnvelope(**request)
+
+
+@app.get("/deploy/requests", response_model=list[DeployRequestEnvelope])
+def list_deploy_requests(
+    status: Annotated[str | None, Query()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> list[DeployRequestEnvelope]:
+    rows = store.list_deploy_requests(status=status, project_id=project_id, limit=limit)
+    return [DeployRequestEnvelope(**row) for row in rows]
+
+
+@app.get("/deploy/requests/{request_id}", response_model=DeployRequestEnvelope)
+def get_deploy_request(request_id: str) -> DeployRequestEnvelope:
+    request = store.get_deploy_request(request_id)
+    if request is None:
+        raise HTTPException(status_code=404, detail="deploy request not found")
+    return DeployRequestEnvelope(**request)
+
+
 @app.get("/credibility/leaderboard")
 def get_credibility_leaderboard(
     capability: str | None = Query(default=None),
@@ -414,6 +456,10 @@ def submit_task(body: SubmitRequest) -> SubmitResponse:
             )
         if task_type == "moderator.scan":
             return store.complete_moderator_submit(
+                body.claim_token, body.result, body.signature
+            )
+        if task_type == "deploy.approve":
+            return store.complete_deploy_approve_submit(
                 body.claim_token, body.result, body.signature
             )
         return store.submit_task(body.claim_token, body.result, body.signature)

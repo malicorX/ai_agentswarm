@@ -165,4 +165,61 @@ export class PlatformClient {
       anchored_initial_score: number;
     };
   }
+
+  async createDeployRequest(params: {
+    environment: string;
+    artifactRef: string;
+    projectId?: string;
+    description?: string;
+    requiredSignoffs?: number;
+    minCredibility?: number;
+  }): Promise<Record<string, unknown>> {
+    const response = await fetch(`${this.baseUrl}/deploy/requests`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...this.ownerHeaders(),
+      },
+      body: JSON.stringify({
+        project_id: params.projectId ?? "default",
+        environment: params.environment,
+        artifact_ref: params.artifactRef,
+        description: params.description,
+        required_signoffs: params.requiredSignoffs,
+        min_credibility: params.minCredibility,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`create deploy request failed: ${response.status}`);
+    }
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  async getDeployRequest(requestId: string): Promise<Record<string, unknown>> {
+    const response = await fetch(`${this.baseUrl}/deploy/requests/${requestId}`);
+    if (!response.ok) {
+      throw new Error(`get deploy request failed: ${response.status}`);
+    }
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  async listDeployRequests(params: {
+    status?: string;
+    projectId?: string;
+    limit?: number;
+  } = {}): Promise<Record<string, unknown>[]> {
+    const url = new URL(`${this.baseUrl}/deploy/requests`);
+    if (params.status) {
+      url.searchParams.set("status", params.status);
+    }
+    if (params.projectId) {
+      url.searchParams.set("project_id", params.projectId);
+    }
+    url.searchParams.set("limit", String(params.limit ?? 50));
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`list deploy requests failed: ${response.status}`);
+    }
+    return (await response.json()) as Record<string, unknown>[];
+  }
 }

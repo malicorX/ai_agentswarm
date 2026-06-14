@@ -130,6 +130,54 @@ class PlatformClient:
         response.raise_for_status()
         return response.json()
 
+    def create_deploy_request(
+        self,
+        *,
+        environment: str,
+        artifact_ref: str,
+        project_id: str = "default",
+        description: str | None = None,
+        required_signoffs: int | None = None,
+        min_credibility: float | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "project_id": project_id,
+            "environment": environment,
+            "artifact_ref": artifact_ref,
+        }
+        if description is not None:
+            body["description"] = description
+        if required_signoffs is not None:
+            body["required_signoffs"] = required_signoffs
+        if min_credibility is not None:
+            body["min_credibility"] = min_credibility
+        response = self._http.post(
+            "/deploy/requests", json=body, headers=self._owner_headers()
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def get_deploy_request(self, request_id: str) -> dict[str, Any]:
+        response = self._http.get(f"/deploy/requests/{request_id}")
+        response.raise_for_status()
+        return response.json()
+
+    def list_deploy_requests(
+        self,
+        *,
+        status: str | None = None,
+        project_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, str | int] = {"limit": limit}
+        if status:
+            params["status"] = status
+        if project_id:
+            params["project_id"] = project_id
+        response = self._http.get("/deploy/requests", params=params)
+        response.raise_for_status()
+        return response.json()
+
     def close(self) -> None:
         self._http.close()
 

@@ -11,6 +11,11 @@
       "canary_failure_rate_threshold": 0.5,
       "min_canary_attempts": 2
     },
+    "deploy": {
+      "required_signoffs": 2,
+      "min_credibility": 50,
+      "signoff_capabilities": ["reviewer", "deployer"]
+    },
     "memory_seeds": {
       "news-backlog": {
         "content": {

@@ -43,6 +43,17 @@ from agentswarm_platform.project_store import (
 )
 from agentswarm_platform.orchestration import enqueue_child_tasks
 from agentswarm_platform.canary_store import ensure_canary_schema, evaluate_canary, get_canary_stats
+from agentswarm_platform.deploy_policy import DeployPolicy, resolve_deploy_policy
+from agentswarm_platform.deploy_store import (
+    assert_deploy_signoff_allowed,
+    enqueue_deploy_approve_tasks,
+    ensure_deploy_schema,
+    get_deploy_request as get_deploy_request_row,
+    insert_deploy_request,
+    list_deploy_requests as list_deploy_request_rows,
+    record_deploy_signoff,
+    refresh_deploy_request_status,
+)
 from agentswarm_platform.replication import (
     ReplicationConfig,
     parse_replication_config,
@@ -195,6 +206,7 @@ class Store:
         from agentswarm_platform.owner_anchoring import ensure_owner_anchoring_schema
 
         ensure_owner_anchoring_schema(conn)
+        ensure_deploy_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -1521,6 +1533,88 @@ class Store:
             )
         return SubmitResponse(submission_id=submission_id)
 
+    def complete_deploy_approve_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "deploy.approve":
+                raise ValueError("not a deploy approve task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            decision = str(result.get("decision", "approve"))
+            if decision != "approve":
+                raise ValueError("only approve decisions are supported")
+            task_payload = json.loads(row["payload"]) if row["payload"] else {}
+            request_id = str(task_payload.get("request_id", ""))
+            if not request_id:
+                raise ValueError("deploy task missing request_id")
+            project_id = project_id_from_task_row(row)
+            project = get_project(conn, project_id)
+            if project is None:
+                raise ValueError(f"unknown project: {project_id}")
+            policy = resolve_deploy_policy(project.get("governance_config"))
+            capability, score = assert_deploy_signoff_allowed(
+                conn,
+                agent=agent,
+                agent_id=row["claimed_by"],
+                project_id=project_id,
+                policy=policy,
+            )
+            record_deploy_signoff(
+                conn,
+                request_id=request_id,
+                agent_id=row["claimed_by"],
+                capability=capability,
+                score=score,
+                task_id=row["task_id"],
+            )
+            status = refresh_deploy_request_status(conn, request_id)
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            self._append_audit(
+                conn,
+                "deploy.signoff",
+                row["claimed_by"],
+                {
+                    "request_id": request_id,
+                    "task_id": row["task_id"],
+                    "capability": capability,
+                    "score": score,
+                    "request_status": status,
+                },
+            )
+        return SubmitResponse(submission_id=submission_id)
+
     def list_moderation_flags(
         self, *, status: str | None = "open", limit: int = 50
     ) -> list[dict[str, Any]]:
@@ -1710,6 +1804,90 @@ class Store:
     def get_owner_anchoring(self, owner_id: str) -> dict[str, float | str] | None:
         with self._conn() as conn:
             return owner_anchoring_summary(conn, owner_id)
+
+    def create_deploy_request(
+        self,
+        *,
+        project_id: str,
+        environment: str,
+        artifact_ref: str,
+        description: str | None,
+        owner_id: str,
+        required_signoffs: int | None = None,
+        min_credibility: float | None = None,
+    ) -> dict[str, Any]:
+        resolved_project = validate_project_id(project_id)
+        env = environment.strip()
+        artifact = artifact_ref.strip()
+        if not env:
+            raise ValueError("environment is required")
+        if not artifact:
+            raise ValueError("artifact_ref is required")
+        with self._conn() as conn:
+            project = get_project(conn, resolved_project)
+            if project is None:
+                raise ValueError(f"unknown project: {resolved_project}")
+            base_policy = resolve_deploy_policy(project.get("governance_config"))
+            policy = DeployPolicy(
+                required_signoffs=(
+                    required_signoffs
+                    if required_signoffs is not None
+                    else base_policy.required_signoffs
+                ),
+                min_credibility=(
+                    min_credibility
+                    if min_credibility is not None
+                    else base_policy.min_credibility
+                ),
+                signoff_capabilities=base_policy.signoff_capabilities,
+            )
+            request = insert_deploy_request(
+                conn,
+                project_id=resolved_project,
+                environment=env,
+                artifact_ref=artifact,
+                description=description,
+                owner_id=owner_id,
+                policy=policy,
+            )
+            task_ids = enqueue_deploy_approve_tasks(
+                conn,
+                request_id=request["request_id"],
+                project_id=resolved_project,
+                policy=policy,
+                append_audit=self._append_audit,
+                actor_id=owner_id,
+            )
+            self._append_audit(
+                conn,
+                "deploy.requested",
+                owner_id,
+                {
+                    "request_id": request["request_id"],
+                    "project_id": resolved_project,
+                    "environment": env,
+                    "artifact_ref": artifact,
+                    "task_ids": task_ids,
+                },
+            )
+            request["approve_task_ids"] = task_ids
+            return request
+
+    def list_deploy_requests(
+        self,
+        *,
+        status: str | None = None,
+        project_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        with self._conn() as conn:
+            return list_deploy_request_rows(
+                conn, status=status, project_id=project_id, limit=limit
+            )
+
+    def get_deploy_request(self, request_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            return get_deploy_request_row(conn, request_id)
 
     def import_agent_credibility(
         self,

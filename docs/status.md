@@ -79,6 +79,7 @@ See [execution-plan.md](execution-plan.md).
 - [x] Orchestrator agent (`orchestrator.scan`) — detects idle pool + backlog gaps
 - [x] Project-scoped memory keys — planner/orchestrator use `news-backlog` for `default`, else `{project_id}.news-backlog`
 - [x] Moderator automation (P3.4) — `moderator.scan`, quarantine, `GET /moderation/flags`
+- [x] Deploy sign-offs — `POST /deploy/requests`, `deploy.approve` tasks, credibility quorum
 
 ## Phase 4 — Federation
 

@@ -159,6 +159,32 @@ class CredibilityImportRequest(BaseModel):
     capabilities: list[str] | None = None
 
 
+class DeployCreateRequest(BaseModel):
+    project_id: str = "default"
+    environment: str
+    artifact_ref: str
+    description: str | None = None
+    required_signoffs: int | None = None
+    min_credibility: float | None = None
+
+
+class DeployRequestEnvelope(BaseModel):
+    request_id: str
+    project_id: str
+    environment: str
+    artifact_ref: str
+    description: str | None = None
+    status: str
+    required_signoffs: int
+    min_credibility: float
+    signoff_count: int
+    signoffs: list[dict[str, Any]] = Field(default_factory=list)
+    approve_task_ids: list[str] | None = None
+    created_at: str
+    created_by_owner_id: str
+    approved_at: str | None = None
+
+
 class AuditEvent(BaseModel):
     seq: int
     timestamp: str
