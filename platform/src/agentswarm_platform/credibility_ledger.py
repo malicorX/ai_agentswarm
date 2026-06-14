@@ -15,6 +15,7 @@ from agentswarm_platform.credibility import (
     stake_tier_label,
     task_stake_tier,
 )
+from agentswarm_platform.credibility_gamification import enrich_leaderboard_entry
 from agentswarm_platform.models import utc_now_iso
 from agentswarm_platform.credibility_transfer import (
     CROSS_PROJECT_HAIRCUT,
@@ -255,14 +256,18 @@ def leaderboard(
             (project_id, limit),
         ).fetchall()
     return [
-        {
-            "agent_id": row["agent_id"],
-            "owner": row["owner"],
-            "capability": row["capability"],
-            "score": float(row["score"]),
-            "updated_at": row["updated_at"],
-            "project_id": row["project_id"],
-        }
+        enrich_leaderboard_entry(
+            conn,
+            {
+                "agent_id": row["agent_id"],
+                "owner": row["owner"],
+                "capability": row["capability"],
+                "score": float(row["score"]),
+                "updated_at": row["updated_at"],
+                "project_id": row["project_id"],
+            },
+            project_id,
+        )
         for row in rows
     ]
 

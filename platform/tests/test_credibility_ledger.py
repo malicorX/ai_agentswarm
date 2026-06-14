@@ -93,7 +93,13 @@ def test_credibility_after_full_task_flow(cred_client: TestClient) -> None:
     board = cred_client.get(
         "/credibility/leaderboard", params={"capability": "codewriter"}
     ).json()
-    assert any(entry["agent_id"] == writer_id for entry in board["entries"])
+    writer_entry = next(
+        entry for entry in board["entries"] if entry["agent_id"] == writer_id
+    )
+    assert writer_entry["level"]["label"] in ("novice", "apprentice", "journeyman")
+    badge_ids = {badge["id"] for badge in writer_entry["badges"]}
+    assert "first_accept" in badge_ids
+    assert "stake_player" in badge_ids
 
 
 def test_leaderboard_empty_when_credibility_disabled(client: TestClient) -> None:

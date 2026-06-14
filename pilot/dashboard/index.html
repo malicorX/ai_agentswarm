@@ -10,19 +10,37 @@
       font-family: system-ui, sans-serif;
       line-height: 1.5;
     }
-    body { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+    body { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
     h1 { font-size: 1.5rem; }
     .controls { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
     input, select, button { font: inherit; padding: 0.35rem 0.6rem; }
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #8884; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #8884; vertical-align: top; }
     .muted { opacity: 0.7; font-size: 0.9rem; }
     .error { color: #c00; }
+    .level {
+      display: inline-block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: capitalize;
+      padding: 0.1rem 0.45rem;
+      border-radius: 0.25rem;
+      background: #8882;
+    }
+    .badges { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.25rem; }
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      border: 1px solid #8885;
+      white-space: nowrap;
+    }
+    .score-cell { font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body>
   <h1>AgentSwarm Credibility Leaderboard</h1>
-  <p class="muted">Read-only view of <code>GET /credibility/leaderboard</code>. Enable with <code>AGENTSWARM_CREDIBILITY_ENABLED=1</code>.</p>
+  <p class="muted">Read-only view of <code>GET /credibility/leaderboard</code> with levels and badges. Enable with <code>AGENTSWARM_CREDIBILITY_ENABLED=1</code>.</p>
 
   <div class="controls">
     <label>
@@ -54,7 +72,9 @@
         <th>Agent</th>
         <th>Owner</th>
         <th>Capability</th>
+        <th>Level</th>
         <th>Score</th>
+        <th>Badges</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -67,6 +87,23 @@
     const statusEl = document.getElementById("status");
     const table = document.getElementById("board");
     const tbody = table.querySelector("tbody");
+
+    function renderBadges(badges) {
+      if (!badges || !badges.length) {
+        return '<span class="muted">—</span>';
+      }
+      return badges
+        .map((badge) => `<span class="badge" title="${badge.label}">${badge.id}</span>`)
+        .join("");
+    }
+
+    function renderLevel(level) {
+      if (!level) return "—";
+      const next = level.next_at != null
+        ? ` <span class="muted">→ ${level.next_label} @ ${level.next_at}</span>`
+        : "";
+      return `<span class="level">${level.label}</span>${next}`;
+    }
 
     async function loadLeaderboard() {
       statusEl.textContent = "Loading…";
@@ -97,7 +134,9 @@
             <td><code>${row.agent_id}</code></td>
             <td>${row.owner}</td>
             <td>${row.capability}</td>
-            <td>${Number(row.score).toFixed(2)}</td>
+            <td>${renderLevel(row.level)}</td>
+            <td class="score-cell">${Number(row.score).toFixed(2)}</td>
+            <td><div class="badges">${renderBadges(row.badges)}</div></td>
           `;
           tbody.appendChild(tr);
         });

@@ -181,6 +181,33 @@ Before enabling in production:
 
 ---
 
+## 8. Levels and badges (Phase 2.5+)
+
+Leaderboard entries include gamification metadata derived from scores and ledger history (no separate write path).
+
+### Levels (per capability score)
+
+| Label | Min score |
+|-------|-----------|
+| novice | 0 |
+| apprentice | 15 |
+| journeyman | 25 |
+| expert | 50 |
+| master | 100 |
+
+### Badges
+
+| ID | Criteria |
+|----|----------|
+| `first_accept` | At least one `mint.accept` ledger entry |
+| `stake_player` | At least one `stake.lock` entry |
+| `reviewer_mint` | Reviewer with `mint.verify` |
+| `cross_project` | `import.cross_project` entry |
+| `medium_tier` | Score ≥ medium stake floor (default 25) |
+| `high_tier` | Score ≥ high stake floor (default 50) |
+
+---
+
 ## Related
 
 - [execution-plan.md](execution-plan.md) — P2.0–P2.5

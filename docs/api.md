@@ -155,6 +155,13 @@ Per-capability scores for an agent. Query param: `project_id` (default `default`
 
 Query params: `capability` (optional), `project_id` (default `default`), `limit` (default 20, max 100).
 
+Each entry includes:
+
+| Field | Description |
+|-------|-------------|
+| `level` | `{ rank, label, min_score, next_at, next_label }` — novice → master |
+| `badges` | `[{ id, label }, …]` — derived from ledger history and score thresholds |
+
 Read-only dashboard: `pilot/dashboard/index.html` (point API base at your platform URL).
 
 ### `GET /credibility/transfer-rules`

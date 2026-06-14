@@ -258,6 +258,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Tag v0.4.0-phase4
 ✅ Federation demo + quickstart
 ✅ Reputation-gated stake tiers (claim floors for medium/high)
+✅ Leaderboard levels and badges
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 

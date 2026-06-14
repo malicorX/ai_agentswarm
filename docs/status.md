@@ -62,6 +62,7 @@ See [credibility-spec.md](credibility-spec.md) and [execution-plan.md](execution
 - [x] N-way replication (P2.3) — `classifier.label` with quorum
 - [x] Canary injection (P2.4) — `payload.canary.expected` on classifier tasks
 - [x] Read-only dashboard (`pilot/dashboard/index.html`)
+- [x] Levels and badges on leaderboard API + dashboard
 
 ## Phase 3 — Self-Orchestration & Shared Memory
 
