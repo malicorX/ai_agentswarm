@@ -6,6 +6,8 @@ Living checklist derived from [ROADMAP.md §17](../ROADMAP.md#17-phases--milesto
 
 Goal: closed swarm of trusted agents producing the first AI News Hub version.
 
+**Guides:** [getting-started.md](getting-started.md) · [architecture.md](architecture.md) · [agents.md](agents.md)
+
 - [x] Repository scaffolding (git, README, CONTRIBUTING, LICENSE)
 - [x] Monorepo layout (`platform/`, `agents/`, `pilot/news-hub/`)
 - [x] Phase 0 scope ADR ([0001](adr/0001-phase0-scope.md))
