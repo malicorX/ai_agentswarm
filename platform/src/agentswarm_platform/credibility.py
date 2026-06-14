@@ -15,6 +15,8 @@ STAKE_MIN = 0.5
 STAKE_MAX = 10.0
 VERIFIER_WEIGHT_CAP = 3.0
 DECAY_HALF_LIFE_DAYS = 180.0
+TIER_MEDIUM_MIN = float(os.environ.get("AGENTSWARM_CRED_TIER_MEDIUM_MIN", "25"))
+TIER_HIGH_MIN = float(os.environ.get("AGENTSWARM_CRED_TIER_HIGH_MIN", "50"))
 
 
 def credibility_enabled() -> bool:
@@ -28,6 +30,22 @@ def credibility_enabled() -> bool:
 def task_stake_tier(payload: dict[str, Any]) -> int:
     tier = str(payload.get("stake_tier", "low")).lower()
     return {"low": 1, "medium": 2, "high": 3}.get(tier, 1)
+
+
+def stake_tier_label(tier: int) -> str:
+    return {1: "low", 2: "medium", 3: "high"}.get(tier, "low")
+
+
+def min_credibility_for_tier(tier: int) -> float:
+    if tier >= 3:
+        return TIER_HIGH_MIN
+    if tier == 2:
+        return TIER_MEDIUM_MIN
+    return 0.0
+
+
+def agent_meets_stake_tier(score: float, payload: dict[str, Any]) -> bool:
+    return score >= min_credibility_for_tier(task_stake_tier(payload))
 
 
 def verifier_weight(verifier_score: float) -> float:

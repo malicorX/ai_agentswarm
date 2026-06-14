@@ -257,6 +257,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Project-scoped planner/orchestrator memory keys
 ✅ Tag v0.4.0-phase4
 ✅ Federation demo + quickstart
+✅ Reputation-gated stake tiers (claim floors for medium/high)
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 

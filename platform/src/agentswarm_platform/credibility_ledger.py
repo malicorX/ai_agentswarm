@@ -6,10 +6,13 @@ from typing import Any
 
 from agentswarm_platform.credibility import (
     INITIAL_SCORE,
+    agent_meets_stake_tier,
     compute_outcome_deltas,
     credibility_enabled,
+    min_credibility_for_tier,
     new_ledger_entry_id,
     stake_amount,
+    stake_tier_label,
     task_stake_tier,
 )
 from agentswarm_platform.models import utc_now_iso
@@ -159,6 +162,41 @@ def get_balance(
     if row is None:
         return 0.0
     return float(row["score"])
+
+
+def agent_can_claim_by_tier(
+    conn: sqlite3.Connection,
+    agent_id: str,
+    capability: str,
+    project_id: str,
+    payload: dict[str, Any],
+) -> bool:
+    if not credibility_enabled():
+        return True
+    score = get_balance(conn, agent_id, capability, project_id)
+    return agent_meets_stake_tier(score, payload)
+
+
+def assert_claim_tier_allowed(
+    conn: sqlite3.Connection,
+    agent_id: str,
+    capability: str,
+    project_id: str,
+    payload: dict[str, Any],
+) -> None:
+    if not credibility_enabled():
+        return
+    tier = task_stake_tier(payload)
+    if tier == 1:
+        return
+    score = get_balance(conn, agent_id, capability, project_id)
+    required = min_credibility_for_tier(tier)
+    if score < required:
+        label = stake_tier_label(tier)
+        raise ValueError(
+            f"credibility floor not met for stake_tier={label} "
+            f"(need {required}, have {score})"
+        )
 
 
 def list_agent_credibility(

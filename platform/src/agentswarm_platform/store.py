@@ -54,6 +54,8 @@ from agentswarm_platform.replication_store import (
 )
 from agentswarm_platform.credibility_ledger import (
     apply_task_outcome,
+    assert_claim_tier_allowed,
+    agent_can_claim_by_tier,
     ensure_credibility_schema,
     import_cross_project_credibility,
     leaderboard as credibility_leaderboard,
@@ -62,6 +64,7 @@ from agentswarm_platform.credibility_ledger import (
     project_id_from_task_row,
     seed_agent_capabilities,
 )
+from agentswarm_platform.credibility import credibility_enabled
 from agentswarm_platform.models import (
     AgentBudgetStatus,
     AgentBudgetUsage,
@@ -687,6 +690,15 @@ class Store:
                 )
                 if task_project not in memberships:
                     continue
+                task_payload = json.loads(row["payload"]) if row["payload"] else {}
+                if credibility_enabled() and row["task_type"] not in (
+                    "tester.run",
+                    "reviewer.approve",
+                ):
+                    if not agent_can_claim_by_tier(
+                        conn, agent_id, cap, task_project, task_payload
+                    ):
+                        continue
                 group_id = row["replication_group_id"] if "replication_group_id" in keys else None
                 if group_id:
                     group = conn.execute(
@@ -728,6 +740,15 @@ class Store:
                     raise ValueError("replication group is not accepting claims")
                 if agent_already_in_group(conn, group_id, agent_id):
                     raise ValueError("agent already claimed a slot in this replication group")
+            task_payload = json.loads(row["payload"]) if row["payload"] else {}
+            if row["task_type"] not in ("tester.run", "reviewer.approve"):
+                assert_claim_tier_allowed(
+                    conn,
+                    agent_id=agent_id,
+                    capability=row["capability_required"],
+                    project_id=project_id_from_task_row(row),
+                    payload=task_payload,
+                )
             if row["task_type"] not in ("tester.run", "reviewer.approve"):
                 lock_claim_stake(
                     conn,

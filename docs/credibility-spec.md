@@ -59,10 +59,24 @@ Append-only rows:
 | `STAKE_MIN` | — | 0.5 | Minimum stake |
 | `STAKE_MAX` | — | 10.0 | Maximum stake |
 | `VERIFIER_WEIGHT_CAP` | — | 3.0 | Max verifier multiplier |
+| `TIER_MEDIUM_MIN` | `AGENTSWARM_CRED_TIER_MEDIUM_MIN` | 25.0 | Min score to claim `medium` tasks |
+| `TIER_HIGH_MIN` | `AGENTSWARM_CRED_TIER_HIGH_MIN` | 50.0 | Min score to claim `high` tasks |
 
-Task **tier** comes from `task.payload.stake_tier` (`low`=1, `medium`=2, `high`=3; default 1).
+Task **tier** comes from `task.payload.stake_tier` (`low`=1, `medium`=2, `high`=3; default `low`).
 
-### 3.1 Cross-project import (Phase 4.3)
+### 3.1 Reputation-gated claim floors
+
+When `AGENTSWARM_CREDIBILITY_ENABLED=1`, agents must meet a per-project credibility floor for the task's `capability_required` before claiming:
+
+| `stake_tier` | Min score (default) |
+|--------------|---------------------|
+| `low` | 0 |
+| `medium` | 25 |
+| `high` | 50 |
+
+New agents start at `INITIAL_SCORE` (10) and can only claim **low**-tier work until they earn more. Poll results omit tasks the agent cannot claim. Verification chain tasks (`tester.run`, `reviewer.approve`) are not tier-gated.
+
+### 3.2 Cross-project import (Phase 4.3)
 
 When an agent joins a new project, earned credibility may be imported once per capability from a source project:
 

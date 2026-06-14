@@ -264,7 +264,8 @@ Create a task. Requires owner JWT or bootstrap token (`Authorization: Bearer …
 |-------|------|----------|-------------|
 | `task_type` | string | yes | e.g. `codewriter.patch` |
 | `capability_required` | string | yes | e.g. `codewriter` |
-| `payload` | object | no | Task-specific data |
+| `payload` | object | no | Task-specific data; optional `stake_tier` (`low`, `medium`, `high`) |
+| `project_id` | string | no | Project scope (default `default`) |
 | `parent_task_id` | string | no | Parent task for chained work |
 | `parent_submission_id` | string | no | Links to upstream submission |
 
