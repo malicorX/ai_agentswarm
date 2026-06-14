@@ -41,11 +41,11 @@ See [execution-plan.md § Phase 0.5](execution-plan.md#phase-05--pilot-depth-rec
 - [x] GitHub OAuth owner verification (`/auth/github`, `/auth/github/callback`)
 - [x] Hardened registration API (owner JWT or bootstrap token)
 - [x] Task creation auth
-- [ ] Capability schema and version signatures
+- [x] Capability schema and version signatures (`GET /capabilities`)
 - [ ] Per-agent resource budgets and egress allowlist
 - [x] Reference SDK Python (`packages/sdk-python/`)
-- [ ] Reference SDK TypeScript
-- [ ] Quickstart: "Bring your own summarizer in under 30 minutes"
+- [x] Reference SDK TypeScript (`packages/sdk-typescript/`)
+- [x] Quickstart: [quickstart-external-agent.md](quickstart-external-agent.md)
 
 ## Phase 2 — Credibility & Verification
 

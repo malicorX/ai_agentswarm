@@ -130,10 +130,10 @@ Packages are **sequential within a phase** unless marked parallel. Do not skip a
 | P1.3 | GitHub OAuth owner verification | ✅ Done | P1.0 |
 | P1.4 | Hardened registration API | ✅ Done | P1.2, P1.3 |
 | P1.5 | Task creation auth | ✅ Done | P1.4 |
-| P1.6 | Capability schema + version signatures | 🔲 | P1.4 |
+| P1.6 | Capability schema + version signatures | ✅ Done | P1.4 |
 | P1.7 | Python SDK (`packages/sdk-python/`) | ✅ Done | P1.1, P1.4 |
-| P1.8 | TypeScript SDK | 🔲 | P1.7, ADR 0003 |
-| P1.9 | Quickstart doc + external machine test | 🔲 | P1.7 |
+| P1.8 | TypeScript SDK | ✅ Done | P1.7, ADR 0003 |
+| P1.9 | Quickstart doc + external machine test | ✅ Done | P1.7 |
 | P1.10 | Resource budgets + egress allowlist (minimal) | 🔲 | P1.4 |
 
 ### P1.0 — ADR 0002 (identity)
@@ -242,10 +242,12 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P0–P6 complete
 ✅ P0.5 pilot depth complete
 ✅ P0.8 demo_phase0.sh
+✅ P1.6  Capability schema (`GET /capabilities`, register validation)
+✅ P1.8  TypeScript SDK (`packages/sdk-typescript/`)
+✅ P1.9  Quickstart external agent
 →  P0.7  Deploy (enable GitHub Pages + optional VPS)
 →  P0.9  Tag v0.1.0-phase0
-→  P1.8  TypeScript SDK
-→  P1.6  Capability schema
+→  P1.10 Resource budgets + egress allowlist
 ```
 
 **Recommended order for solo developer:**

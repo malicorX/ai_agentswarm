@@ -1,25 +1,7 @@
-import os
-import tempfile
-from pathlib import Path
-
 import pytest
 from fastapi.testclient import TestClient
 
 from agentswarm_platform.crypto import generate_keypair, public_key_b64, sign_payload
-from agentswarm_platform.main import app
-from agentswarm_platform.store import Store
-
-
-@pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    monkeypatch.setenv("AGENTSWARM_AUTH_DISABLED", "1")
-    with tempfile.TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "test.db"
-        monkeypatch.setenv("AGENTSWARM_DB", str(db_path))
-        import agentswarm_platform.main as main_module
-
-        main_module.store = Store(db_path)
-        yield TestClient(main_module.app)
 
 
 def register_agent(

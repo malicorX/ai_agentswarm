@@ -1,31 +1,9 @@
-import tempfile
-from pathlib import Path
-
-import pytest
 from fastapi.testclient import TestClient
 
 from agentswarm_platform.auth import create_owner_token
-from agentswarm_platform.main import app
-from agentswarm_platform.store import Store
 
 
-@pytest.fixture
-def auth_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    monkeypatch.setenv("AGENTSWARM_SESSION_SECRET", "test-secret")
-    monkeypatch.setenv("AGENTSWARM_BOOTSTRAP_TOKEN", "test-bootstrap")
-    monkeypatch.delenv("AGENTSWARM_AUTH_DISABLED", raising=False)
-    with tempfile.TemporaryDirectory() as tmp:
-        db_path = Path(tmp) / "auth.db"
-        monkeypatch.setenv("AGENTSWARM_DB", str(db_path))
-        import agentswarm_platform.deps as deps
-        import agentswarm_platform.main as main_module
-
-        main_module.store = Store(db_path)
-        deps.bind_store(main_module.store)
-        yield TestClient(main_module.app)
-
-
-def test_task_create_requires_auth(auth_client: TestClient) -> None:
+def test_task_create_without_auth_returns_401(auth_client: TestClient) -> None:
     response = auth_client.post(
         "/tasks",
         json={

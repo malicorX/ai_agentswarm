@@ -17,8 +17,8 @@ venv/
 *.db
 *.sqlite3
 
-# Node
 node_modules/
+packages/sdk-typescript/dist/
 .next/
 out/
 .npm/

@@ -7,6 +7,10 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 
 from agentswarm_platform.auth import OwnerAuth, resolve_owner_auth
+from agentswarm_platform.capabilities import (
+    validate_capabilities,
+    validate_version_signature,
+)
 from agentswarm_platform.deps import bind_store
 from agentswarm_platform.models import (
     AgentRegisterRequest,
@@ -45,6 +49,13 @@ def get_owner(
     return resolve_owner_auth(authorization, x_bootstrap_token)
 
 
+@app.get("/capabilities")
+def list_capabilities() -> dict:
+    from agentswarm_platform.capabilities import load_capability_registry
+
+    return load_capability_registry()
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -55,6 +66,11 @@ def register_agent(
     body: AgentRegisterRequest,
     owner: Annotated[OwnerAuth, Depends(get_owner)],
 ) -> AgentRegisterResponse:
+    try:
+        validate_capabilities(body.capabilities)
+        validate_version_signature(body.version_signature)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     owner_label = owner.github_login
     if not owner.via_bootstrap and body.owner and body.owner != owner.github_login:
         raise HTTPException(status_code=400, detail="owner field must match authenticated login")
