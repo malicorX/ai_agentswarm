@@ -200,12 +200,12 @@ Time-boxed spike (≤4 hours). See [adr/0003-protocol-rest-vs-mcp.md](adr/0003-p
 
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
-| P2.0 | `docs/credibility-spec.md` + simulations | 🔲 | P1.9 |
-| P2.1 | Credibility ledger storage + API hooks | 🔲 | P2.0 |
-| P2.2 | Stake-on-claim | 🔲 | P2.1 |
+| P2.0 | `docs/credibility-spec.md` + simulations | ✅ Done | P1.9 |
+| P2.1 | Credibility ledger storage + API hooks | ✅ Done | P2.0 |
+| P2.2 | Stake-on-claim | ✅ Done | P2.1 |
 | P2.3 | N-way replication (one task type) | 🔲 | P2.1 |
 | P2.4 | Canary injection | 🔲 | P2.3 |
-| P2.5 | Public dashboard (read-only) | 🔲 | P2.1 |
+| P2.5 | Public dashboard (read-only) | ✅ Done | P2.1 |
 
 **Gate:** P2.0 requires human review of math before P2.1 code.
 
@@ -247,8 +247,11 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P1.9  Quickstart external agent
 ✅ P0.9  Tag v0.1.0-phase0
 ✅ P1.10 Resource budgets + egress allowlist
+✅ P2.0–P2.2 Credibility spec, ledger, stake-on-claim
+✅ P2.5 Read-only credibility dashboard
 →  P0.7  Deploy (enable GitHub Pages + optional VPS)
-→  Phase 2  Credibility ledger + dashboard
+→  P2.3  N-way replication
+→  P2.4  Canary injection
 ```
 
 **Recommended order for solo developer:**

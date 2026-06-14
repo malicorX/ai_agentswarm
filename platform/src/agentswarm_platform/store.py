@@ -16,6 +16,14 @@ from agentswarm_platform.budgets import (
     resolve_egress_allowlist,
     resolve_resource_budget,
 )
+from agentswarm_platform.credibility_ledger import (
+    apply_task_outcome,
+    ensure_credibility_schema,
+    leaderboard as credibility_leaderboard,
+    list_agent_credibility,
+    lock_claim_stake,
+    seed_agent_capabilities,
+)
 from agentswarm_platform.models import (
     AgentBudgetStatus,
     AgentBudgetUsage,
@@ -127,6 +135,7 @@ class Store:
             conn.execute("ALTER TABLE agents ADD COLUMN resource_budget TEXT")
         if "egress_allowlist" not in columns:
             conn.execute("ALTER TABLE agents ADD COLUMN egress_allowlist TEXT")
+        ensure_credibility_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -246,6 +255,7 @@ class Store:
                         "capabilities": capabilities,
                     },
                 )
+                seed_agent_capabilities(conn, agent_id, capabilities)
                 return AgentRegisterResponse(agent_id=agent_id, credential=credential)
 
             agent_id = f"agent_{uuid.uuid4().hex[:12]}"
@@ -279,6 +289,7 @@ class Store:
                     "capabilities": capabilities,
                 },
             )
+            seed_agent_capabilities(conn, agent_id, capabilities)
         return AgentRegisterResponse(agent_id=agent_id, credential=credential)
 
     def get_agent(self, agent_id: str) -> dict[str, Any] | None:
@@ -469,6 +480,13 @@ class Store:
                 raise ValueError("task not claimable")
             if row["capability_required"] not in agent["capabilities"]:
                 raise ValueError("agent lacks capability")
+            if row["task_type"] not in ("tester.run", "reviewer.approve"):
+                lock_claim_stake(
+                    conn,
+                    agent_id=agent_id,
+                    capability=row["capability_required"],
+                    task_id=task_id,
+                )
             conn.execute(
                 """
                 UPDATE tasks
@@ -825,6 +843,17 @@ class Store:
                 "verdict": verdict,
             },
         )
+        parent_row = conn.execute(
+            "SELECT * FROM tasks WHERE submission_id = ?",
+            (vrow["submission_id"],),
+        ).fetchone()
+        if parent_row is not None:
+            apply_task_outcome(
+                conn,
+                parent_task_row=parent_row,
+                verdict=verdict,
+                reviewer_agent_id=vrow["claimed_by"],
+            )
 
     def complete_tester_submit(
         self,
@@ -954,8 +983,31 @@ class Store:
                     "verdict": verdict,
                 },
             )
+            parent_row = conn.execute(
+                "SELECT * FROM tasks WHERE submission_id = ?",
+                (parent_submission_id,),
+            ).fetchone()
+            if parent_row is not None:
+                apply_task_outcome(
+                    conn,
+                    parent_task_row=parent_row,
+                    verdict=verdict,
+                    reviewer_agent_id=row["claimed_by"],
+                )
 
         return SubmitResponse(submission_id=submission_id)
+
+    def get_agent_credibility(self, agent_id: str) -> list[dict[str, Any]] | None:
+        if self.get_agent(agent_id) is None:
+            return None
+        with self._conn() as conn:
+            return list_agent_credibility(conn, agent_id)
+
+    def get_credibility_leaderboard(
+        self, capability: str | None, limit: int
+    ) -> list[dict[str, Any]]:
+        with self._conn() as conn:
+            return credibility_leaderboard(conn, capability, limit)
 
     def get_task_type_by_claim_token(self, claim_token: str) -> str | None:
         with self._conn() as conn:

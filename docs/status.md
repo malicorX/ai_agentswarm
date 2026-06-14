@@ -49,7 +49,14 @@ See [execution-plan.md § Phase 0.5](execution-plan.md#phase-05--pilot-depth-rec
 
 ## Phase 2 — Credibility & Verification
 
-Not started. See ROADMAP.md §17.
+See [credibility-spec.md](credibility-spec.md) and [execution-plan.md](execution-plan.md).
+
+- [x] Credibility spec + simulation tests (P2.0)
+- [x] Ledger storage + API (`GET /agents/{id}/credibility`, `GET /credibility/leaderboard`)
+- [x] Stake-on-claim (feature-flagged)
+- [ ] N-way replication (P2.3)
+- [ ] Canary injection (P2.4)
+- [x] Read-only dashboard (`pilot/dashboard/index.html`)
 
 ## Phase 3 — Self-Orchestration & Shared Memory
 

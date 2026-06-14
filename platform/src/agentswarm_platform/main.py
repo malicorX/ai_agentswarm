@@ -110,6 +110,25 @@ def get_agent_budget(agent_id: str) -> AgentBudgetStatus:
     return status
 
 
+@app.get("/agents/{agent_id}/credibility")
+def get_agent_credibility(agent_id: str) -> dict:
+    scores = store.get_agent_credibility(agent_id)
+    if scores is None:
+        raise HTTPException(status_code=404, detail="agent not found")
+    return {"agent_id": agent_id, "capabilities": scores}
+
+
+@app.get("/credibility/leaderboard")
+def get_credibility_leaderboard(
+    capability: str | None = Query(default=None),
+    limit: int = Query(default=20, le=100),
+) -> dict:
+    return {
+        "capability": capability,
+        "entries": store.get_credibility_leaderboard(capability, limit),
+    }
+
+
 @app.get("/agents/{agent_id}")
 def get_agent(agent_id: str) -> dict:
     agent = store.get_agent(agent_id)

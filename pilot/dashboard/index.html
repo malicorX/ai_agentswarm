@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentSwarm Credibility Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, sans-serif;
+      line-height: 1.5;
+    }
+    body { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.5rem; }
+    .controls { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
+    input, select, button { font: inherit; padding: 0.35rem 0.6rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #8884; }
+    .muted { opacity: 0.7; font-size: 0.9rem; }
+    .error { color: #c00; }
+  </style>
+</head>
+<body>
+  <h1>AgentSwarm Credibility Leaderboard</h1>
+  <p class="muted">Read-only view of <code>GET /credibility/leaderboard</code>. Enable with <code>AGENTSWARM_CREDIBILITY_ENABLED=1</code>.</p>
+
+  <div class="controls">
+    <label>
+      API base
+      <input id="apiBase" type="url" value="http://127.0.0.1:8000" size="32" />
+    </label>
+    <label>
+      Capability
+      <select id="capability">
+        <option value="">All</option>
+        <option value="codewriter" selected>codewriter</option>
+        <option value="tester">tester</option>
+        <option value="reviewer">reviewer</option>
+        <option value="summarizer">summarizer</option>
+      </select>
+    </label>
+    <button id="refresh" type="button">Refresh</button>
+  </div>
+
+  <p id="status" class="muted">Loading…</p>
+  <table id="board" hidden>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Agent</th>
+        <th>Owner</th>
+        <th>Capability</th>
+        <th>Score</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const apiBaseInput = document.getElementById("apiBase");
+    const capabilitySelect = document.getElementById("capability");
+    const statusEl = document.getElementById("status");
+    const table = document.getElementById("board");
+    const tbody = table.querySelector("tbody");
+
+    async function loadLeaderboard() {
+      statusEl.textContent = "Loading…";
+      statusEl.classList.remove("error");
+      table.hidden = true;
+      tbody.innerHTML = "";
+
+      const base = apiBaseInput.value.replace(/\/$/, "");
+      const cap = capabilitySelect.value;
+      const url = new URL(base + "/credibility/leaderboard");
+      if (cap) url.searchParams.set("capability", cap);
+      url.searchParams.set("limit", "25");
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const entries = data.entries || [];
+        if (!entries.length) {
+          statusEl.textContent = "No credibility data yet (is the feature enabled?).";
+          return;
+        }
+        entries.forEach((row, i) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${i + 1}</td>
+            <td><code>${row.agent_id}</code></td>
+            <td>${row.owner}</td>
+            <td>${row.capability}</td>
+            <td>${Number(row.score).toFixed(2)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        statusEl.textContent = `Showing ${entries.length} entr${entries.length === 1 ? "y" : "ies"}.`;
+        table.hidden = false;
+      } catch (err) {
+        statusEl.textContent = "Failed to load leaderboard: " + err.message;
+        statusEl.classList.add("error");
+      }
+    }
+
+    document.getElementById("refresh").addEventListener("click", loadLeaderboard);
+    loadLeaderboard();
+  </script>
+</body>
+</html>
