@@ -89,6 +89,7 @@ class SubmitResponse(BaseModel):
     submission_id: str
     replication_status: str | None = None
     canary_passed: bool | None = None
+    enqueued_task_ids: list[str] | None = None
 
 
 class ReplicationGroupStatus(BaseModel):

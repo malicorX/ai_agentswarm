@@ -1,0 +1,117 @@
+from __future__ import annotations
+
+import argparse
+import time
+from typing import Any
+
+import httpx
+
+from agentswarm_agents.client import platform_url
+from agentswarm_agents.identity import connect_agent
+from agentswarm_agents.owner_auth import owner_auth_headers
+
+
+def detect_gaps(summary: dict[str, Any], backlog: dict[str, Any] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    gaps: list[dict[str, Any]] = []
+    enqueue: list[dict[str, Any]] = []
+    created = int(summary.get("tasks", {}).get("created", 0))
+    articles: list[Any] = []
+    if backlog is not None:
+        articles = backlog.get("content", {}).get("articles", [])
+    if created == 0 and articles:
+        gaps.append(
+            {
+                "type": "idle_pool_with_backlog",
+                "article_count": len(articles),
+            }
+        )
+        enqueue.append(
+            {
+                "task_type": "planner.plan",
+                "capability_required": "planner",
+                "payload": {
+                    "goal": "drain-news-backlog",
+                    "memory_key": "news-backlog",
+                },
+            }
+        )
+    failures = summary.get("canary_failures_top") or []
+    if failures:
+        gaps.append({"type": "canary_failures", "agents": failures})
+    return gaps, enqueue
+
+
+def execute_scan(base_url: str) -> dict[str, Any]:
+    root = base_url.rstrip("/")
+    summary = httpx.get(f"{root}/platform/summary", timeout=30.0).json()
+    backlog = None
+    if "news-backlog" in summary.get("memory_keys", []):
+        backlog = httpx.get(f"{root}/memory/news-backlog", timeout=30.0).json()
+    gaps, enqueue = detect_gaps(summary, backlog)
+    return {"gaps": gaps, "enqueue": enqueue, "summary": summary}
+
+
+def run_once(client, base_url: str) -> bool:
+    tasks = client.poll_tasks(capability="orchestrator")
+    if not tasks:
+        return False
+    task = tasks[0]
+    claim_token = client.claim(task["task_id"])
+    result = execute_scan(base_url)
+    client.submit(claim_token, task["task_id"], result)
+    print(
+        f"orchestrator: completed {task['task_id']} "
+        f"({len(result['gaps'])} gaps, {len(result['enqueue'])} actions)"
+    )
+    return True
+
+
+def ensure_scan_task(base_url: str) -> None:
+    """Maintainer helper: enqueue a scan task if none are pending."""
+    headers = owner_auth_headers()
+    if not headers:
+        return
+    response = httpx.post(
+        f"{base_url.rstrip('/')}/tasks",
+        headers=headers,
+        json={
+            "task_type": "orchestrator.scan",
+            "capability_required": "orchestrator",
+            "payload": {"reason": "periodic-gap-check"},
+        },
+        timeout=30.0,
+    )
+    if response.status_code == 200:
+        print(f"orchestrator: enqueued scan task {response.json()['task_id']}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="AgentSwarm orchestrator agent")
+    parser.add_argument("--agent-name", default="orchestrator")
+    parser.add_argument("--once", action="store_true")
+    parser.add_argument("--poll-interval", type=float, default=2.0)
+    parser.add_argument("--enqueue-scan", action="store_true")
+    args = parser.parse_args()
+    base_url = platform_url()
+    if args.enqueue_scan:
+        ensure_scan_task(base_url)
+        return
+    client = connect_agent(
+        agent_name=args.agent_name,
+        owner="phase3-orchestrator",
+        capabilities=["orchestrator"],
+        base_url=base_url,
+    )
+    print(f"orchestrator: connected as {client.agent_id}")
+    if args.once:
+        if not run_once(client, base_url):
+            print("orchestrator: no tasks")
+        return
+    while True:
+        if run_once(client, base_url):
+            continue
+        time.sleep(args.poll_interval)
+
+
+if __name__ == "__main__":
+    main()

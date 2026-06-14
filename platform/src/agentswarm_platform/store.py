@@ -16,6 +16,13 @@ from agentswarm_platform.budgets import (
     resolve_egress_allowlist,
     resolve_resource_budget,
 )
+from agentswarm_platform.memory_store import (
+    ensure_memory_schema,
+    get_memory_entry,
+    list_memory_entries,
+    upsert_memory_entry,
+)
+from agentswarm_platform.orchestration import enqueue_child_tasks
 from agentswarm_platform.canary_store import ensure_canary_schema, evaluate_canary, get_canary_stats
 from agentswarm_platform.replication import (
     ReplicationConfig,
@@ -150,6 +157,7 @@ class Store:
         ensure_credibility_schema(conn)
         ensure_replication_schema(conn)
         ensure_canary_schema(conn)
+        ensure_memory_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -1172,6 +1180,211 @@ class Store:
                 )
 
         return SubmitResponse(submission_id=submission_id)
+
+    def complete_planner_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "planner.plan":
+                raise ValueError("not a planner task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            enqueue_specs = result.get("enqueue")
+            if not isinstance(enqueue_specs, list) or not enqueue_specs:
+                raise ValueError("planner result requires non-empty enqueue list")
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            enqueued = enqueue_child_tasks(
+                conn,
+                parent_task_id=row["task_id"],
+                specs=enqueue_specs,
+                trigger="planner.plan",
+                append_audit=self._append_audit,
+            )
+            self._append_audit(
+                conn,
+                "planner.completed",
+                row["claimed_by"],
+                {
+                    "task_id": row["task_id"],
+                    "goal": result.get("goal"),
+                    "enqueued_task_ids": enqueued,
+                },
+            )
+        return SubmitResponse(
+            submission_id=submission_id,
+            enqueued_task_ids=enqueued,
+        )
+
+    def complete_orchestrator_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "orchestrator.scan":
+                raise ValueError("not an orchestrator task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            enqueue_specs = result.get("enqueue", [])
+            if enqueue_specs and not isinstance(enqueue_specs, list):
+                raise ValueError("orchestrator enqueue must be a list")
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            enqueued: list[str] = []
+            if enqueue_specs:
+                enqueued = enqueue_child_tasks(
+                    conn,
+                    parent_task_id=row["task_id"],
+                    specs=enqueue_specs,
+                    trigger="orchestrator.scan",
+                    append_audit=self._append_audit,
+                )
+            self._append_audit(
+                conn,
+                "orchestrator.completed",
+                row["claimed_by"],
+                {
+                    "task_id": row["task_id"],
+                    "gaps": result.get("gaps", []),
+                    "enqueued_task_ids": enqueued,
+                },
+            )
+        return SubmitResponse(
+            submission_id=submission_id,
+            enqueued_task_ids=enqueued or None,
+        )
+
+    def list_memory(self) -> list[dict[str, Any]]:
+        with self._conn() as conn:
+            return list_memory_entries(conn)
+
+    def get_memory(self, memory_key: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            return get_memory_entry(conn, memory_key)
+
+    def upsert_memory(
+        self,
+        *,
+        memory_key: str,
+        content: dict[str, Any],
+        tags: list[str] | None,
+        updated_by: str | None,
+    ) -> dict[str, Any]:
+        with self._conn() as conn:
+            return upsert_memory_entry(
+                conn,
+                memory_key=memory_key,
+                content=content,
+                tags=tags,
+                updated_by=updated_by,
+            )
+
+    def get_platform_summary(self) -> dict[str, Any]:
+        with self._conn() as conn:
+            task_rows = conn.execute(
+                """
+                SELECT status, COUNT(*) AS n
+                FROM tasks
+                GROUP BY status
+                """
+            ).fetchall()
+            repl_rows = conn.execute(
+                """
+                SELECT status, COUNT(*) AS n
+                FROM replication_groups
+                GROUP BY status
+                """
+            ).fetchall()
+            canary_rows = conn.execute(
+                """
+                SELECT agent_id,
+                       SUM(CASE WHEN passed = 0 THEN 1 ELSE 0 END) AS failures,
+                       COUNT(*) AS attempts
+                FROM canary_events
+                GROUP BY agent_id
+                HAVING failures > 0
+                ORDER BY failures DESC
+                LIMIT 5
+                """
+            ).fetchall()
+            memory_rows = conn.execute(
+                "SELECT memory_key FROM memory_entries ORDER BY memory_key ASC"
+            ).fetchall()
+        tasks = {row["status"]: int(row["n"]) for row in task_rows}
+        replication_groups = {row["status"]: int(row["n"]) for row in repl_rows}
+        canary_failures_top = [
+            {
+                "agent_id": row["agent_id"],
+                "failures": int(row["failures"]),
+                "attempts": int(row["attempts"]),
+            }
+            for row in canary_rows
+        ]
+        return {
+            "tasks": tasks,
+            "replication_groups": replication_groups,
+            "canary_failures_top": canary_failures_top,
+            "memory_keys": [row["memory_key"] for row in memory_rows],
+        }
 
     def get_agent_credibility(self, agent_id: str) -> list[dict[str, Any]] | None:
         if self.get_agent(agent_id) is None:

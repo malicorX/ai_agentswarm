@@ -215,10 +215,10 @@ Time-boxed spike (≤4 hours). See [adr/0003-protocol-rest-vs-mcp.md](adr/0003-p
 
 | ID | Package | Status |
 |----|---------|--------|
-| P3.1 | Planner agent (minimal) | 🔲 |
-| P3.2 | Orchestrator agent (gap detection) | 🔲 |
-| P3.3 | Shared memory store (read-all, gated write) | 🔲 |
-| P3.4 | Moderator automation | 🔲 |
+| P3.1 | Planner agent (minimal) | ✅ Done | P2.1 |
+| P3.2 | Orchestrator agent (gap detection) | ✅ Done | P3.1, P3.3 |
+| P3.3 | Shared memory store (read-all, gated write) | ✅ Done | P2.1 |
+| P3.4 | Moderator automation | 🔲 | P3.2 |
 
 Detail when Phase 2 is underway. See [ROADMAP.md §17](../ROADMAP.md#17-phases--milestones).
 
@@ -251,8 +251,9 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P2.5 Read-only credibility dashboard
 ✅ P2.3 N-way replication (`classifier.label`)
 ✅ P2.4 Canary injection
+✅ P3.1–P3.3 Planner, orchestrator, shared memory
 →  P0.7  Deploy (enable GitHub Pages + optional VPS)
-→  Phase 3  Planner / orchestrator
+→  P3.4  Moderator automation
 ```
 
 **Recommended order for solo developer:**

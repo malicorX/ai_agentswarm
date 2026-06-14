@@ -63,14 +63,14 @@
     {
       "id": "planner",
       "description": "Breaks goals into claimable tasks",
-      "task_types": [],
+      "task_types": ["planner.plan"],
       "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 20 },
       "default_egress_hosts": []
     },
     {
       "id": "orchestrator",
       "description": "Detects gaps and enqueues work",
-      "task_types": [],
+      "task_types": ["orchestrator.scan"],
       "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 20 },
       "default_egress_hosts": []
     }

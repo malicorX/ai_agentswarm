@@ -35,6 +35,7 @@ from agentswarm_platform.models import (
     VerificationEnvelope,
     VerifyRequest,
 )
+from agentswarm_platform.platform_models import MemoryUpsertRequest, PlatformSummary
 from agentswarm_platform.oauth import router as auth_router
 from agentswarm_platform.store import Store
 
@@ -63,6 +64,40 @@ def list_capabilities() -> dict:
     from agentswarm_platform.capabilities import load_capability_registry
 
     return load_capability_registry()
+
+
+@app.get("/platform/summary", response_model=PlatformSummary)
+def platform_summary() -> PlatformSummary:
+    return PlatformSummary(**store.get_platform_summary())
+
+
+@app.get("/memory")
+def list_memory() -> dict:
+    return {"entries": store.list_memory()}
+
+
+@app.get("/memory/{memory_key}")
+def get_memory_entry(memory_key: str) -> dict:
+    entry = store.get_memory(memory_key)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="memory key not found")
+    return entry
+
+
+@app.put("/memory/{memory_key}")
+def put_memory_entry(
+    memory_key: str,
+    body: MemoryUpsertRequest,
+    owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> dict:
+    if body.key != memory_key:
+        raise HTTPException(status_code=400, detail="key in body must match path")
+    return store.upsert_memory(
+        memory_key=memory_key,
+        content=body.content,
+        tags=body.tags,
+        updated_by=owner.github_login,
+    )
 
 
 @app.get("/health")
@@ -197,6 +232,14 @@ def submit_task(body: SubmitRequest) -> SubmitResponse:
             )
         if task_type == "reviewer.approve":
             return store.complete_reviewer_submit(
+                body.claim_token, body.result, body.signature
+            )
+        if task_type == "planner.plan":
+            return store.complete_planner_submit(
+                body.claim_token, body.result, body.signature
+            )
+        if task_type == "orchestrator.scan":
+            return store.complete_orchestrator_submit(
                 body.claim_token, body.result, body.signature
             )
         return store.submit_task(body.claim_token, body.result, body.signature)

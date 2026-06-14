@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 
+from agentswarm_agents.owner_auth import owner_auth_headers
 from agentswarm_platform.crypto import public_key_b64, sign_payload
 
 
@@ -81,6 +82,7 @@ class PlatformClient:
                 "capability_required": capability_required,
                 "payload": payload,
             },
+            headers=owner_auth_headers(),
         )
         response.raise_for_status()
         return response.json()

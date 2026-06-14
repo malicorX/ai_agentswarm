@@ -61,7 +61,13 @@ See [credibility-spec.md](credibility-spec.md) and [execution-plan.md](execution
 
 ## Phase 3 — Self-Orchestration & Shared Memory
 
-Not started. See ROADMAP.md §17.
+See [execution-plan.md](execution-plan.md).
+
+- [x] Shared memory store — `GET /memory`, `PUT /memory/{key}` (owner auth for writes)
+- [x] Platform summary — `GET /platform/summary` for gap detection
+- [x] Planner agent (`planner.plan`) — reads backlog, enqueues codewriter tasks
+- [x] Orchestrator agent (`orchestrator.scan`) — detects idle pool + backlog gaps
+- [ ] Moderator automation (P3.4)
 
 ## Phase 4 — Federation
 
