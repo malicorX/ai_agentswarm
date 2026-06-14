@@ -113,6 +113,26 @@
     <div id="profileContent"></div>
   </section>
 
+  <section id="deployPanel" style="margin-top: 2rem;">
+    <h2>Deploy requests</h2>
+    <p class="muted">Read-only view of <code>GET /deploy/requests</code>.</p>
+    <p id="deployStatus" class="muted">Loading…</p>
+    <table id="deployBoard" hidden>
+      <thead>
+        <tr>
+          <th>Request</th>
+          <th>Environment</th>
+          <th>Artifact</th>
+          <th>Status</th>
+          <th>Sign-offs</th>
+          <th>Approved</th>
+          <th>Deployed</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
   <script>
     const apiBaseInput = document.getElementById("apiBase");
     const projectIdInput = document.getElementById("projectId");
@@ -123,6 +143,9 @@
     const profilePanel = document.getElementById("profilePanel");
     const profileStatus = document.getElementById("profileStatus");
     const profileContent = document.getElementById("profileContent");
+    const deployStatus = document.getElementById("deployStatus");
+    const deployBoard = document.getElementById("deployBoard");
+    const deployBody = deployBoard.querySelector("tbody");
     let selectedAgentId = null;
 
     function renderBadges(badges) {
@@ -240,8 +263,51 @@
       }
     }
 
-    document.getElementById("refresh").addEventListener("click", loadLeaderboard);
+    async function loadDeployRequests() {
+      deployStatus.textContent = "Loading…";
+      deployStatus.classList.remove("error");
+      deployBoard.hidden = true;
+      deployBody.innerHTML = "";
+
+      const url = new URL(apiBase() + "/deploy/requests");
+      url.searchParams.set("project_id", projectId());
+      url.searchParams.set("limit", "20");
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const rows = await res.json();
+        if (!rows.length) {
+          deployStatus.textContent = "No deploy requests yet.";
+          return;
+        }
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><code>${row.request_id}</code></td>
+            <td>${row.environment}</td>
+            <td><code>${row.artifact_ref}</code></td>
+            <td>${row.status}</td>
+            <td>${row.signoff_count}/${row.required_signoffs}</td>
+            <td class="muted">${row.approved_at || "—"}</td>
+            <td class="muted">${row.deployed_at || "—"}</td>
+          `;
+          deployBody.appendChild(tr);
+        });
+        deployStatus.textContent = `Showing ${rows.length} deploy request(s).`;
+        deployBoard.hidden = false;
+      } catch (err) {
+        deployStatus.textContent = "Failed to load deploy requests: " + err.message;
+        deployStatus.classList.add("error");
+      }
+    }
+
+    document.getElementById("refresh").addEventListener("click", () => {
+      loadLeaderboard();
+      loadDeployRequests();
+    });
     loadLeaderboard();
+    loadDeployRequests();
   </script>
 </body>
 </html>

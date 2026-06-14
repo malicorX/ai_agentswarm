@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Manual deployment for **Phase 0**. AgentSwarm does not yet have a deployer agent or automated pipeline — a human maintainer runs the platform and hosts the pilot.
+Manual deployment for **Phase 0**. A **deployer agent** can record approved deploy executions via `deploy.execute` tasks; production pushes still require human setup (GitHub Pages, VPS). See sign-off flow in [api.md](api.md#deploy-sign-offs).
 
 **Prerequisites:** Phase 0 code on `main`, Python 3.11+, a small VM or VPS (1 vCPU, 512MB–1GB RAM is enough for early traffic).
 

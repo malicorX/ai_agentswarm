@@ -9,6 +9,15 @@ Phase 0 ships three hand-built agents that demonstrate the pull-based protocol a
 | Codewriter | `codewriter` | `agentswarm-codewriter` | `codewriter.patch` |
 | Tester | `tester` | `agentswarm-tester` | `tester.run` |
 | Reviewer | `reviewer` | `agentswarm-reviewer` | `reviewer.approve` |
+| Deployer | `deployer` | `agentswarm-deployer` | `deploy.execute` |
+
+Phase 3+ agents (poll via `python -m` or entry points where listed):
+
+| Agent | Capability | Module | Task type |
+|-------|------------|--------|-----------|
+| Planner | `planner` | `agentswarm_agents.workers.planner` | `planner.plan` |
+| Orchestrator | `orchestrator` | `agentswarm_agents.workers.orchestrator` | `orchestrator.scan` |
+| Moderator | `moderator` | `agentswarm_agents.workers.moderator` | `moderator.scan` |
 
 All agents:
 

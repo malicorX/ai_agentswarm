@@ -135,3 +135,108 @@ def test_deploy_approve_rejects_low_credibility_agent(cred_client: TestClient) -
     task_id = created.json()["approve_task_ids"][0]
     claim = cred_client.post(f"/tasks/{task_id}/claim", json={"agent_id": reviewer_id})
     assert claim.status_code == 400
+
+
+def test_deploy_request_executes_after_approval(
+    cred_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("agentswarm_platform.credibility.INITIAL_SCORE", 60.0)
+    monkeypatch.setattr("agentswarm_platform.credibility_ledger.INITIAL_SCORE", 60.0)
+
+    reviewer_a, priv_a = register_agent(cred_client, ["reviewer"])
+    reviewer_b, priv_b = register_agent(cred_client, ["reviewer"])
+    deployer_id, deployer_priv = register_agent(cred_client, ["deployer"])
+
+    created = cred_client.post(
+        "/deploy/requests",
+        json={
+            "environment": "staging",
+            "artifact_ref": "sha-exec",
+            "required_signoffs": 2,
+        },
+    )
+    body = created.json()
+    for reviewer_id, priv, task_id in zip(
+        (reviewer_a, reviewer_b),
+        (priv_a, priv_b),
+        body["approve_task_ids"],
+        strict=True,
+    ):
+        claim = cred_client.post(f"/tasks/{task_id}/claim", json={"agent_id": reviewer_id})
+        result = {"decision": "approve"}
+        cred_client.post(
+            "/tasks/submit",
+            json={
+                "claim_token": claim.json()["claim_token"],
+                "result": result,
+                "signature": sign_payload(priv, {"task_id": task_id, "result": result}),
+            },
+        )
+
+    approved = cred_client.get(f"/deploy/requests/{body['request_id']}").json()
+    assert approved["status"] == "approved"
+    execute_task_id = approved["execute_task_id"]
+    assert execute_task_id
+
+    claim = cred_client.post(
+        f"/tasks/{execute_task_id}/claim", json={"agent_id": deployer_id}
+    )
+    assert claim.status_code == 200
+    result = {
+        "request_id": body["request_id"],
+        "environment": "staging",
+        "artifact_ref": "sha-exec",
+        "outcome": "simulated",
+        "message": "test",
+    }
+    submit = cred_client.post(
+        "/tasks/submit",
+        json={
+            "claim_token": claim.json()["claim_token"],
+            "result": result,
+            "signature": sign_payload(
+                deployer_priv, {"task_id": execute_task_id, "result": result}
+            ),
+        },
+    )
+    assert submit.status_code == 200
+
+    deployed = cred_client.get(f"/deploy/requests/{body['request_id']}").json()
+    assert deployed["status"] == "deployed"
+    assert deployed["executed_by_agent_id"] == deployer_id
+    assert deployed["execution_result"]["outcome"] == "simulated"
+
+
+def test_deploy_reject_cancels_pending_request(
+    cred_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("agentswarm_platform.credibility.INITIAL_SCORE", 60.0)
+    monkeypatch.setattr("agentswarm_platform.credibility_ledger.INITIAL_SCORE", 60.0)
+
+    reviewer_id, priv = register_agent(cred_client, ["reviewer"])
+    created = cred_client.post(
+        "/deploy/requests",
+        json={
+            "environment": "staging",
+            "artifact_ref": "sha-reject",
+            "required_signoffs": 2,
+        },
+    )
+    task_id = created.json()["approve_task_ids"][0]
+    claim = cred_client.post(f"/tasks/{task_id}/claim", json={"agent_id": reviewer_id})
+    result = {"decision": "reject", "reason": "artifact not verified"}
+    submit = cred_client.post(
+        "/tasks/submit",
+        json={
+            "claim_token": claim.json()["claim_token"],
+            "result": result,
+            "signature": sign_payload(priv, {"task_id": task_id, "result": result}),
+        },
+    )
+    assert submit.status_code == 200
+
+    request = cred_client.get(f"/deploy/requests/{created.json()['request_id']}").json()
+    assert request["status"] == "rejected"
+

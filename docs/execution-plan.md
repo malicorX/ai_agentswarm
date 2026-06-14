@@ -267,6 +267,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Owner anchoring (quarantine penalty + anchored seeds)
 ✅ Owner anchoring: canary failures and high-severity flags
 ✅ Deploy sign-offs with credibility-gated `deploy.approve` quorum
+✅ Deployer agent + `deploy.execute` + reject path
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 

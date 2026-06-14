@@ -17,6 +17,7 @@ dependencies = [
 agentswarm-codewriter = "agentswarm_agents.workers.codewriter:main"
 agentswarm-tester = "agentswarm_agents.workers.tester:main"
 agentswarm-reviewer = "agentswarm_agents.workers.reviewer:main"
+agentswarm-deployer = "agentswarm_agents.workers.deployer:main"
 agentswarm-demo = "agentswarm_agents.demo:main"
 agentswarm-demo-federation = "agentswarm_agents.federation_demo:main"
 

@@ -51,8 +51,10 @@ from agentswarm_platform.deploy_store import (
     get_deploy_request as get_deploy_request_row,
     insert_deploy_request,
     list_deploy_requests as list_deploy_request_rows,
+    record_deploy_execution,
     record_deploy_signoff,
     refresh_deploy_request_status,
+    reject_deploy_request,
 )
 from agentswarm_platform.replication import (
     ReplicationConfig,
@@ -1556,12 +1558,43 @@ class Store:
             if not verify_payload(agent["public_key"], signed_payload, signature):
                 raise ValueError("invalid submission signature")
             decision = str(result.get("decision", "approve"))
-            if decision != "approve":
-                raise ValueError("only approve decisions are supported")
             task_payload = json.loads(row["payload"]) if row["payload"] else {}
             request_id = str(task_payload.get("request_id", ""))
             if not request_id:
                 raise ValueError("deploy task missing request_id")
+            if decision == "reject":
+                reject_deploy_request(
+                    conn,
+                    request_id=request_id,
+                    reason=str(result.get("reason", "rejected by reviewer")),
+                )
+                submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+                submitted_at = utc_now_iso()
+                conn.execute(
+                    """
+                    UPDATE tasks
+                    SET status = ?, submitted_at = ?, submission_id = ?,
+                        submission_result = ?, submission_signature = ?
+                    WHERE task_id = ?
+                    """,
+                    (
+                        TaskStatus.VERIFIED.value,
+                        submitted_at,
+                        submission_id,
+                        json.dumps(result),
+                        signature,
+                        row["task_id"],
+                    ),
+                )
+                self._append_audit(
+                    conn,
+                    "deploy.rejected",
+                    row["claimed_by"],
+                    {"request_id": request_id, "task_id": row["task_id"]},
+                )
+                return SubmitResponse(submission_id=submission_id)
+            if decision != "approve":
+                raise ValueError("deploy approve decision must be approve or reject")
             project_id = project_id_from_task_row(row)
             project = get_project(conn, project_id)
             if project is None:
@@ -1582,7 +1615,12 @@ class Store:
                 score=score,
                 task_id=row["task_id"],
             )
-            status = refresh_deploy_request_status(conn, request_id)
+            status = refresh_deploy_request_status(
+                conn,
+                request_id,
+                append_audit=self._append_audit,
+                actor_id=row["claimed_by"],
+            )
             submission_id = f"sub_{uuid.uuid4().hex[:12]}"
             submitted_at = utc_now_iso()
             conn.execute(
@@ -1611,6 +1649,70 @@ class Store:
                     "capability": capability,
                     "score": score,
                     "request_status": status,
+                },
+            )
+        return SubmitResponse(submission_id=submission_id)
+
+    def complete_deploy_execute_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "deploy.execute":
+                raise ValueError("not a deploy execute task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            if "deployer" not in agent.get("capabilities", []):
+                raise ValueError("agent lacks deployer capability")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            task_payload = json.loads(row["payload"]) if row["payload"] else {}
+            request_id = str(task_payload.get("request_id", ""))
+            if not request_id:
+                raise ValueError("deploy task missing request_id")
+            record_deploy_execution(
+                conn,
+                request_id=request_id,
+                agent_id=row["claimed_by"],
+                result=result,
+            )
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            self._append_audit(
+                conn,
+                "deploy.executed",
+                row["claimed_by"],
+                {
+                    "request_id": request_id,
+                    "task_id": row["task_id"],
+                    "outcome": result.get("outcome"),
                 },
             )
         return SubmitResponse(submission_id=submission_id)

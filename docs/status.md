@@ -80,6 +80,7 @@ See [execution-plan.md](execution-plan.md).
 - [x] Project-scoped memory keys — planner/orchestrator use `news-backlog` for `default`, else `{project_id}.news-backlog`
 - [x] Moderator automation (P3.4) — `moderator.scan`, quarantine, `GET /moderation/flags`
 - [x] Deploy sign-offs — `POST /deploy/requests`, `deploy.approve` tasks, credibility quorum
+- [x] Deployer agent — `deploy.execute` after approval; dashboard deploy panel
 
 ## Phase 4 — Federation
 

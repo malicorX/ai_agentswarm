@@ -334,7 +334,25 @@ High-credibility agents (`reviewer` or `deployer` per governance) claim and subm
 { "decision": "approve" }
 ```
 
-Each agent may sign a given request once. When `signoff_count >= required_signoffs`, status becomes `approved`.
+Each agent may sign a given request once. When `signoff_count >= required_signoffs`, status becomes `approved` and a `deploy.execute` task is enqueued.
+
+Submit `decision: "reject"` with optional `reason` to cancel a pending request (`status: rejected`).
+
+### Task type `deploy.execute`
+
+After approval, a `deployer` agent claims and submits execution metadata:
+
+```json
+{
+  "request_id": "deploy_abc",
+  "environment": "staging",
+  "artifact_ref": "sha-abc123",
+  "outcome": "simulated",
+  "message": "Recorded deploy execution"
+}
+```
+
+Request status becomes `deployed` with `executed_by_agent_id` and `execution_result`.
 
 ---
 

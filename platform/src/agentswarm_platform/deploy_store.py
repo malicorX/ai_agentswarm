@@ -40,6 +40,51 @@ def ensure_deploy_schema(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    request_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(deploy_requests)").fetchall()
+    }
+    for column, ddl in (
+        ("deployed_at", "ALTER TABLE deploy_requests ADD COLUMN deployed_at TEXT"),
+        (
+            "executed_by_agent_id",
+            "ALTER TABLE deploy_requests ADD COLUMN executed_by_agent_id TEXT",
+        ),
+        (
+            "execution_result",
+            "ALTER TABLE deploy_requests ADD COLUMN execution_result TEXT",
+        ),
+        (
+            "execute_task_id",
+            "ALTER TABLE deploy_requests ADD COLUMN execute_task_id TEXT",
+        ),
+    ):
+        if column not in request_columns:
+            conn.execute(ddl)
+
+
+def reject_deploy_request(
+    conn: sqlite3.Connection,
+    *,
+    request_id: str,
+    reason: str,
+) -> None:
+    ensure_deploy_schema(conn)
+    row = conn.execute(
+        "SELECT status FROM deploy_requests WHERE request_id = ?",
+        (request_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError("deploy request not found")
+    if row["status"] != "pending":
+        raise ValueError(f"deploy request is {row['status']}")
+    conn.execute(
+        """
+        UPDATE deploy_requests
+        SET status = ?, description = COALESCE(description, '') || ?
+        WHERE request_id = ?
+        """,
+        ("rejected", f"\nRejected: {reason}", request_id),
+    )
 
 
 def assert_deploy_signoff_allowed(
@@ -208,11 +253,18 @@ def record_deploy_signoff(
     )
 
 
-def refresh_deploy_request_status(conn: sqlite3.Connection, request_id: str) -> str:
+def refresh_deploy_request_status(
+    conn: sqlite3.Connection,
+    request_id: str,
+    *,
+    append_audit: Callable[[sqlite3.Connection, str, str | None, dict[str, Any]], None]
+    | None = None,
+    actor_id: str | None = None,
+) -> str:
     ensure_deploy_schema(conn)
     row = conn.execute(
         """
-        SELECT required_signoffs, status
+        SELECT required_signoffs, status, project_id, execute_task_id
         FROM deploy_requests
         WHERE request_id = ?
         """,
@@ -237,8 +289,112 @@ def refresh_deploy_request_status(conn: sqlite3.Connection, request_id: str) -> 
             """,
             ("approved", approved_at, request_id),
         )
+        if append_audit is not None and not row["execute_task_id"]:
+            enqueue_deploy_execute_task(
+                conn,
+                request_id=request_id,
+                project_id=str(row["project_id"]),
+                append_audit=append_audit,
+                actor_id=actor_id,
+            )
         return "approved"
     return "pending"
+
+
+def enqueue_deploy_execute_task(
+    conn: sqlite3.Connection,
+    *,
+    request_id: str,
+    project_id: str,
+    append_audit: Callable[[sqlite3.Connection, str, str | None, dict[str, Any]], None],
+    actor_id: str | None,
+) -> str:
+    ensure_deploy_schema(conn)
+    row = conn.execute(
+        """
+        SELECT status, execute_task_id
+        FROM deploy_requests
+        WHERE request_id = ?
+        """,
+        (request_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError("deploy request not found")
+    if row["status"] != "approved":
+        raise ValueError("deploy request is not approved")
+    if row["execute_task_id"]:
+        return str(row["execute_task_id"])
+    task_id = f"task_{uuid.uuid4().hex[:12]}"
+    created_at = utc_now_iso()
+    payload = {"request_id": request_id, "stake_tier": "medium"}
+    conn.execute(
+        """
+        INSERT INTO tasks (
+            task_id, task_type, capability_required, status, payload,
+            parent_task_id, parent_submission_id, created_at, project_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            task_id,
+            "deploy.execute",
+            "deployer",
+            TaskStatus.CREATED.value,
+            json.dumps(payload),
+            None,
+            None,
+            created_at,
+            project_id,
+        ),
+    )
+    conn.execute(
+        "UPDATE deploy_requests SET execute_task_id = ? WHERE request_id = ?",
+        (task_id, request_id),
+    )
+    append_audit(
+        conn,
+        "task.created",
+        actor_id,
+        {
+            "task_id": task_id,
+            "task_type": "deploy.execute",
+            "request_id": request_id,
+            "project_id": project_id,
+        },
+    )
+    return task_id
+
+
+def record_deploy_execution(
+    conn: sqlite3.Connection,
+    *,
+    request_id: str,
+    agent_id: str,
+    result: dict[str, Any],
+) -> None:
+    ensure_deploy_schema(conn)
+    row = conn.execute(
+        "SELECT status FROM deploy_requests WHERE request_id = ?",
+        (request_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError("deploy request not found")
+    if row["status"] != "approved":
+        raise ValueError(f"deploy request is {row['status']}")
+    conn.execute(
+        """
+        UPDATE deploy_requests
+        SET status = ?, deployed_at = ?, executed_by_agent_id = ?,
+            execution_result = ?
+        WHERE request_id = ?
+        """,
+        (
+            "deployed",
+            utc_now_iso(),
+            agent_id,
+            json.dumps(result),
+            request_id,
+        ),
+    )
 
 
 def list_deploy_signoffs(conn: sqlite3.Connection, request_id: str) -> list[dict[str, Any]]:
@@ -276,6 +432,15 @@ def get_deploy_request(conn: sqlite3.Connection, request_id: str) -> dict[str, A
     if row is None:
         return None
     signoffs = list_deploy_signoffs(conn, request_id)
+    execution_result: dict[str, Any] | None = None
+    raw_execution = row["execution_result"] if "execution_result" in row.keys() else None
+    if raw_execution:
+        try:
+            parsed = json.loads(raw_execution)
+            execution_result = parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            execution_result = None
+    keys = row.keys()
     return {
         "request_id": row["request_id"],
         "project_id": row["project_id"],
@@ -290,6 +455,12 @@ def get_deploy_request(conn: sqlite3.Connection, request_id: str) -> dict[str, A
         "created_at": row["created_at"],
         "created_by_owner_id": row["created_by_owner_id"],
         "approved_at": row["approved_at"],
+        "deployed_at": row["deployed_at"] if "deployed_at" in keys else None,
+        "executed_by_agent_id": (
+            row["executed_by_agent_id"] if "executed_by_agent_id" in keys else None
+        ),
+        "execution_result": execution_result,
+        "execute_task_id": row["execute_task_id"] if "execute_task_id" in keys else None,
     }
 
 

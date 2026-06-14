@@ -462,6 +462,10 @@ def submit_task(body: SubmitRequest) -> SubmitResponse:
             return store.complete_deploy_approve_submit(
                 body.claim_token, body.result, body.signature
             )
+        if task_type == "deploy.execute":
+            return store.complete_deploy_execute_submit(
+                body.claim_token, body.result, body.signature
+            )
         return store.submit_task(body.claim_token, body.result, body.signature)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

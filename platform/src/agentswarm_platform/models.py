@@ -180,9 +180,13 @@ class DeployRequestEnvelope(BaseModel):
     signoff_count: int
     signoffs: list[dict[str, Any]] = Field(default_factory=list)
     approve_task_ids: list[str] | None = None
+    execute_task_id: str | None = None
     created_at: str
     created_by_owner_id: str
     approved_at: str | None = None
+    deployed_at: str | None = None
+    executed_by_agent_id: str | None = None
+    execution_result: dict[str, Any] | None = None
 
 
 class AuditEvent(BaseModel):
