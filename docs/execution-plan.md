@@ -40,7 +40,7 @@ Packages are **sequential within a phase** unless marked parallel. Do not skip a
 | P4 | AI News Hub scaffold | ✅ Done | P1 |
 | P5 | CI + quality gates | ✅ Done | P2 |
 | P6 | Documentation | ✅ Done | P0 |
-| **P0.7** | **Deploy runbook + manual deploy** | 🔲 Next | P2, P4 |
+| **P0.7** | **Deploy runbook + manual deploy** | 🔲 Partial (Pages workflow ready; enable in Settings) | P2, P4 |
 | P0.8 | Cross-platform demo script | ✅ Done | P3 |
 | P0.9 | Phase 0 close-out tag | ✅ Done | P0.7 |
 
@@ -254,7 +254,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P2.4 Canary injection
 ✅ P3.1–P3.4 Planner, orchestrator, shared memory, moderator
 ✅ P4.1–P4.4 Federation: projects, cred, import, governance templates
-→  P0.7  Deploy (enable GitHub Pages + optional VPS)
+→  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 
 **Recommended order for solo developer:**

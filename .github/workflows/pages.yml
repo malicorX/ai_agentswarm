@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "pilot/news-hub/**"
-      - "pilot/dashboard/**"
+      - "pilot/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -25,11 +25,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Build static site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site/news-hub _site/dashboard
+          cp pilot/index.html _site/index.html
+          cp -r pilot/news-hub/. _site/news-hub/
+          cp -r pilot/dashboard/. _site/dashboard/
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: pilot/news-hub
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

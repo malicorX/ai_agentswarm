@@ -137,22 +137,35 @@ The pilot is static HTML under `pilot/news-hub/`. Deploy separately from the API
 
 ### Option A — GitHub Pages
 
-A workflow at `.github/workflows/pages.yml` publishes `pilot/news-hub/` on push to `main`.
+A workflow at `.github/workflows/pages.yml` publishes the combined `pilot/` site on push to `main`.
+
+**Expected URL (once enabled):** `https://malicorx.github.io/ai_agentswarm/`
+
+| Path | Content |
+|------|---------|
+| `/` | Pilot index (links below) |
+| `/news-hub/` | AI News Hub static site |
+| `/dashboard/` | Credibility leaderboard UI |
 
 1. Enable **GitHub Pages** in repo Settings → Pages → Source: **GitHub Actions**.
 2. Push to `main` (or run the **Deploy pilot site** workflow manually).
-3. Record the Pages URL in the checklist below.
+3. Record the live URL in the checklist below.
 
-**If the workflow fails with `Create Pages site failed` / `Resource not accessible by integration`:** a repository admin must enable Pages once in Settings → Pages (GitHub Actions source). The workflow's `enablement: true` flag cannot create the site without that permission.
+**If the workflow fails with `Create Pages site failed`:** a repository admin must enable Pages once in Settings → Pages (GitHub Actions source). The workflow's `enablement: true` flag cannot create the site without that permission.
 
-Example workflow (already in repo):
+**Local preview (same layout as Pages):**
 
-```yaml
-# .github/workflows/pages.yml
-on:
-  push:
-    branches: [main]
-    paths: ['pilot/news-hub/**']
+```powershell
+.\scripts\preview_pilot_site.ps1
+```
+
+```bash
+# macOS/Linux equivalent
+tmp=$(mktemp -d) && mkdir -p "$tmp/news-hub" "$tmp/dashboard" \
+  && cp pilot/index.html "$tmp/" \
+  && cp -r pilot/news-hub/. "$tmp/news-hub/" \
+  && cp -r pilot/dashboard/. "$tmp/dashboard/" \
+  && cd "$tmp" && python3 -m http.server 8080
 ```
 
 ### Option B — nginx static
@@ -252,7 +265,7 @@ Use this when completing [execution plan P0.7](execution-plan.md):
 | Service | URL | Date |
 |---------|-----|------|
 | Platform API | _TBD_ | |
-| AI News Hub pilot | _TBD_ | |
+| AI News Hub pilot | https://malicorx.github.io/ai_agentswarm/news-hub/ (pending Pages enable) |
 
 ---
 
