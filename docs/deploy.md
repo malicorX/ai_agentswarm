@@ -159,6 +159,18 @@ A workflow at `.github/workflows/pages.yml` publishes the combined `pilot/` site
 .\scripts\preview_pilot_site.ps1
 ```
 
+**Stage without serving (deployer hook):**
+
+```bash
+python scripts/stage_pilot_site.py --output dist/pilot-site
+```
+
+Set `AGENTSWARM_DEPLOY_STAGING=1` when running the deployer agent to run this hook on each `deploy.execute` task. Optional: `AGENTSWARM_PILOT_STAGING_DIR`, `AGENTSWARM_DEPLOY_HOOK` (shell command), `AGENTSWARM_DEPLOY_TARGET_URL` (record-only metadata).
+
+```bash
+AGENTSWARM_DEPLOY_STAGING=1 agentswarm-deployer --once
+```
+
 ```bash
 # macOS/Linux equivalent
 tmp=$(mktemp -d) && mkdir -p "$tmp/news-hub" "$tmp/dashboard" \

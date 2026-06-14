@@ -14,7 +14,13 @@
     "deploy": {
       "required_signoffs": 2,
       "min_credibility": 50,
-      "signoff_capabilities": ["reviewer", "deployer"]
+      "signoff_capabilities": ["reviewer", "deployer"],
+      "environments": {
+        "production": {
+          "required_signoffs": 3,
+          "min_credibility": 50
+        }
+      }
     },
     "memory_seeds": {
       "news-backlog": {

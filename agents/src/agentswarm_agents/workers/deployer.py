@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
+import sys
 import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -11,20 +14,83 @@ from agentswarm_agents.client import platform_url
 from agentswarm_agents.identity import connect_agent
 
 
-def build_execution_result(request: dict[str, Any]) -> dict[str, Any]:
+def repo_root() -> Path:
+    env = os.environ.get("AGENTSWARM_REPO_ROOT", "").strip()
+    if env:
+        return Path(env)
+    return Path(__file__).resolve().parents[4]
+
+
+def run_deploy_hooks(request: dict[str, Any]) -> dict[str, Any]:
+    details: dict[str, Any] = {}
+    staging_flag = os.environ.get("AGENTSWARM_DEPLOY_STAGING", "").lower()
+    if staging_flag in ("1", "true", "yes"):
+        script = repo_root() / "scripts" / "stage_pilot_site.py"
+        output = os.environ.get("AGENTSWARM_PILOT_STAGING_DIR", "").strip()
+        cmd = [sys.executable, str(script)]
+        if output:
+            cmd.extend(["--output", output])
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=repo_root(),
+        )
+        staging_dir = proc.stdout.strip().splitlines()[-1]
+        details["staging_dir"] = staging_dir
+        details["hook"] = "stage_pilot_site"
+
+    hook_cmd = os.environ.get("AGENTSWARM_DEPLOY_HOOK", "").strip()
+    if hook_cmd:
+        proc = subprocess.run(
+            hook_cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            cwd=repo_root(),
+        )
+        details["hook_command"] = hook_cmd
+        details["hook_exit_code"] = proc.returncode
+        if proc.stdout:
+            details["hook_stdout"] = proc.stdout[-500:]
+        if proc.returncode != 0:
+            raise RuntimeError(proc.stderr.strip() or "deploy hook failed")
+
     target = os.environ.get("AGENTSWARM_DEPLOY_TARGET_URL", "").strip()
-    outcome = "simulated"
-    message = "Deploy execution recorded (set AGENTSWARM_DEPLOY_TARGET_URL for live target)"
     if target:
+        details["target_url"] = target
+
+    return details
+
+
+def build_execution_result(
+    request: dict[str, Any],
+    *,
+    hook_details: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    hook_details = hook_details or {}
+    outcome = "simulated"
+    message = "Deploy execution recorded (set AGENTSWARM_DEPLOY_STAGING=1 to stage pilot)"
+    if hook_details.get("staging_dir"):
+        outcome = "staged"
+        message = f"Pilot staged at {hook_details['staging_dir']}"
+    elif hook_details.get("hook_command"):
+        outcome = "hook_ran"
+        message = "Custom deploy hook completed"
+    elif hook_details.get("target_url"):
         outcome = "target_configured"
-        message = f"Deploy target configured: {target}"
-    return {
+        message = f"Deploy target configured: {hook_details['target_url']}"
+
+    result = {
         "request_id": request["request_id"],
         "environment": request["environment"],
         "artifact_ref": request["artifact_ref"],
         "outcome": outcome,
         "message": message,
     }
+    result.update(hook_details)
+    return result
 
 
 def fetch_deploy_request(base_url: str, request_id: str) -> dict[str, Any]:
@@ -40,7 +106,8 @@ def execute_deploy(base_url: str, request_id: str) -> dict[str, Any]:
     request = fetch_deploy_request(base_url, request_id)
     if request["status"] not in ("approved", "deployed"):
         raise ValueError(f"deploy request {request_id} is {request['status']}")
-    return build_execution_result(request)
+    hook_details = run_deploy_hooks(request)
+    return build_execution_result(request, hook_details=hook_details)
 
 
 def run_once(client, base_url: str) -> bool:

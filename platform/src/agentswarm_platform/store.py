@@ -43,7 +43,11 @@ from agentswarm_platform.project_store import (
 )
 from agentswarm_platform.orchestration import enqueue_child_tasks
 from agentswarm_platform.canary_store import ensure_canary_schema, evaluate_canary, get_canary_stats
-from agentswarm_platform.deploy_policy import DeployPolicy, resolve_deploy_policy
+from agentswarm_platform.deploy_policy import (
+    DeployPolicy,
+    resolve_deploy_policy,
+    resolve_deploy_policy_for_environment,
+)
 from agentswarm_platform.deploy_store import (
     assert_deploy_signoff_allowed,
     enqueue_deploy_approve_tasks,
@@ -1929,7 +1933,10 @@ class Store:
             project = get_project(conn, resolved_project)
             if project is None:
                 raise ValueError(f"unknown project: {resolved_project}")
-            base_policy = resolve_deploy_policy(project.get("governance_config"))
+            base_policy = resolve_deploy_policy_for_environment(
+                project.get("governance_config"),
+                env,
+            )
             policy = DeployPolicy(
                 required_signoffs=(
                     required_signoffs

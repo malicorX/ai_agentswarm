@@ -299,7 +299,7 @@ Query params: `status` (`open` default, or `resolved`), `limit` (default 50, max
 
 ## Deploy sign-offs
 
-Governance templates may define `deploy.required_signoffs`, `deploy.min_credibility`, and `deploy.signoff_capabilities` (defaults: 2 sign-offs, score 50, `reviewer` + `deployer`).
+Governance templates may define `deploy.required_signoffs`, `deploy.min_credibility`, and `deploy.signoff_capabilities`. Per-environment overrides live under `deploy.environments` (e.g. `production.required_signoffs: 3` in the `news-hub` template).
 
 ### `POST /deploy/requests`
 

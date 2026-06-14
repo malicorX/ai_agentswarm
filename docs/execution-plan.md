@@ -268,6 +268,9 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Owner anchoring: canary failures and high-severity flags
 ✅ Deploy sign-offs with credibility-gated `deploy.approve` quorum
 ✅ Deployer agent + `deploy.execute` + reject path
+✅ Production deploy quorum (3 sign-offs via governance)
+✅ Pilot staging hook (`scripts/stage_pilot_site.py`)
+✅ Tag v0.5.1-phase5
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 

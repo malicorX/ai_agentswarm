@@ -2,7 +2,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from agentswarm_platform.crypto import sign_payload
-from agentswarm_platform.deploy_policy import resolve_deploy_policy
+from agentswarm_platform.deploy_policy import (
+    resolve_deploy_policy,
+    resolve_deploy_policy_for_environment,
+)
 from test_task_flow import register_agent
 
 
@@ -19,6 +22,52 @@ def test_resolve_deploy_policy_from_governance() -> None:
     assert policy.required_signoffs == 3
     assert policy.min_credibility == 40.0
     assert policy.signoff_capabilities == ("reviewer",)
+
+
+def test_production_environment_requires_more_signoffs() -> None:
+    policy = resolve_deploy_policy_for_environment(
+        {
+            "deploy": {
+                "required_signoffs": 2,
+                "environments": {"production": {"required_signoffs": 3}},
+            }
+        },
+        "production",
+    )
+    assert policy.required_signoffs == 3
+
+    staging = resolve_deploy_policy_for_environment(
+        {"deploy": {"required_signoffs": 2, "environments": {"production": {"required_signoffs": 3}}}},
+        "staging",
+    )
+    assert staging.required_signoffs == 2
+
+
+def test_production_deploy_request_enqueues_three_approve_tasks(
+    cred_client: TestClient,
+) -> None:
+    project = cred_client.post(
+        "/projects",
+        json={
+            "project_id": "prod-deploy",
+            "name": "Prod Deploy",
+            "governance_template_id": "news-hub",
+        },
+    )
+    assert project.status_code == 200
+
+    created = cred_client.post(
+        "/deploy/requests",
+        json={
+            "project_id": "prod-deploy",
+            "environment": "production",
+            "artifact_ref": "v1.0.0",
+        },
+    )
+    assert created.status_code == 200
+    body = created.json()
+    assert body["required_signoffs"] == 3
+    assert len(body["approve_task_ids"]) == 3
 
 
 def test_deploy_request_approves_after_quorum(
