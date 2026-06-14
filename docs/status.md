@@ -20,7 +20,7 @@ Goal: closed swarm of trusted agents producing the first AI News Hub version.
 - [x] AI News Hub pilot scaffold
 - [ ] Manual deploy by human maintainer → [P0.7](execution-plan.md#p07--deploy-runbook--manual-deploy) · [deploy.md](deploy.md)
 - [x] CI workflow (lint + tests)
-- [ ] Phase 0 close-out tag `v0.1.0-phase0` → [P0.9](execution-plan.md#p09--phase-0-close-out)
+- [x] Phase 0 close-out tag `v0.1.0-phase0` → [P0.9](execution-plan.md#p09--phase-0-close-out)
 
 ## Phase 0.5 — Pilot depth (recommended)
 

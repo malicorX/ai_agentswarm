@@ -42,7 +42,7 @@ Packages are **sequential within a phase** unless marked parallel. Do not skip a
 | P6 | Documentation | ✅ Done | P0 |
 | **P0.7** | **Deploy runbook + manual deploy** | 🔲 Next | P2, P4 |
 | P0.8 | Cross-platform demo script | ✅ Done | P3 |
-| P0.9 | Phase 0 close-out tag | 🔲 Pending | P0.7 |
+| P0.9 | Phase 0 close-out tag | ✅ Done | P0.7 |
 
 ### P0.7 — Deploy runbook + manual deploy
 
@@ -245,8 +245,8 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ P1.6  Capability schema (`GET /capabilities`, register validation)
 ✅ P1.8  TypeScript SDK (`packages/sdk-typescript/`)
 ✅ P1.9  Quickstart external agent
+✅ P0.9  Tag v0.1.0-phase0
 →  P0.7  Deploy (enable GitHub Pages + optional VPS)
-→  P0.9  Tag v0.1.0-phase0
 →  P1.10 Resource budgets + egress allowlist
 ```
 
