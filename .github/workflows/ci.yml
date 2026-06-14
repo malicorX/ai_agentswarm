@@ -16,7 +16,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e "./platform[dev]" -e "./agents" pytest
+          pip install -e "./platform[dev]" -e "./agents" -e "./packages/sdk-python" pytest
       - name: Platform tests
         run: python -m pytest -q platform/tests
       - name: Agent tests

@@ -8,6 +8,7 @@ import httpx
 
 from agentswarm_agents.client import platform_url
 from agentswarm_agents.identity import connect_agent
+from agentswarm_agents.memory_keys import memory_key_for_project
 
 
 def build_enqueue_from_backlog(entry: dict[str, Any], goal: str) -> dict[str, Any]:
@@ -32,7 +33,10 @@ def build_enqueue_from_backlog(entry: dict[str, Any], goal: str) -> dict[str, An
 
 def execute_task(task: dict[str, Any], base_url: str) -> dict[str, Any]:
     payload = task["payload"]
-    memory_key = payload.get("memory_key", "news-backlog")
+    memory_key = memory_key_for_project(
+        task.get("project_id"),
+        explicit_key=payload.get("memory_key"),
+    )
     goal = payload.get("goal", "plan")
     response = httpx.get(f"{base_url.rstrip('/')}/memory/{memory_key}", timeout=30.0)
     response.raise_for_status()

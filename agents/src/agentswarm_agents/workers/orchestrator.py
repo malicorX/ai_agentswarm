@@ -8,10 +8,16 @@ import httpx
 
 from agentswarm_agents.client import platform_url
 from agentswarm_agents.identity import connect_agent
+from agentswarm_agents.memory_keys import memory_key_for_project
 from agentswarm_agents.owner_auth import owner_auth_headers
 
 
-def detect_gaps(summary: dict[str, Any], backlog: dict[str, Any] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def detect_gaps(
+    summary: dict[str, Any],
+    backlog: dict[str, Any] | None,
+    *,
+    memory_key: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     gaps: list[dict[str, Any]] = []
     enqueue: list[dict[str, Any]] = []
     created = int(summary.get("tasks", {}).get("created", 0))
@@ -31,7 +37,7 @@ def detect_gaps(summary: dict[str, Any], backlog: dict[str, Any] | None) -> tupl
                 "capability_required": "planner",
                 "payload": {
                     "goal": "drain-news-backlog",
-                    "memory_key": "news-backlog",
+                    "memory_key": memory_key,
                 },
             }
         )
@@ -41,14 +47,15 @@ def detect_gaps(summary: dict[str, Any], backlog: dict[str, Any] | None) -> tupl
     return gaps, enqueue
 
 
-def execute_scan(base_url: str) -> dict[str, Any]:
+def execute_scan(base_url: str, project_id: str = "default") -> dict[str, Any]:
     root = base_url.rstrip("/")
     summary = httpx.get(f"{root}/platform/summary", timeout=30.0).json()
+    memory_key = memory_key_for_project(project_id)
     backlog = None
-    if "news-backlog" in summary.get("memory_keys", []):
-        backlog = httpx.get(f"{root}/memory/news-backlog", timeout=30.0).json()
-    gaps, enqueue = detect_gaps(summary, backlog)
-    return {"gaps": gaps, "enqueue": enqueue, "summary": summary}
+    if memory_key in summary.get("memory_keys", []):
+        backlog = httpx.get(f"{root}/memory/{memory_key}", timeout=30.0).json()
+    gaps, enqueue = detect_gaps(summary, backlog, memory_key=memory_key)
+    return {"gaps": gaps, "enqueue": enqueue, "summary": summary, "project_id": project_id}
 
 
 def run_once(client, base_url: str) -> bool:
@@ -57,7 +64,8 @@ def run_once(client, base_url: str) -> bool:
         return False
     task = tasks[0]
     claim_token = client.claim(task["task_id"])
-    result = execute_scan(base_url)
+    project_id = task.get("project_id") or "default"
+    result = execute_scan(base_url, project_id=project_id)
     client.submit(claim_token, task["task_id"], result)
     print(
         f"orchestrator: completed {task['task_id']} "
@@ -66,7 +74,7 @@ def run_once(client, base_url: str) -> bool:
     return True
 
 
-def ensure_scan_task(base_url: str) -> None:
+def ensure_scan_task(base_url: str, project_id: str = "default") -> None:
     """Maintainer helper: enqueue a scan task if none are pending."""
     headers = owner_auth_headers()
     if not headers:
@@ -78,6 +86,7 @@ def ensure_scan_task(base_url: str) -> None:
             "task_type": "orchestrator.scan",
             "capability_required": "orchestrator",
             "payload": {"reason": "periodic-gap-check"},
+            "project_id": project_id,
         },
         timeout=30.0,
     )
@@ -88,13 +97,14 @@ def ensure_scan_task(base_url: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="AgentSwarm orchestrator agent")
     parser.add_argument("--agent-name", default="orchestrator")
+    parser.add_argument("--project-id", default="default")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--poll-interval", type=float, default=2.0)
     parser.add_argument("--enqueue-scan", action="store_true")
     args = parser.parse_args()
     base_url = platform_url()
     if args.enqueue_scan:
-        ensure_scan_task(base_url)
+        ensure_scan_task(base_url, project_id=args.project_id)
         return
     client = connect_agent(
         agent_name=args.agent_name,

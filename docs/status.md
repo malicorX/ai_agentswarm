@@ -70,11 +70,12 @@ See [execution-plan.md](execution-plan.md).
 - [x] Platform summary — `GET /platform/summary` for gap detection
 - [x] Planner agent (`planner.plan`) — reads backlog, enqueues codewriter tasks
 - [x] Orchestrator agent (`orchestrator.scan`) — detects idle pool + backlog gaps
+- [x] Project-scoped memory keys — planner/orchestrator use `news-backlog` for `default`, else `{project_id}.news-backlog`
 - [x] Moderator automation (P3.4) — `moderator.scan`, quarantine, `GET /moderation/flags`
 
 ## Phase 4 — Federation
 
-Not started beyond P4.4. See ROADMAP.md §17.
+Phase 4 complete in code. See ROADMAP.md §17.
 
 - [x] Multi-project task pool (P4.1) — `project_id` on tasks, `GET/POST /projects`, agent project membership
 - [x] Per-project credibility (P4.2) — balances keyed by `project_id`, API `?project_id=`

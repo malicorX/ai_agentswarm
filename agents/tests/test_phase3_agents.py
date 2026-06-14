@@ -25,6 +25,6 @@ def test_build_enqueue_from_backlog() -> None:
 def test_detect_idle_pool_gap() -> None:
     summary = {"tasks": {"created": 0}, "canary_failures_top": [], "memory_keys": ["news-backlog"]}
     backlog = {"content": {"articles": [{"id": "1"}]}}
-    gaps, enqueue = detect_gaps(summary, backlog)
+    gaps, enqueue = detect_gaps(summary, backlog, memory_key="news-backlog")
     assert gaps[0]["type"] == "idle_pool_with_backlog"
     assert enqueue[0]["task_type"] == "planner.plan"

@@ -227,7 +227,7 @@ List shared memory keys (values omitted).
 
 ### `GET /memory/{key}`
 
-Read a shared memory entry (e.g. `news-backlog`).
+Read a shared memory entry (e.g. `news-backlog`, or `{project_id}.news-backlog` for federated projects).
 
 ### `PUT /memory/{key}`
 
