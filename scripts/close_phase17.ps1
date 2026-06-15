@@ -1,0 +1,89 @@
+# Phase 17 close-out: subjective verify reliability on staging (P17.11).
+$ErrorActionPreference = "Stop"
+$Root = Split-Path -Parent $PSScriptRoot
+Set-Location $Root
+
+python -m pytest -q platform/tests agents/tests
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -c @"
+from pathlib import Path
+import subprocess
+import sys
+
+bad = [str(p) for p in Path('scripts').rglob('*.sh') if b'\r' in p.read_bytes()]
+if bad:
+    print('CRLF found in shell scripts:', ', '.join(bad), file=sys.stderr)
+    raise SystemExit(1)
+
+for path in sorted(Path('scripts').rglob('*.sh')):
+    subprocess.run(['bash', '-n', path.as_posix()], check=True)
+print('Shell script hygiene OK')
+"@
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$HostSsh = if ($env:AGENTSWARM_THEEBIE_HOST) { $env:AGENTSWARM_THEEBIE_HOST } else { "root@theebie.de" }
+$EnvFile = if ($env:AGENTSWARM_PLATFORM_ENV_FILE) { $env:AGENTSWARM_PLATFORM_ENV_FILE } else { "/etc/agentswarm/platform.env" }
+$ApiUrl = if ($env:AGENTSWARM_STAGING_API_URL) { $env:AGENTSWARM_STAGING_API_URL } else { "https://theebie.de/agentswarm/api" }
+
+if (-not $env:AGENTSWARM_BOOTSTRAP_TOKEN) {
+    $boot = ssh $HostSsh "grep -E '^AGENTSWARM_BOOTSTRAP_TOKEN=' $EnvFile | cut -d= -f2-"
+    if (-not $boot) {
+        Write-Error "Could not read AGENTSWARM_BOOTSTRAP_TOKEN from ${HostSsh}:${EnvFile}"
+    }
+    $env:AGENTSWARM_BOOTSTRAP_TOKEN = $boot.Trim()
+}
+
+if (-not $env:AGENTSWARM_ASSIGNMENT_SECRET) {
+    $secret = ssh $HostSsh "grep -E '^AGENTSWARM_ASSIGNMENT_SECRET=' $EnvFile | cut -d= -f2-"
+    if (-not $secret) {
+        Write-Error "Could not read AGENTSWARM_ASSIGNMENT_SECRET from ${HostSsh}:${EnvFile}"
+    }
+    $env:AGENTSWARM_ASSIGNMENT_SECRET = $secret.Trim()
+}
+
+$env:AGENTSWARM_EXPECT_DISPATCH = "1"
+python scripts/verify_dispatch_staging.py $ApiUrl
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$env:AGENTSWARM_EXPECT_HARDWARE_GATES = "1"
+python scripts/verify_hardware_gates_staging.py $ApiUrl
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$env:AGENTSWARM_EXPECT_LEASE_RECLAIM = "1"
+python scripts/verify_lease_reclaim_staging.py $ApiUrl
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$env:AGENTSWARM_STAGING_API_URL = $ApiUrl
+python -c @"
+import httpx, os, sys
+url = os.environ.get('AGENTSWARM_STAGING_API_URL', '').rstrip('/')
+dispatch = httpx.get(f'{url}/platform/config', timeout=30).json().get('dispatch', {})
+hours = float(dispatch.get('pool_need_max_age_hours') or 0)
+if hours <= 0:
+    print(f'expected pool_need_max_age_hours > 0 on staging, got {hours!r}', file=sys.stderr)
+    raise SystemExit(1)
+print(f'Pool need TTL staging OK: pool_need_max_age_hours={hours}')
+"@
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$env:AGENTSWARM_VERIFY_SUBJECTIVE_MIN_REVIEWERS = "1"
+if ($env:AGENTSWARM_VERIFY_SKIP_PREP -ne "1") {
+    powershell -File scripts/prep_staging_subjective_verify.ps1
+}
+$subjectiveOk = $false
+foreach ($attempt in 1, 2, 3, 4, 5) {
+    python scripts/verify_volunteer_subjective_staging.py $ApiUrl
+    if ($LASTEXITCODE -eq 0) {
+        $subjectiveOk = $true
+        break
+    }
+    if ($attempt -lt 5) {
+        Write-Host "Subjective verify attempt $attempt failed; retrying in 15s..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 15
+    }
+}
+if (-not $subjectiveOk) { exit 1 }
+
+Write-Host "Phase 17 close-out checks OK. Tag with:"
+Write-Host "  git tag v0.18.0-phase17 && git push origin v0.18.0-phase17"

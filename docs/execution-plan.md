@@ -515,6 +515,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P16.1 Assignment config metadata — `assignment` block, volunteer single config fetch
 ✅ P16.11 Phase 16 close-out — `close_phase16.sh`, tag `v0.17.0-phase16`
 ✅ P17.0 Busy heartbeat during assignment execute — volunteer `busy` before capsule run; submit detail errors
+✅ P17.11 Phase 17 close-out — `close_phase17.sh`, tag `v0.18.0-phase17`
 ```
 
 ---
@@ -526,7 +527,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
 | **P17.0** | Busy heartbeat during assignment execute | ✅ Done | P16.11 |
-| **P17.11** | Phase 17 close-out | ⬜ Pending | P17.0 |
+| **P17.11** | Phase 17 close-out | ✅ Done | P17.0 |
 
 ### P17.0 — Busy heartbeat during assignment execute
 
