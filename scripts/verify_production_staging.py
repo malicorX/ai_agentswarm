@@ -70,6 +70,12 @@ def verify_production_staging(
         register_smoke=True,
     )
 
+    if results["platform"].get("assignment_mode") == "dispatch":
+        dispatch_mod = _load_script_module(
+            "verify_dispatch_staging", scripts / "verify_dispatch_staging.py"
+        )
+        results["dispatch"] = dispatch_mod.verify_dispatch_staging(clean)
+
     versioning_mod = _load_script_module(
         "verify_agent_versioning_staging", scripts / "verify_agent_versioning_staging.py"
     )
@@ -120,6 +126,9 @@ def verify_production_staging(
     results["unit_version_probation"] = "passed"
     _run_pytest("platform/tests/test_tournaments_bounties.py")
     results["unit_tournaments_bounties"] = "passed"
+    if results["platform"].get("assignment_mode") == "dispatch":
+        _run_pytest("platform/tests/test_dispatch.py")
+        results["unit_dispatch"] = "passed"
 
     if not quick:
         news_proc = subprocess.run(

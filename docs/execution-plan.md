@@ -367,6 +367,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python scripts/verify_registration_auth.py` |
 | **Acceptance** | Config exposes `auth.enforced`; anonymous register returns 401 when enforced; deploy verify uses bootstrap |
 
+### P6.11 — Phase 6 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Ship dispatch staging verify + document Phase 6 completion |
+| **In scope** | `verify_dispatch_staging.py`, wire into `verify_production_staging.py`, status/README updates, tag `v0.7.0-phase6` |
+| **Verification** | `python scripts/verify_dispatch_staging.py` · `python -m pytest platform/tests -q` |
+| **Acceptance** | Staging dispatch smoke passes; docs record close-out tag |
+
 ---
 
 ## Current focus
@@ -396,7 +405,9 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.10 Version downgrade rejection (`AGENTSWARM_VERSION_REJECT_DOWNGRADES`)
 ✅ P5.11 Registration auth hardening (`auth` on `/platform/config`, `verify_registration_auth.py`)
 ✅ Phase 5 close-out tag `v0.6.0-phase5`
-→  Optional: GitHub Pages (forks); enable auth on VPS — [production-hardening.md](production-hardening.md)
+✅ GitHub Pages fork mirror — https://malicorx.github.io/ai_agentswarm/
+✅ Staging registration auth enforced — [production-hardening.md](production-hardening.md)
+✅ Phase 6 close-out — `verify_dispatch_staging.py`, tag `v0.7.0-phase6`
 ```
 
 ---

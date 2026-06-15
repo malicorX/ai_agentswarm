@@ -52,6 +52,7 @@ Individual scripts (same as before):
 | `verify_agent_versioning_staging.py` | Live version history bumps |
 | `verify_credibility_staging.py` | Pilot params on `/platform/config` |
 | `verify_registration_auth.py` | Unit tests + live open/enforced registration check |
+| `verify_dispatch_staging.py` | Dispatch mode: presence, credits, assignments smoke |
 | `verify_external_contributor.py` | Non-maintainer quickstart |
 | `verify_news_pipeline.py` | Enqueue feed → verified article task |
 | `verify_production_swarm.py` | Swarm services processing tasks |

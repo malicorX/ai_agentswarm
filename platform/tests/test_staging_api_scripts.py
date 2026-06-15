@@ -10,6 +10,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RECORD_SCRIPT = REPO_ROOT / "scripts" / "record_staging_api_url.py"
 VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify_staging_api.py"
+DISPATCH_VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify_dispatch_staging.py"
 
 
 def _load_module(path: Path, name: str):
@@ -85,3 +86,43 @@ def test_verify_staging_api_rejects_pull_mode() -> None:
     with patch.object(httpx, "Client", return_value=mock_client):
         with pytest.raises(RuntimeError, match="dispatch"):
             mod.verify_staging_api("https://theebie.de/agentswarm/api")
+
+
+def test_verify_dispatch_staging_success() -> None:
+    mod = _load_module(DISPATCH_VERIFY_SCRIPT, "verify_dispatch_staging")
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+
+    health_resp = MagicMock()
+    health_resp.json.return_value = {"status": "ok"}
+    health_resp.raise_for_status = MagicMock()
+    config_resp = MagicMock()
+    config_resp.json.return_value = {
+        "assignment_mode": "dispatch",
+        "auth": {"enforced": False},
+    }
+    config_resp.raise_for_status = MagicMock()
+    register_resp = MagicMock()
+    register_resp.json.return_value = {"agent_id": "agent_dispatch"}
+    register_resp.raise_for_status = MagicMock()
+    presence_resp = MagicMock()
+    presence_resp.json.return_value = {"status": "idle"}
+    presence_resp.raise_for_status = MagicMock()
+    pending_resp = MagicMock()
+    pending_resp.json.return_value = None
+    pending_resp.raise_for_status = MagicMock()
+    credits_resp = MagicMock()
+    credits_resp.json.return_value = {"balance": 100.0, "enabled": True}
+    credits_resp.raise_for_status = MagicMock()
+
+    mock_client.get.side_effect = [health_resp, config_resp, pending_resp, credits_resp]
+    mock_client.post.side_effect = [register_resp, presence_resp]
+
+    with patch.object(httpx, "Client", return_value=mock_client):
+        result = mod.verify_dispatch_staging("https://theebie.de/agentswarm/api")
+
+    assert result["assignment_mode"] == "dispatch"
+    assert result["register"] == "agent_dispatch"
+    assert result["assignments_pending"] == "empty"
+    assert result["credits_balance"] == "100.0"

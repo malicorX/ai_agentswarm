@@ -26,6 +26,9 @@ def test_verify_production_staging_quick_orchestration() -> None:
         reg_auth_calls.append(dict(kwargs))
         return {"anonymous_register": "rejected"}
 
+    def capture_dispatch(url: str, **kwargs: object) -> dict[str, str]:
+        return {"assignment_mode": "dispatch", "presence": "idle"}
+
     with (
         patch.object(
             mod,
@@ -36,9 +39,18 @@ def test_verify_production_staging_quick_orchestration() -> None:
                     (),
                     {
                         "verify_production_platform": staticmethod(
-                            lambda url, **kwargs: {"health": "ok", "auth_enforced": "true"}
+                            lambda url, **kwargs: {
+                                "health": "ok",
+                                "auth_enforced": "true",
+                                "assignment_mode": "dispatch",
+                            }
                         )
                     },
+                ),
+                type(
+                    "DispatchMod",
+                    (),
+                    {"verify_dispatch_staging": staticmethod(capture_dispatch)},
                 ),
                 type(
                     "VersionMod",
@@ -84,6 +96,7 @@ def test_verify_production_staging_quick_orchestration() -> None:
 
     assert result["mode"] == "quick"
     assert result["platform"]["health"] == "ok"
+    assert result["dispatch"]["assignment_mode"] == "dispatch"
     assert result["versioning"]["agent_id"] == "agent_v"
     assert reg_auth_calls == [{"expect_enforced": True}]
-    assert mock_pytest.call_count == 4
+    assert mock_pytest.call_count == 5

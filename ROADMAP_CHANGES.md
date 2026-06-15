@@ -1,6 +1,6 @@
 # ROADMAP_CHANGES — Volunteer Client & Central Assignment (Phase 6+)
 
-**Status:** Proposed (design handoff)  
+**Status:** Implemented (P6.0–P6.10 complete; close-out `v0.7.0-phase6`)  
 **Date:** 2026-06-15  
 **Audience:** Next implementation round (Composer / agents)  
 **Authoritative spec:** [ROADMAP.md](ROADMAP.md) remains the long-term product vision. **This document defines a deliberate pivot/extension** for mass-market volunteer compute. When implemented, merge accepted parts back into `ROADMAP.md` §17 and add ADR 0005.
@@ -491,7 +491,7 @@ Read artifact: `GET /submissions/{submission_id}/git-artifact`
 | Field | Value |
 |-------|--------|
 | **Deliverables** | Deploy platform API + dispatcher on theebie; TLS; `docs/deploy.md` update |
-| **Acceptance** | `curl https://api…/health`; dev client connects from external network |
+| **Acceptance** | `curl https://api…/health`; dev client connects from external network ✅ |
 
 ---
 
