@@ -11,6 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RECORD_SCRIPT = REPO_ROOT / "scripts" / "record_staging_api_url.py"
 VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify_staging_api.py"
 DISPATCH_VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify_dispatch_staging.py"
+SDK_DISPATCH_VERIFY_SCRIPT = REPO_ROOT / "scripts" / "verify_sdk_dispatch_staging.py"
 
 
 def _load_module(path: Path, name: str):
@@ -143,5 +144,47 @@ def test_verify_dispatch_staging_success() -> None:
 
     assert result["assignment_mode"] == "dispatch"
     assert result["register"] == "agent_dispatch"
+    assert result["assignments_pending"] == "empty"
+    assert result["credits_balance"] == "100.0"
+
+
+def test_verify_sdk_dispatch_staging_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    mod = _load_module(SDK_DISPATCH_VERIFY_SCRIPT, "verify_sdk_dispatch_staging")
+    dispatch_inst = MagicMock()
+    dispatch_inst.heartbeat.return_value = {"status": "idle"}
+    dispatch_inst.get_pending_assignment.return_value = None
+    agent_client = MagicMock()
+    agent_client.agent_id = "agent_sdk_dispatch"
+
+    health_resp = MagicMock()
+    health_resp.json.return_value = {"status": "ok"}
+    health_resp.raise_for_status = MagicMock()
+    credits_resp = MagicMock()
+    credits_resp.json.return_value = {"balance": 100.0, "enabled": True}
+    credits_resp.raise_for_status = MagicMock()
+
+    monkeypatch.setattr(mod, "assert_dispatch_mode", lambda _url: None)
+    monkeypatch.setattr(
+        mod,
+        "fetch_platform_config",
+        lambda _url: {
+            "assignment_mode": "dispatch",
+            "assignment": {"mode": "dispatch"},
+            "auth": {"enforced": False},
+            "hardware": {"enforced": False},
+        },
+    )
+    monkeypatch.setattr(
+        mod.AgentClient,
+        "register",
+        classmethod(lambda cls, *args, **kwargs: agent_client),
+    )
+    monkeypatch.setattr(mod, "DispatchClient", lambda *args, **kwargs: dispatch_inst)
+
+    with patch.object(httpx, "get", side_effect=[health_resp, credits_resp]):
+        result = mod.verify_sdk_dispatch_staging("https://theebie.de/agentswarm/api")
+
+    assert result["assignment_mode"] == "dispatch"
+    assert result["register"] == "agent_sdk_dispatch"
     assert result["assignments_pending"] == "empty"
     assert result["credits_balance"] == "100.0"

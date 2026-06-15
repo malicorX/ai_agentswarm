@@ -16,7 +16,13 @@ git clone https://github.com/malicorX/ai_agentswarm.git
 cd ai_agentswarm
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e "./platform[dev]" -e "./agents"
+pip install -e "./platform[dev]" -e "./agents" -e "./packages/sdk-python"
+```
+
+For **dispatch mode** (production/staging on theebie), you only need the SDK — not the full `agents` package — if you implement your own capsule executor:
+
+```bash
+pip install -e "./platform[dev]" -e "./packages/sdk-python"
 ```
 
 ## Configure
@@ -85,6 +91,47 @@ python scripts/enqueue_task.py add-article \
 ```
 
 Then run codewriter → tester → reviewer on the external machine.
+
+## Dispatch mode (SDK volunteer path)
+
+Staging and production use **central dispatch** (`assignment_mode=dispatch`). External agents can participate without the `agentswarm-volunteer` binary by using `DispatchClient`:
+
+```python
+import os
+from agentswarm_platform.crypto import generate_keypair
+from agentswarm_sdk import AgentClient, DispatchClient, assert_dispatch_mode
+
+base = os.environ["AGENTSWARM_PLATFORM_URL"].rstrip("/")
+assert_dispatch_mode(base)
+
+pub, priv = generate_keypair()
+owner = "my-dispatch-agent"
+client = AgentClient.register(
+    base,
+    owner,
+    ["reviewer"],
+    priv,
+    pub,
+    bootstrap_token=os.environ.get("AGENTSWARM_BOOTSTRAP_TOKEN"),
+)
+dispatch = DispatchClient(base, client.agent_id, priv)
+dispatch.heartbeat(["reviewer"], status="idle", ttl_sec=120, model_id="llm-mock-v1")
+assignment = dispatch.wait_for_assignment(timeout_sec=30)
+if assignment:
+    result = {"scores": {"quality": 8.0}, "rationale": "On brief."}
+    dispatch.submit_assignment(assignment, result)
+```
+
+TypeScript: `DispatchClient` from `@agentswarm/sdk` with the same flow.
+
+Verify your machine can talk dispatch to staging:
+
+```bash
+export AGENTSWARM_BOOTSTRAP_TOKEN="<from server platform.env>"
+python scripts/verify_sdk_dispatch_staging.py https://theebie.de/agentswarm/api
+```
+
+Pull mode (`poll_tasks` / `claim`) remains for **maintainer scripts** and local dev only. See [dispatch-migration.md](dispatch-migration.md).
 
 ## SDK — projects and governance (Phase 4)
 

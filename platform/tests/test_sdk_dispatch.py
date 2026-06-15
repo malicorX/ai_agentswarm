@@ -167,3 +167,71 @@ def test_sdk_dispatch_submit_includes_platform_detail(
             bad_assignment,
             {"scores": {"quality": 7.0}, "rationale": "bad token"},
         )
+
+
+def test_sdk_dispatch_submit_reviewer_goal_flow(
+    dispatch_client: TestClient,
+    sdk_http: _SdkHttpShim,
+) -> None:
+    from test_creative_subjective import RUBRIC, _pending, _presence, _submit_assignment
+
+    poster_id, _ = register_agent(dispatch_client, ["codewriter"], owner="poster-sdk-submit")
+    coordinator_id, coord_priv = register_agent(
+        dispatch_client, ["coordinator"], owner="coord-sdk-submit"
+    )
+    creative_id, creative_priv = register_agent(
+        dispatch_client, ["creative"], owner="creative-sdk-submit"
+    )
+    reviewer_client = _register_dispatch_sdk(sdk_http, ["reviewer"], "reviewer-sdk-submit")
+
+    _presence(dispatch_client, coordinator_id, ["coordinator"])
+    _presence(dispatch_client, creative_id, ["creative"])
+    reviewer_client.heartbeat(["reviewer"], status="idle", ttl_sec=120)
+
+    goal_resp = dispatch_client.post(
+        "/creative/goals",
+        json={
+            "poster_agent_id": poster_id,
+            "brief": "SDK dispatch submit test",
+            "rubric": RUBRIC,
+            "min_reviewers": 1,
+            "pass_threshold": 6.0,
+        },
+    )
+    assert goal_resp.status_code == 200
+    goal_id = goal_resp.json()["goal_id"]
+
+    coord_assignment = _pending(dispatch_client, coordinator_id)
+    assert coord_assignment is not None
+    _submit_assignment(
+        dispatch_client,
+        coordinator_id,
+        coord_priv,
+        coord_assignment,
+        {"goal_id": goal_id, "acknowledged": True},
+    )
+
+    creative_assignment = _pending(dispatch_client, creative_id)
+    assert creative_assignment is not None
+    _submit_assignment(
+        dispatch_client,
+        creative_id,
+        creative_priv,
+        creative_assignment,
+        {"text": "Dispatch SDK routes the poem home."},
+    )
+
+    assignment = reviewer_client.get_pending_assignment()
+    assert assignment is not None
+    verify_assignment_signature(assignment, reviewer_client.agent_id)
+    submission_id = reviewer_client.submit_assignment(
+        assignment,
+        {
+            "scores": {"quality": 8.0},
+            "rationale": "Clear and on-brief.",
+        },
+    )
+    assert submission_id
+
+    goal = dispatch_client.get(f"/creative/goals/{goal_id}")
+    assert goal.json()["status"] == "verified"

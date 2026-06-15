@@ -599,6 +599,45 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 ---
 
+## Phase 20 — SDK dispatch e2e & docs
+
+**Goal:** Complete SDK dispatch acceptance with a real subjective submit path and external-agent documentation.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P20.0** | SDK reviewer submit e2e test | ✅ Done | P19.11 |
+| **P20.1** | Quickstart + staging verify | ✅ Done | P20.0 |
+| **P20.11** | Phase 20 close-out | ✅ Done | P20.1 |
+
+### P20.0 — SDK reviewer submit e2e test
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Prove `DispatchClient.submit_assignment` on a creative-goal reviewer task |
+| **In scope** | `test_sdk_dispatch_submit_reviewer_goal_flow` in `test_sdk_dispatch.py` |
+| **Verification** | `python -m pytest platform/tests/test_sdk_dispatch.py -q` |
+| **Acceptance** | Goal reaches `verified` after SDK reviewer submit |
+
+### P20.1 — Quickstart + staging verify
+
+| Field | Value |
+|-------|--------|
+| **Goal** | External contributors can follow dispatch path; CI can smoke SDK on staging |
+| **In scope** | `docs/quickstart-external-agent.md` dispatch section, `verify_sdk_dispatch_staging.py` |
+| **Verification** | `python scripts/verify_sdk_dispatch_staging.py https://theebie.de/agentswarm/api` |
+| **Acceptance** | Staging verify registers via SDK, heartbeats, polls pending assignment |
+
+### P20.11 — Phase 20 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag SDK dispatch e2e milestone |
+| **In scope** | `close_phase20.sh` / `.ps1`, tag `v0.21.0-phase20` |
+| **Verification** | `bash scripts/close_phase20.sh` |
+| **Acceptance** | Unit tests + SDK staging verify green |
+
+---
+
 ## Phase 17 — Subjective verify reliability
 
 **Goal:** Reduce staging subjective demo flakes from lease reclaim during assignment execution.

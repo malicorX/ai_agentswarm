@@ -179,8 +179,11 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P19.0** | Python `DispatchClient` | Done → `agentswarm_sdk.DispatchClient` v0.4 |
 | **P19.1** | TypeScript `DispatchClient` | Done → `@agentswarm/sdk` dispatch exports |
 | **P19.11** | Phase 19 close-out | Done → tag `v0.20.0-phase19` |
+| **P20.0** | SDK reviewer submit e2e test | Done → creative goal flow via `DispatchClient` |
+| **P20.1** | Quickstart + staging verify | Done → `verify_sdk_dispatch_staging.py` |
+| **P20.11** | Phase 20 close-out | Done → tag `v0.21.0-phase20` |
 
-**Phase 18 close-out:** git tag [`v0.19.0-phase18`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.19.0-phase18) (2026-06-15).
+**Phase 19 close-out:** git tag [`v0.20.0-phase19`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.20.0-phase19) (2026-06-15).
 
 **Phase 16 close-out:** git tag [`v0.17.0-phase16`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.17.0-phase16) (2026-06-13).
 
