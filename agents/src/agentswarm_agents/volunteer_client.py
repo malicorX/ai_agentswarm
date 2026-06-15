@@ -232,6 +232,14 @@ class VolunteerClient:
         task_type = assignment.get("task_type", "assignment")
         self._set_state(VolunteerState.RUNNING, task_type)
         self._log(f"running {task_type} ({assignment.get('task_id')})")
+        client.heartbeat(
+            config.capabilities,
+            status="busy",
+            model_id=config.model_id,
+            client_version=CLIENT_VERSION,
+            ttl_sec=config.heartbeat_ttl_sec,
+            vram_gb=reported_vram,
+        )
         result = self._executor(assignment)
         submission_id = client.submit_assignment(assignment, result)
         client.heartbeat(

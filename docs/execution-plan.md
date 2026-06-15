@@ -514,9 +514,39 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P16.0 Dispatch migration docs — `dispatch-migration.md`, ADR 0005 phase 3
 ✅ P16.1 Assignment config metadata — `assignment` block, volunteer single config fetch
 ✅ P16.11 Phase 16 close-out — `close_phase16.sh`, tag `v0.17.0-phase16`
+✅ P17.0 Busy heartbeat during assignment execute — volunteer `busy` before capsule run; submit detail errors
 ```
 
 ---
+
+## Phase 17 — Subjective verify reliability
+
+**Goal:** Reduce staging subjective demo flakes from lease reclaim during assignment execution.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P17.0** | Busy heartbeat during assignment execute | ✅ Done | P16.11 |
+| **P17.11** | Phase 17 close-out | ⬜ Pending | P17.0 |
+
+### P17.0 — Busy heartbeat during assignment execute
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Keep presence fresh while a volunteer runs an assigned capsule (avoids submit races) |
+| **In scope** | Volunteer `busy` heartbeat before capsule execute; clearer submit errors in `DispatchClient` |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py agents/tests/test_volunteer_client.py -q` |
+| **Acceptance** | `run_once` heartbeats `busy` before execute; submit failures include platform `detail` |
+
+### P17.11 — Phase 17 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag subjective-reliability milestone after live verify |
+| **In scope** | `close_phase17.sh` / `.ps1`, tag `v0.18.0-phase17` |
+| **Verification** | `bash scripts/close_phase17.sh` |
+| **Acceptance** | Close-out bundle green including subjective verify |
+
+```
 
 ## Phase 16 — Dispatch migration phase 3
 

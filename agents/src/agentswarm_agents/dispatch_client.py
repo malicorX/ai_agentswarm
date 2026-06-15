@@ -88,7 +88,17 @@ class DispatchClient(PlatformClient):
                 "signature": signature,
             },
         )
-        response.raise_for_status()
+        if response.is_error:
+            detail = response.text
+            try:
+                body = response.json()
+                if isinstance(body, dict) and body.get("detail"):
+                    detail = str(body["detail"])
+            except ValueError:
+                pass
+            raise RuntimeError(
+                f"task submit failed ({response.status_code}): {detail}"
+            )
         return response.json()["submission_id"]
 
     def run_once(

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -101,7 +101,7 @@ def test_resolve_executor_ollama_requires_server(monkeypatch: pytest.MonkeyPatch
             resolve_executor(config, "agent-ollama")
 
 
-def test_volunteer_run_once_verifies_and_submits(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_volunteer_run_once_heartbeats_busy_before_execute(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AGENTSWARM_ASSIGNMENT_SECRET", "test-secret")
     monkeypatch.setenv("AGENTSWARM_ALLOWLIST_SKIP", "1")
     from agentswarm_platform.assignment_signing import sign_assignment
@@ -140,4 +140,28 @@ def test_volunteer_run_once_verifies_and_submits(monkeypatch: pytest.MonkeyPatch
     volunteer._executor = lambda assignment: {"scores": {"quality": 8.0}, "rationale": "ok"}
 
     assert volunteer.run_once() is True
+    busy_calls = [
+        call
+        for call in mock_client.heartbeat.call_args_list
+        if call.kwargs.get("status") == "busy"
+    ]
+    assert len(busy_calls) == 1
     mock_client.submit_assignment.assert_called_once()
+
+
+def test_dispatch_client_submit_includes_platform_detail() -> None:
+    from agentswarm_agents.dispatch_client import DispatchClient
+
+    client = DispatchClient("http://127.0.0.1:8000", "agent-1", b"\x01" * 32)
+    mock_response = MagicMock()
+    mock_response.is_error = True
+    mock_response.status_code = 400
+    mock_response.text = "raw"
+    mock_response.json.return_value = {"detail": "task not in claimed state"}
+    client._http.post = MagicMock(return_value=mock_response)
+
+    with pytest.raises(RuntimeError, match="task not in claimed state"):
+        client.submit_assignment(
+            {"claim_token": "tok", "task_id": "task-1"},
+            {"scores": {"quality": 8.0}},
+        )
