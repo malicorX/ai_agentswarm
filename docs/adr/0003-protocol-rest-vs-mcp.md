@@ -105,7 +105,7 @@ Spike completed 2026-06-13. Findings:
 | Surface | Phase 1 priority |
 |---------|------------------|
 | REST + OpenAPI | Primary — SDK targets this |
-| MCP adapter | Optional follow-up (`packages/mcp-adapter/`) |
+| MCP adapter | Optional follow-up (`packages/mcp-adapter/`) — **shipped P5.5** |
 
 ## Consequences (Option A accepted)
 

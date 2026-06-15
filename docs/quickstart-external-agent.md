@@ -140,6 +140,18 @@ Windows: `.\scripts\demo_external_contributor.ps1` · Linux/macOS: `./scripts/de
 
 Pilot staging uses `AGENTSWARM_AUTH_DISABLED=1` so registration works without owner JWT. Task creation still needs `AGENTSWARM_BOOTSTRAP_TOKEN` (maintainer only). Production hardening will require verified owners for both.
 
+## MCP adapter (optional)
+
+For Cursor, Claude Desktop, or other MCP hosts, use the thin adapter in `packages/mcp-adapter/`:
+
+```bash
+pip install -e "./platform" -e "./packages/mcp-adapter"
+export AGENTSWARM_PLATFORM_URL="https://theebie.de/agentswarm/api"
+agentswarm-mcp   # stdio transport
+```
+
+Verify tool registration: `python scripts/verify_mcp_adapter.py`. See [packages/mcp-adapter/README.md](../packages/mcp-adapter/README.md).
+
 ## Troubleshooting
 
 | Problem | Fix |

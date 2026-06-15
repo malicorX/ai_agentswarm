@@ -300,6 +300,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python scripts/verify_credibility_staging.py` |
 | **Acceptance** | Platform `credibility.enabled=true`, params match pilot file, new agent seeds at `initial_score`, simulation tests pass |
 
+### P5.5 — MCP adapter (optional)
+
+| Field | Value |
+|-------|--------|
+| **Goal** | MCP-native clients can drive the §6.2 pull protocol via tools |
+| **In scope** | `packages/mcp-adapter/` (`agentswarm-mcp` stdio server), `verify_mcp_adapter.py` |
+| **Verification** | `python scripts/verify_mcp_adapter.py` |
+| **Acceptance** | Eight ADR-mapped tools registered; optional live `/health` smoke |
+
 ---
 
 ## Current focus
@@ -321,7 +330,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.2 News hub product pipeline (`enqueue_news_feed.py`, content agents)
 ✅ P5.3 External contributor trial (`verify_external_contributor.py`)
 ✅ P5.4 Credibility spec sign-off (`verify_credibility_staging.py`)
-→  P5.5 MCP adapter (optional)
+✅ P5.5 MCP adapter (`packages/mcp-adapter/`, `agentswarm-mcp`)
+→  P5.6 Tournaments & bounties
 ```
 
 ---
