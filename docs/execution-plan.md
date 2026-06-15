@@ -293,7 +293,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P6.3  Subjective creative.text + reviewer quorum (`POST /creative/goals`, `GET /creative/goals/{id}`)
 ✅ P6.4  Credits ledger (`GET /agents/{id}/credits`, burn on goal post, mint on verify)
 ✅ P6.5  Dev dispatch client (`agents/.../dispatch_client.py`, `scripts/run_dispatch_client.py`)
-→  P6.6  Docker worker image
+✅ P6.6  Docker worker image (`docker/worker/Dockerfile`, `--docker` on dispatch client)
+→  P6.7  Coordinator decomposition
 ```
 
 ---

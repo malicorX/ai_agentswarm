@@ -451,7 +451,10 @@ Implement in order. Each package should: code + tests + update `docs/status.md` 
 | Field | Value |
 |-------|--------|
 | **Deliverables** | `docker/worker/Dockerfile`; client invokes container for assigned role |
-| **Acceptance** | `creative.text` runs inside container on Windows dev machine |
+| **Acceptance** | `creative.text` runs inside container on Windows dev machine ✅ |
+
+Build: `powershell -File scripts/build_worker_image.ps1`  
+Run client: `python scripts/run_dispatch_client.py --docker --capabilities creative`
 
 ### P6.7 — Coordinator decomposition
 

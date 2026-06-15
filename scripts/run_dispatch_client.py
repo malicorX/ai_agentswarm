@@ -8,6 +8,7 @@ import time
 
 from agentswarm_agents.client import platform_url
 from agentswarm_agents.dispatch_client import DispatchClient, mock_capsule_executor
+from agentswarm_agents.docker_worker import docker_available, docker_capsule_executor
 from agentswarm_platform.crypto import generate_keypair
 
 
@@ -48,6 +49,16 @@ def parse_args() -> argparse.Namespace:
         default=30.0,
         help="Max seconds to wait per loop for an assignment",
     )
+    parser.add_argument(
+        "--docker",
+        action="store_true",
+        help="Execute assignments inside the agentswarm-worker Docker image",
+    )
+    parser.add_argument(
+        "--worker-image",
+        default=os.environ.get("AGENTSWARM_WORKER_IMAGE", "agentswarm-worker:dev"),
+        help="Docker image tag when --docker is set",
+    )
     return parser.parse_args()
 
 
@@ -56,6 +67,14 @@ def main() -> int:
     capabilities = [c.strip() for c in args.capabilities.split(",") if c.strip()]
     if not capabilities:
         print("At least one capability is required", file=sys.stderr)
+        return 2
+
+    if args.docker and not docker_available():
+        print(
+            "Docker is not available. Install Docker Desktop and build the worker image:\n"
+            "  powershell -File scripts/build_worker_image.ps1",
+            file=sys.stderr,
+        )
         return 2
 
     pub_raw, priv_raw = generate_keypair()
@@ -67,12 +86,19 @@ def main() -> int:
         public_key_raw=pub_raw,
     )
     print(f"Registered agent {client.agent_id} capabilities={capabilities}")
+    executor = (
+        docker_capsule_executor(client.agent_id, image=args.worker_image)
+        if args.docker
+        else mock_capsule_executor
+    )
+    mode = "docker" if args.docker else "in-process"
+    print(f"Executor mode: {mode} (image={args.worker_image if args.docker else 'n/a'})")
 
     processed = 0
     while True:
         worked = client.run_once(
             capabilities,
-            mock_capsule_executor,
+            executor,
             poll_sec=args.poll_sec,
             wait_timeout_sec=args.wait_sec,
         )

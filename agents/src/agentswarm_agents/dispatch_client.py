@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any, Callable
 
+from agentswarm_agents.capsule_executor import execute_capsule
 from agentswarm_agents.client import PlatformClient
 from agentswarm_platform.crypto import sign_payload
 
@@ -95,23 +96,4 @@ class DispatchClient(PlatformClient):
 
 
 def mock_capsule_executor(assignment: dict[str, Any]) -> dict[str, Any]:
-    task_type = assignment.get("task_type", "")
-    capsule = assignment.get("capsule") or {}
-    if task_type == "coordinator.decompose":
-        goal_id = capsule.get("goal_id")
-        return {"goal_id": goal_id, "acknowledged": True}
-    if task_type == "creative.text":
-        brief = capsule.get("brief", "creative work")
-        return {
-            "text": f"Mock poem for: {brief}\nRoses are red,\nVolunteers compute,\nDispatch assigns roles,\nCredits follow suit.",
-        }
-    if task_type == "reviewer.subjective":
-        rubric = capsule.get("rubric") or [{"id": "quality", "weight": 1.0}]
-        scores = {str(item["id"]): 8.0 for item in rubric}
-        return {
-            "scores": scores,
-            "rationale": "Mock reviewer: solid craft and on-brief.",
-        }
-    if task_type == "reviewer.approve":
-        return {"approved": True, "notes": "mock approve"}
-    return {"ok": True, "task_type": task_type}
+    return execute_capsule(assignment)

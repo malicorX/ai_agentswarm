@@ -119,4 +119,5 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P6.3** | Subjective `creative.text` + reviewer quorum | Done |
 | **P6.4** | Credits ledger | Done |
 | **P6.5** | Dev dispatch client | Done |
+| **P6.6** | Docker worker image | Done |
 | **P5.0** | Production platform API (VPS, HTTPS, backups) | Not started |
