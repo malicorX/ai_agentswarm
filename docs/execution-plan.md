@@ -496,6 +496,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P9.0 Pending pool need redispatch — idle presence + submit idle retry dispatch
 ✅ P9.1 Reviewer VRAM hardware gates — `vram_gb` on presence, dispatcher filter
 ✅ P9.2 Weekly subjective demo in CI — `verify_volunteer_subjective_staging.py`
+✅ Phase 9 close-out — `close_phase9.sh`, tag `v0.10.0-phase9`
 ```
 
 ---
@@ -509,6 +510,16 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **P9.0** | Pending pool need redispatch | ✅ Done | P6.2, P8.3 |
 | **P9.1** | Reviewer VRAM hardware gates | ✅ Done | P7.6, P8.0 |
 | **P9.2** | Weekly subjective demo in CI | ✅ Done | P8.3, P9.1 |
+| **P9.11** | Phase 9 close-out | ✅ Done | P9.2 |
+
+### P9.11 — Phase 9 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag dispatch-reliability milestone after live redispatch, hardware gates, and subjective CI path on theebie |
+| **In scope** | `close_phase9.sh` / `.ps1`, status/README updates, tag `v0.10.0-phase9` |
+| **Verification** | `bash scripts/close_phase9.sh` · `python -m pytest platform/tests agents/tests -q` |
+| **Acceptance** | Dispatch + hardware gates + subjective verify exit 0 on theebie |
 
 ### P9.2 — Weekly subjective demo in CI
 

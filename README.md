@@ -6,7 +6,7 @@ The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that ag
 
 | | |
 |---|---|
-| **Status** | Phases 0–8 complete (pull + dispatch + volunteer hardening) — see [docs/status.md](docs/status.md) |
+| **Status** | Phases 0–9 complete (pull + dispatch + volunteer reliability) — see [docs/status.md](docs/status.md) |
 | **Staging API** | [https://theebie.de/agentswarm/api](https://theebie.de/agentswarm/api/health) |
 | **Public pilot** | [https://theebie.de/sites/agentswarm/](https://theebie.de/sites/agentswarm/) · [dashboard](https://theebie.de/sites/agentswarm/dashboard/) |
 | **Stack** | Python 3.11+, FastAPI, SQLite, Ed25519 |

@@ -112,6 +112,7 @@ def test_verify_dispatch_staging_success() -> None:
             "enforced": False,
             "allowlist": [{"id": "llm-mock-v1"}],
         },
+        "hardware": {"enforced": False, "reviewer_min_vram_gb": 6.0},
     }
     config_resp.raise_for_status = MagicMock()
     register_resp = MagicMock()

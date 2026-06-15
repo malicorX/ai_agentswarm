@@ -217,6 +217,24 @@ def wait_for_goal(
     )
 
 
+def _serve_volunteer_until(
+    volunteer: VolunteerClient,
+    config: VolunteerConfig,
+    *,
+    goal_terminal: threading.Event,
+    deadline: float,
+) -> None:
+    while time.monotonic() < deadline and not goal_terminal.is_set():
+        attempt_sec = min(config.wait_timeout_sec, deadline - time.monotonic())
+        if attempt_sec <= 0:
+            break
+        volunteer.config = replace(config, wait_timeout_sec=attempt_sec)
+        try:
+            volunteer.run_once()
+        except Exception:
+            time.sleep(config.poll_sec)
+
+
 def _start_volunteer_threads(
     base_url: str,
     *,
@@ -225,6 +243,8 @@ def _start_volunteer_threads(
     wait_timeout_sec: float,
     goal_timeout_sec: float,
     goal_posted: threading.Event,
+    goal_terminal: threading.Event | None = None,
+    require_role_assignments: bool = True,
 ) -> tuple[list[threading.Thread], list[BaseException], threading.Barrier]:
     """Start coordinator, creative, and reviewer clients (must be idle before goal post)."""
     run_id = uuid.uuid4().hex[:8]
@@ -251,19 +271,24 @@ def _start_volunteer_threads(
             ready_barrier.wait()
             if not goal_posted.wait(timeout=goal_timeout_sec):
                 raise RuntimeError("timed out waiting for creative goal to be posted")
-            role_total_wait = (
-                goal_timeout_sec + wait_timeout_sec
-                if "reviewer" in capabilities
-                else wait_timeout_sec
-            )
-            wait_for_volunteer_assignment(
-                volunteer,
-                config,
-                capabilities=capabilities,
-                owner=owner,
-                wait_timeout_sec=wait_timeout_sec,
-                total_wait_sec=role_total_wait,
-            )
+            role_total_wait = goal_timeout_sec + wait_timeout_sec
+            deadline = time.monotonic() + role_total_wait
+            if require_role_assignments:
+                wait_for_volunteer_assignment(
+                    volunteer,
+                    config,
+                    capabilities=capabilities,
+                    owner=owner,
+                    wait_timeout_sec=wait_timeout_sec,
+                    total_wait_sec=role_total_wait,
+                )
+            elif goal_terminal is not None:
+                _serve_volunteer_until(
+                    volunteer,
+                    config,
+                    goal_terminal=goal_terminal,
+                    deadline=deadline,
+                )
         except BaseException as exc:
             with lock:
                 errors.append(exc)
@@ -311,6 +336,7 @@ def run_volunteer_subjective_demo(
     wait_timeout_sec: float = 60.0,
     goal_timeout_sec: float = 180.0,
     brief: str = "Write a haiku about volunteer AI compute on the swarm",
+    require_role_assignments: bool = True,
 ) -> dict[str, Any]:
     clean = _clean_url(base_url)
     with httpx.Client(timeout=30.0, follow_redirects=True) as client:
@@ -339,6 +365,7 @@ def run_volunteer_subjective_demo(
             )
 
     goal_posted = threading.Event()
+    goal_terminal = threading.Event()
     threads, errors, ready_barrier = _start_volunteer_threads(
         clean,
         min_reviewers=min_reviewers,
@@ -346,6 +373,8 @@ def run_volunteer_subjective_demo(
         wait_timeout_sec=wait_timeout_sec,
         goal_timeout_sec=goal_timeout_sec,
         goal_posted=goal_posted,
+        goal_terminal=None if require_role_assignments else goal_terminal,
+        require_role_assignments=require_role_assignments,
     )
     try:
         ready_barrier.wait()
@@ -360,14 +389,41 @@ def run_volunteer_subjective_demo(
     )
     goal_posted.set()
 
-    _join_volunteer_threads(
-        threads,
-        errors,
-        goal_timeout_sec=goal_timeout_sec,
-        wait_timeout_sec=wait_timeout_sec,
-    )
+    goal: dict[str, Any] | None = None
+    goal_wait_error: list[BaseException] = []
 
-    goal = wait_for_goal(clean, goal_id, timeout_sec=goal_timeout_sec)
+    def _wait_goal_parallel() -> None:
+        nonlocal goal
+        try:
+            goal = wait_for_goal(clean, goal_id, timeout_sec=goal_timeout_sec)
+        except BaseException as exc:
+            goal_wait_error.append(exc)
+        finally:
+            goal_terminal.set()
+
+    if require_role_assignments:
+        _join_volunteer_threads(
+            threads,
+            errors,
+            goal_timeout_sec=goal_timeout_sec,
+            wait_timeout_sec=wait_timeout_sec,
+        )
+        goal = wait_for_goal(clean, goal_id, timeout_sec=goal_timeout_sec)
+    else:
+        goal_waiter = threading.Thread(target=_wait_goal_parallel, name="goal-waiter", daemon=True)
+        goal_waiter.start()
+        _join_volunteer_threads(
+            threads,
+            errors,
+            goal_timeout_sec=goal_timeout_sec,
+            wait_timeout_sec=wait_timeout_sec,
+        )
+        goal_waiter.join()
+        if goal_wait_error:
+            raise goal_wait_error[0]
+        if goal is None:
+            raise RuntimeError("goal waiter did not return a result")
+
     if goal.get("status") != "verified":
         raise RuntimeError(f"expected goal verified, got {goal.get('status')!r}")
 

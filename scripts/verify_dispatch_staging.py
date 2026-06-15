@@ -87,13 +87,27 @@ def verify_dispatch_staging(base_url: str, *, timeout: float = 30.0) -> dict[str
             raise RuntimeError("register response missing agent_id")
         result["register"] = str(agent_id)
 
+        presence_payload: dict[str, object] = {
+            "status": "idle",
+            "capabilities": ["reviewer"],
+            "ttl_sec": 60,
+        }
+        hardware_block = config_body.get("hardware")
+        if isinstance(hardware_block, dict) and hardware_block.get("enforced"):
+            min_vram = float(hardware_block.get("reviewer_min_vram_gb", 6.0))
+            first_model = allowlist[0]
+            model_id = (
+                str(first_model["id"])
+                if isinstance(first_model, dict) and first_model.get("id")
+                else "llm-mock-v1"
+            )
+            presence_payload["model_id"] = model_id
+            presence_payload["vram_gb"] = max(8.0, min_vram)
+            result["hardware_gates"] = "enforced"
+
         presence = client.post(
             f"{clean}/agents/{agent_id}/presence",
-            json={
-                "status": "idle",
-                "capabilities": ["reviewer"],
-                "ttl_sec": 60,
-            },
+            json=presence_payload,
         )
         presence.raise_for_status()
         result["presence"] = presence.json().get("status", "ok")

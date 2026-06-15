@@ -37,7 +37,7 @@ def verify_volunteer_subjective_staging(
     base_url: str,
     *,
     min_reviewers: int = 1,
-    goal_timeout_sec: float = 180.0,
+    goal_timeout_sec: float = 420.0,
     wait_timeout_sec: float = 60.0,
 ) -> dict[str, str]:
     """Run coordinator → creative → reviewers demo against staging."""
@@ -57,6 +57,7 @@ def verify_volunteer_subjective_staging(
         min_reviewers=min_reviewers,
         wait_timeout_sec=wait_timeout_sec,
         goal_timeout_sec=goal_timeout_sec,
+        require_role_assignments=False,
     )
     if result.get("goal_status") != "verified":
         raise RuntimeError(

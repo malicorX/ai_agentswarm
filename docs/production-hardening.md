@@ -59,7 +59,7 @@ GitHub Actions: **Verify staging (full)** (`.github/workflows/verify-staging-ful
 - **Scheduled:** Sundays 06:00 UTC (weekly cron, P7.11)
 - **Secrets:** `AGENTSWARM_BOOTSTRAP_TOKEN` and `AGENTSWARM_ASSIGNMENT_SECRET` on the repo; news/MCP skipped in CI by default (`AGENTSWARM_VERIFY_SKIP_NEWS=1`, `AGENTSWARM_VERIFY_SKIP_MCP=1`); subjective demo runs with `min_reviewers=1` (P9.2)
 
-Maintainer close-out: `bash scripts/close_phase8.sh` (pytest + dispatch smoke + volunteer subjective demo). Phase 7: `close_phase7.sh`.
+Maintainer close-out: `bash scripts/close_phase9.sh` (pytest + dispatch + hardware gates + subjective verify). Phase 8: `close_phase8.sh`.
 
 Optional swarm smoke (slow):
 
