@@ -22,22 +22,35 @@ def test_record_pages_url_updates_docs(tmp_path: Path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
     (docs / "status.md").write_text(
+        "- [ ] Manual deploy by human maintainer\n"
         "  - [ ] Enable GitHub Pages in repo settings (admin) + record live URL\n",
         encoding="utf-8",
     )
     (docs / "deploy.md").write_text(
-        "**Expected URL (once enabled):** `https://example.github.io/repo`\n",
+        "**Expected URL (once enabled):** `https://example.github.io/repo`\n"
+        "- [ ] Pilot static site hosted (URL recorded below)\n"
+        "| AI News Hub pilot | https://example.github.io/repo/news-hub/ (pending) | |\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "README.md").write_text(
+        "| **Public pilot** | **Pending** — enable Pages |\n",
         encoding="utf-8",
     )
 
     url = "https://malicorx.github.io/ai_agentswarm"
-    mod.record_pages_url(tmp_path, url)
+    mod.record_pages_url(tmp_path, url, recorded_at="2026-06-15")
 
     status = (docs / "status.md").read_text(encoding="utf-8")
     deploy = (docs / "deploy.md").read_text(encoding="utf-8")
+    readme = (tmp_path / "README.md").read_text(encoding="utf-8")
+    assert "[x] Manual deploy" in status
     assert f"[x] Enable GitHub Pages" in status
     assert url in status
     assert f"**Live URL:** `{url}/`" in deploy
+    assert "[x] Pilot static site" in deploy
+    assert f"{url}/news-hub/" in deploy
+    assert "2026-06-15" in deploy
+    assert url in readme
 
 
 def test_record_pages_url_rejects_non_https(tmp_path: Path) -> None:

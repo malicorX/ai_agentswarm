@@ -69,6 +69,36 @@ demo: phase 0 flow complete
 demo_phase0.ps1 complete
 ```
 
+## Option D — Federation, deploy, and full pipeline
+
+After the Phase 0 demo, try the higher-level flows (credibility + governance enabled):
+
+| Script | What it exercises |
+|--------|-------------------|
+| `.\scripts\demo_federation.ps1` | Second project, scoped memory, credibility import |
+| `.\scripts\demo_deploy_signoff.ps1` | Deploy sign-off quorum → `deploy.execute` |
+| `.\scripts\demo_swarm_pipeline.ps1` | Federation + deploy + pilot staging (`AGENTSWARM_DEPLOY_STAGING=1`) |
+
+macOS/Linux equivalents: `scripts/demo_federation.sh`, `demo_deploy_signoff.sh`, `demo_swarm_pipeline.sh`.
+
+Quickstarts: [federation](quickstart-federation.md) · [deploy](quickstart-deploy.md) · [swarm pipeline](quickstart-swarm-pipeline.md).
+
+### Preview the static pilot locally
+
+Same layout as GitHub Pages (index, news-hub, dashboard):
+
+```powershell
+.\scripts\preview_pilot_site.ps1
+```
+
+```bash
+./scripts/preview_pilot_site.sh
+```
+
+### Public pilot (GitHub Pages)
+
+The static site is ready in `pilot/`; publishing requires a one-time repo admin step. See [deploy.md](deploy.md) and run `python scripts/check_pages_ready.py` to verify enablement.
+
 ## Option B — Manual run (all platforms)
 
 ### Step 1: Start the platform
@@ -191,4 +221,5 @@ Ensure you are hitting the platform URL, not a stale server. FastAPI matches `/t
 - [Architecture](architecture.md) — how components connect
 - [API reference](api.md) — integrate your own orchestrator
 - [Reference agents](agents.md) — extend agent behavior
+- [Deploy guide](deploy.md) — GitHub Pages + VPS hosting
 - [Development guide](development.md) — contribute changes
