@@ -498,6 +498,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P9.2 Weekly subjective demo in CI — `verify_volunteer_subjective_staging.py`
 ✅ Phase 9 close-out — `close_phase9.sh`, tag `v0.10.0-phase9`
 ✅ P10.0 Expired assignment lease reclaim — `reclaim_expired_assignment_leases()`
+✅ P10.1 Stale presence reclaim + subjective prep — `maintain_dispatch_pool()`, `prep_staging_subjective_verify.sh`
 ```
 
 ---
@@ -509,6 +510,16 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
 | **P10.0** | Expired lease reclaim | ✅ Done | P9.0 |
+| **P10.1** | Stale presence reclaim + subjective prep | ✅ Done | P10.0 |
+
+### P10.1 — Stale presence reclaim + subjective prep
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Reclaim assignments from dead volunteers with expired heartbeats; prep staging before subjective verify |
+| **In scope** | `reclaim_leases_for_stale_presence()`, `evict_stale_presence()`, `maintain_dispatch_pool()`, `prep_staging_subjective_verify.sh` |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py -q` · `bash scripts/prep_staging_subjective_verify.sh` |
+| **Acceptance** | Stale busy agents lose leases; subjective verify restarts staging and uses strict demo path |
 
 ### P10.0 — Expired lease reclaim
 

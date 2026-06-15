@@ -35,6 +35,9 @@ export AGENTSWARM_EXPECT_HARDWARE_GATES=1
 python scripts/verify_hardware_gates_staging.py "$API_URL"
 
 export AGENTSWARM_VERIFY_SUBJECTIVE_MIN_REVIEWERS=1
+if [[ "${AGENTSWARM_VERIFY_SKIP_PREP:-}" != "1" ]]; then
+  bash scripts/prep_staging_subjective_verify.sh
+fi
 for attempt in 1 2 3; do
   if python scripts/verify_volunteer_subjective_staging.py "$API_URL"; then
     break

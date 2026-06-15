@@ -34,6 +34,9 @@ python scripts/verify_hardware_gates_staging.py $ApiUrl
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $env:AGENTSWARM_VERIFY_SUBJECTIVE_MIN_REVIEWERS = "1"
+if ($env:AGENTSWARM_VERIFY_SKIP_PREP -ne "1") {
+    powershell -File scripts/prep_staging_subjective_verify.ps1
+}
 $subjectiveOk = $false
 foreach ($attempt in 1, 2, 3) {
     python scripts/verify_volunteer_subjective_staging.py $ApiUrl

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -14,6 +15,29 @@ sys.path.insert(0, str(_ROOT / "platform" / "src"))
 sys.path.insert(0, str(_ROOT / "scripts"))
 
 DEMO_SCRIPT = _ROOT / "scripts" / "demo_volunteer_subjective.py"
+PREP_SCRIPT = _ROOT / "scripts" / "prep_staging_subjective_verify.sh"
+
+
+def _skip_prep() -> bool:
+    raw = os.environ.get("AGENTSWARM_VERIFY_SKIP_PREP", "").strip().lower()
+    return raw in ("1", "true", "yes")
+
+
+def prep_staging_subjective_verify() -> None:
+    """Restart staging platform so dispatch pool maintenance runs on a clean process."""
+    if _skip_prep():
+        return
+    if sys.platform == "win32":
+        prep = _ROOT / "scripts" / "prep_staging_subjective_verify.ps1"
+        subprocess.run(
+            ["powershell", "-File", str(prep)],
+            check=True,
+            cwd=_ROOT,
+        )
+        return
+    if not PREP_SCRIPT.is_file():
+        raise RuntimeError(f"missing prep script: {PREP_SCRIPT}")
+    subprocess.run(["bash", str(PREP_SCRIPT)], check=True, cwd=_ROOT)
 
 
 def _load_demo_module():
@@ -51,13 +75,14 @@ def verify_volunteer_subjective_staging(
             "AGENTSWARM_ASSIGNMENT_SECRET is required for subjective demo verify"
         )
 
+    prep_staging_subjective_verify()
+
     demo = _load_demo_module()
     result = demo.run_volunteer_subjective_demo(
         clean,
         min_reviewers=min_reviewers,
         wait_timeout_sec=wait_timeout_sec,
         goal_timeout_sec=goal_timeout_sec,
-        require_role_assignments=False,
     )
     if result.get("goal_status") != "verified":
         raise RuntimeError(

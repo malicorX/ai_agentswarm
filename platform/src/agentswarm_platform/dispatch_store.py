@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from agentswarm_platform.assignment_signing import sign_assignment
+from agentswarm_platform.presence_store import evict_stale_presence, presence_is_fresh
 
 
 def ensure_dispatch_schema(conn: sqlite3.Connection) -> None:
@@ -153,6 +154,53 @@ def create_assignment_lease(
     }
 
 
+def _reclaim_assignment_lease_row(
+    conn: sqlite3.Connection,
+    row: sqlite3.Row,
+    *,
+    now_iso: str,
+) -> str | None:
+    """Reset one active lease; return need_id when the pool need returns to pending."""
+    task = conn.execute(
+        "SELECT status, claimed_by FROM tasks WHERE task_id = ?",
+        (row["task_id"],),
+    ).fetchone()
+    if (
+        task is not None
+        and task["status"] == "claimed"
+        and task["claimed_by"] == row["agent_id"]
+    ):
+        conn.execute(
+            """
+            UPDATE tasks
+            SET status = 'created', claimed_by = NULL, claim_token = NULL, claim_deadline = NULL
+            WHERE task_id = ? AND status = 'claimed' AND claimed_by = ?
+            """,
+            (row["task_id"], row["agent_id"]),
+        )
+    conn.execute(
+        "UPDATE assignment_leases SET status = 'expired' WHERE lease_id = ?",
+        (row["lease_id"],),
+    )
+    need = conn.execute(
+        "SELECT status, lease_id FROM pool_needs WHERE need_id = ?",
+        (row["need_id"],),
+    ).fetchone()
+    reclaimed_need_id: str | None = None
+    if need is not None and need["status"] == "assigned" and need["lease_id"] == row["lease_id"]:
+        conn.execute(
+            """
+            UPDATE pool_needs
+            SET status = 'pending', assigned_agent_id = NULL, lease_id = NULL
+            WHERE need_id = ?
+            """,
+            (row["need_id"],),
+        )
+        reclaimed_need_id = str(row["need_id"])
+    conn.execute("DELETE FROM agent_presence WHERE agent_id = ?", (row["agent_id"],))
+    return reclaimed_need_id
+
+
 def reclaim_expired_assignment_leases(
     conn: sqlite3.Connection,
     *,
@@ -172,52 +220,69 @@ def reclaim_expired_assignment_leases(
     ).fetchall()
     reclaimed_need_ids: list[str] = []
     for row in rows:
-        task = conn.execute(
-            "SELECT status, claimed_by FROM tasks WHERE task_id = ?",
-            (row["task_id"],),
-        ).fetchone()
-        if task is not None and task["status"] == "claimed" and task["claimed_by"] == row["agent_id"]:
-            conn.execute(
-                """
-                UPDATE tasks
-                SET status = 'created', claimed_by = NULL, claim_token = NULL, claim_deadline = NULL
-                WHERE task_id = ? AND status = 'claimed' AND claimed_by = ?
-                """,
-                (row["task_id"], row["agent_id"]),
-            )
-        conn.execute(
-            "UPDATE assignment_leases SET status = 'expired' WHERE lease_id = ?",
-            (row["lease_id"],),
-        )
-        need = conn.execute(
-            "SELECT status, lease_id FROM pool_needs WHERE need_id = ?",
-            (row["need_id"],),
-        ).fetchone()
-        if need is not None and need["status"] == "assigned" and need["lease_id"] == row["lease_id"]:
-            conn.execute(
-                """
-                UPDATE pool_needs
-                SET status = 'pending', assigned_agent_id = NULL, lease_id = NULL
-                WHERE need_id = ?
-                """,
-                (row["need_id"],),
-            )
-            reclaimed_need_ids.append(str(row["need_id"]))
-        conn.execute(
-            """
-            UPDATE agent_presence
-            SET status = 'idle', last_seen_at = ?
-            WHERE agent_id = ? AND status = 'busy'
-            """,
-            (now_iso, row["agent_id"]),
-        )
+        need_id = _reclaim_assignment_lease_row(conn, row, now_iso=now_iso)
+        if need_id is not None:
+            reclaimed_need_ids.append(need_id)
     return reclaimed_need_ids
+
+
+def reclaim_leases_for_stale_presence(
+    conn: sqlite3.Connection,
+    *,
+    now: datetime | None = None,
+) -> list[str]:
+    """Reclaim active leases held by agents whose presence heartbeat has expired."""
+    resolved_now = now or datetime.now(timezone.utc)
+    now_iso = resolved_now.replace(microsecond=0).isoformat()
+    rows = conn.execute(
+        """
+        SELECT l.lease_id, l.need_id, l.agent_id, l.task_id
+        FROM assignment_leases l
+        JOIN agent_presence p ON p.agent_id = l.agent_id
+        WHERE l.status = 'active'
+        ORDER BY l.created_at ASC
+        """
+    ).fetchall()
+    reclaimed_need_ids: list[str] = []
+    for row in rows:
+        presence = conn.execute(
+            "SELECT last_seen_at, ttl_sec FROM agent_presence WHERE agent_id = ?",
+            (row["agent_id"],),
+        ).fetchone()
+        if presence is None:
+            continue
+        if presence_is_fresh(
+            str(presence["last_seen_at"]),
+            int(presence["ttl_sec"]),
+            now=resolved_now,
+        ):
+            continue
+        need_id = _reclaim_assignment_lease_row(conn, row, now_iso=now_iso)
+        if need_id is not None:
+            reclaimed_need_ids.append(need_id)
+    return reclaimed_need_ids
+
+
+def maintain_dispatch_pool(
+    conn: sqlite3.Connection,
+    *,
+    now: datetime | None = None,
+) -> dict[str, int | list[str]]:
+    """Expire leases, reclaim stale agents, and evict dead presence rows."""
+    expired = reclaim_expired_assignment_leases(conn, now=now)
+    stale = reclaim_leases_for_stale_presence(conn, now=now)
+    evicted = evict_stale_presence(conn, now=now)
+    return {
+        "expired_need_ids": expired,
+        "stale_need_ids": stale,
+        "evicted_presence": evicted,
+    }
 
 
 def get_pending_assignment_for_agent(
     conn: sqlite3.Connection, agent_id: str
 ) -> dict[str, Any] | None:
-    reclaim_expired_assignment_leases(conn)
+    maintain_dispatch_pool(conn)
     row = conn.execute(
         """
         SELECT l.*, t.task_type, t.capability_required, t.payload, t.project_id

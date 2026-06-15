@@ -87,6 +87,39 @@ def _is_fresh(last_seen_at: str, ttl_sec: int, now: datetime) -> bool:
     return seen + timedelta(seconds=ttl_sec) >= now
 
 
+def presence_is_fresh(
+    last_seen_at: str,
+    ttl_sec: int,
+    *,
+    now: datetime | None = None,
+) -> bool:
+    resolved_now = now or datetime.now(timezone.utc)
+    return _is_fresh(last_seen_at, ttl_sec, resolved_now)
+
+
+def evict_stale_presence(
+    conn: sqlite3.Connection,
+    *,
+    now: datetime | None = None,
+) -> int:
+    """Remove presence rows whose heartbeat TTL has elapsed."""
+    resolved_now = now or datetime.now(timezone.utc)
+    rows = conn.execute(
+        "SELECT agent_id, last_seen_at, ttl_sec FROM agent_presence"
+    ).fetchall()
+    removed = 0
+    for row in rows:
+        if presence_is_fresh(
+            str(row["last_seen_at"]),
+            int(row["ttl_sec"]),
+            now=resolved_now,
+        ):
+            continue
+        conn.execute("DELETE FROM agent_presence WHERE agent_id = ?", (row["agent_id"],))
+        removed += 1
+    return removed
+
+
 def list_idle_agents_for_capability(
     conn: sqlite3.Connection,
     capability: str,

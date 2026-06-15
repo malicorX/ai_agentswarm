@@ -106,8 +106,8 @@ from agentswarm_platform.dispatch_store import (
     insert_pool_need,
     list_pending_pool_needs,
     mark_need_assigned,
+    maintain_dispatch_pool,
     new_claim_token,
-    reclaim_expired_assignment_leases,
 )
 from agentswarm_platform.dispatcher import dispatch_pool_need as pick_dispatch_agent
 from agentswarm_platform.git_store import (
@@ -2628,7 +2628,7 @@ class Store:
         """Assign pending pool needs when idle agents become available."""
         assigned: list[str] = []
         with self._conn() as conn:
-            reclaim_expired_assignment_leases(conn)
+            maintain_dispatch_pool(conn)
             pending = list_pending_pool_needs(conn)
         for need_row in pending[:limit]:
             need_id = str(need_row["need_id"])

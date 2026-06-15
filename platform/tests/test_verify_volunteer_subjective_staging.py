@@ -24,6 +24,7 @@ def test_verify_volunteer_subjective_staging_requires_secrets(
     monkeypatch,
 ) -> None:
     mod = _load_module()
+    monkeypatch.setenv("AGENTSWARM_VERIFY_SKIP_PREP", "1")
     monkeypatch.delenv("AGENTSWARM_BOOTSTRAP_TOKEN", raising=False)
     monkeypatch.setenv("AGENTSWARM_ASSIGNMENT_SECRET", "secret")
     try:
@@ -36,6 +37,7 @@ def test_verify_volunteer_subjective_staging_requires_secrets(
 
 def test_verify_volunteer_subjective_staging_runs_demo(monkeypatch) -> None:
     mod = _load_module()
+    monkeypatch.setenv("AGENTSWARM_VERIFY_SKIP_PREP", "1")
     monkeypatch.setenv("AGENTSWARM_BOOTSTRAP_TOKEN", "boot")
     monkeypatch.setenv("AGENTSWARM_ASSIGNMENT_SECRET", "secret")
 
