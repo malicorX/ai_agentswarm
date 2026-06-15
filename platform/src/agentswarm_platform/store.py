@@ -2641,13 +2641,14 @@ class Store:
                 values = maintained.get(key)
                 if isinstance(values, list):
                     priority_ids.extend(str(need_id) for need_id in values)
+            matched_ids: list[str] = []
             if for_agent_id:
-                priority_ids.extend(
-                    list_pending_need_ids_for_agent(conn, for_agent_id, limit=limit)
-                )
+                matched_ids = list_pending_need_ids_for_agent(conn, for_agent_id, limit=limit)
+                allowed = set(matched_ids)
+                priority_ids = [need_id for need_id in priority_ids if need_id in allowed]
             pending = list_pending_pool_needs(conn)
         seen: set[str] = set()
-        for need_id in priority_ids:
+        for need_id in priority_ids + matched_ids:
             if need_id in seen:
                 continue
             seen.add(need_id)
