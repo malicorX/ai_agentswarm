@@ -150,6 +150,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P8.2** | Coordinator planning (ADR 0010) | Done → deterministic default; optional Ollama single-shot |
 | **P8.3** | Volunteer subjective staging demo | Done → `demo_volunteer_subjective.py` |
 | **P8.11** | Phase 8 close-out | Done → `close_phase8.sh`, tag `v0.9.0-phase8` |
+| **P9.0** | Pending pool need redispatch | Done → idle presence retries pending `pool_needs` |
 
 **Staging model allowlist:** enforced 2026-06-15 via `scripts/harden_staging_model_allowlist_theebie.sh`.
 

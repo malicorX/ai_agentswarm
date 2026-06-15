@@ -493,7 +493,27 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P8.2 Coordinator planning — ADR 0010, optional single-shot Ollama planner
 ✅ P8.3 Volunteer subjective demo — `demo_volunteer_subjective_staging.sh`
 ✅ Phase 8 close-out — `close_phase8.sh`, tag `v0.9.0-phase8`
+✅ P9.0 Pending pool need redispatch — idle presence + submit idle retry dispatch
 ```
+
+---
+
+## Phase 9 — Dispatch reliability
+
+**Goal:** Assign work when volunteers arrive after a pool need is created.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P9.0** | Pending pool need redispatch | ✅ Done | P6.2, P8.3 |
+
+### P9.0 — Pending pool need redispatch
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Assign `pool_needs` stuck in `pending` when idle agents heartbeat or finish a task |
+| **In scope** | `_redispatch_pending_pool_needs()` on idle presence + post-submit idle |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py -q` |
+| **Acceptance** | Pool need created before reviewer presence still assigns on next idle heartbeat |
 
 ---
 
@@ -518,6 +538,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `bash scripts/close_phase8.sh` · `python -m pytest platform/tests agents/tests -q` |
 | **Acceptance** | Dispatch smoke + volunteer subjective demo exit 0 on theebie |
 
+### P8.0 — Staging model allowlist enforcement
 
 | Field | Value |
 |-------|--------|

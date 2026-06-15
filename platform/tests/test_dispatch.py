@@ -133,3 +133,79 @@ def test_pool_need_rejects_pull_mode(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert "dispatch" in response.json()["detail"]
+
+
+def _post_reviewer_need(
+    dispatch_client: TestClient,
+    *,
+    exclude_owners: list[str] | None = None,
+) -> dict:
+    response = dispatch_client.post(
+        "/pool/need",
+        json={
+            "role": "reviewer",
+            "capability_required": "reviewer",
+            "task_type": "reviewer.subjective",
+            "payload": {
+                "capsule": {
+                    "brief": "Score this poem",
+                    "rubric": [{"id": "quality", "weight": 1.0}],
+                }
+            },
+            "constraints": {"exclude_owners": exclude_owners or ["poster-owner"]},
+        },
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_pool_need_redispatches_on_idle_presence(dispatch_client: TestClient) -> None:
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    need = _post_reviewer_need(dispatch_client)
+    assert need["assigned"] is False
+
+    reviewer_id, _ = register_agent(dispatch_client, ["reviewer"], owner="reviewer-owner")
+    dispatch_client.post(
+        f"/agents/{reviewer_id}/presence",
+        json={"status": "idle", "capabilities": ["reviewer"], "ttl_sec": 120},
+    )
+
+    pending = dispatch_client.get(f"/agents/{reviewer_id}/assignments/pending")
+    assert pending.status_code == 200
+    pending_body = pending.json()
+    assert pending_body is not None
+    assert pending_body["task_id"] == need["task_id"]
+
+
+def test_pool_need_redispatches_second_pending_need(dispatch_client: TestClient) -> None:
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    need_one = _post_reviewer_need(dispatch_client)
+    need_two = _post_reviewer_need(dispatch_client)
+    assert need_one["assigned"] is False
+    assert need_two["assigned"] is False
+
+    reviewer_one_id, _ = register_agent(
+        dispatch_client, ["reviewer"], owner="reviewer-owner-a"
+    )
+    dispatch_client.post(
+        f"/agents/{reviewer_one_id}/presence",
+        json={"status": "idle", "capabilities": ["reviewer"], "ttl_sec": 120},
+    )
+    first_pending = dispatch_client.get(
+        f"/agents/{reviewer_one_id}/assignments/pending"
+    ).json()
+    assert first_pending is not None
+
+    reviewer_two_id, _ = register_agent(
+        dispatch_client, ["reviewer"], owner="reviewer-owner-b"
+    )
+    dispatch_client.post(
+        f"/agents/{reviewer_two_id}/presence",
+        json={"status": "idle", "capabilities": ["reviewer"], "ttl_sec": 120},
+    )
+    second_pending = dispatch_client.get(
+        f"/agents/{reviewer_two_id}/assignments/pending"
+    ).json()
+    assert second_pending is not None
+    assigned_task_ids = {first_pending["task_id"], second_pending["task_id"]}
+    assert assigned_task_ids == {need_one["task_id"], need_two["task_id"]}

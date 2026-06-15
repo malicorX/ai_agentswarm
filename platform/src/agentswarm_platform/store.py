@@ -103,6 +103,7 @@ from agentswarm_platform.dispatch_store import (
     get_pending_assignment_for_agent,
     get_pool_need,
     insert_pool_need,
+    list_pending_pool_needs,
     mark_need_assigned,
     new_claim_token,
 )
@@ -2604,7 +2605,20 @@ class Store:
                 agent_id,
                 {"status": status, "capabilities": capabilities, "model_id": model_id},
             )
+        if status == "idle" and dispatch_enabled():
+            self._redispatch_pending_pool_needs()
         return recorded
+
+    def _redispatch_pending_pool_needs(self, *, limit: int = 32) -> list[str]:
+        """Assign pending pool needs when idle agents become available."""
+        assigned: list[str] = []
+        with self._conn() as conn:
+            pending = list_pending_pool_needs(conn)
+        for need_row in pending[:limit]:
+            need_id = str(need_row["need_id"])
+            if self._dispatch_need(need_id) is not None:
+                assigned.append(need_id)
+        return assigned
 
     def request_pool_need(
         self,
@@ -2733,6 +2747,8 @@ class Store:
             ).fetchone()
             if row is not None:
                 set_presence_status(conn, agent_id, "idle")
+        if dispatch_enabled():
+            self._redispatch_pending_pool_needs()
 
     def get_agent_credits(self, agent_id: str) -> dict[str, Any] | None:
         agent = self.get_agent(agent_id)
