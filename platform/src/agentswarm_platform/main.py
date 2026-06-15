@@ -269,6 +269,7 @@ def platform_config() -> dict[str, object]:
     from agentswarm_platform.agent_versioning import versioning_public_parameters
     from agentswarm_platform.version_probation import public_parameters as version_parameters
 
+    from agentswarm_platform.assignment_config import public_parameters as assignment_parameters
     from agentswarm_platform.credit_pricing import public_parameters as credits_parameters
     from agentswarm_platform.coordinator_config import public_parameters as coordinator_parameters
     from agentswarm_platform.hardware_gates import public_parameters as hardware_parameters
@@ -276,6 +277,7 @@ def platform_config() -> dict[str, object]:
 
     payload: dict[str, object] = {
         "assignment_mode": assignment_mode(),
+        "assignment": assignment_parameters(),
         "auth": auth_parameters(),
         "credibility": public_parameters(),
         "credits": credits_parameters(),

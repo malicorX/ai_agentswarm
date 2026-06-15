@@ -501,7 +501,7 @@ Read artifact: `GET /submissions/{submission_id}/git-artifact`
 ```text
 Phase 1: dispatch mode optional; all existing tests use pull
 Phase 2: new demos use dispatch only
-Phase 3: production clients default dispatch; pull for maintainer scripts only
+Phase 3: production clients default dispatch; pull for maintainer scripts only ✅ (see docs/dispatch-migration.md)
 ```
 
 Existing endpoints **remain**:
@@ -561,6 +561,7 @@ Run pytest and fix failures before marking package complete.
 
 | Date | Change |
 |------|--------|
+| 2026-06-13 | Migration phase 3: `assignment` block on `/platform/config`, dispatch-migration.md, volunteer client config probe |
 | 2026-06-15 | P7.0–P7.11 Phase 7: long-poll, credit pricing, model allowlist, appeals, full verify, Ollama executor, hardware docs, tag `v0.8.0-phase7` |
 | 2026-06-15 | P6.10 staging deploy scripts, Caddy/systemd templates, verify + record URL helpers |
 | 2026-06-15 | Initial handoff from design discussion (volunteer client, central dispatch, credits, subjective jury, Docker, theebie brain) |

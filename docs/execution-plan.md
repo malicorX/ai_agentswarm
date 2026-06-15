@@ -511,9 +511,50 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P14.11 Phase 14 close-out — `close_phase14.sh`, tag `v0.15.0-phase14`
 ✅ P15.0 Shell script LF normalization — CRLF fix on `scripts/**/*.sh`
 ✅ P15.11 Phase 15 close-out — `close_phase15.sh`, tag `v0.16.0-phase15`
+✅ P16.0 Dispatch migration docs — `dispatch-migration.md`, ADR 0005 phase 3
+✅ P16.1 Assignment config metadata — `assignment` block, volunteer single config fetch
 ```
 
 ---
+
+## Phase 16 — Dispatch migration phase 3
+
+**Goal:** Production and volunteer clients use central dispatch; pull mode is explicitly maintainer/dev-only.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P16.0** | ADR + dispatch migration docs | ✅ Done | P15.11 |
+| **P16.1** | Platform `assignment` config + volunteer probe | ✅ Done | P16.0 |
+| **P16.11** | Phase 16 close-out | ⬜ Pending | P16.1 |
+
+### P16.0 — ADR + dispatch migration docs
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Document migration phase 3: dispatch for production/volunteers, pull for maintainer scripts |
+| **In scope** | `docs/dispatch-migration.md`, ADR 0005 update, ROADMAP_CHANGES phase 3 ✅ |
+| **Verification** | Doc review |
+| **Acceptance** | Guide lists client types and required modes; ADR matches staging posture |
+
+### P16.1 — Platform assignment metadata + volunteer probe
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Expose migration metadata on `/platform/config`; volunteer client reads `assignment` block once at connect |
+| **In scope** | `assignment_config.public_parameters()`, `fetch_platform_config()` in volunteer client |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py agents/tests/test_volunteer_client.py -q` |
+| **Acceptance** | Config includes `assignment.volunteer_requires=dispatch`; volunteer refuses pull with maintainer-only hint |
+
+### P16.11 — Phase 16 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag dispatch-migration milestone after live verify |
+| **In scope** | `close_phase16.sh` / `.ps1`, tag `v0.17.0-phase16` |
+| **Verification** | `bash scripts/close_phase16.sh` |
+| **Acceptance** | Close-out checks `assignment` block on staging config |
+
+```
 
 ## Phase 15 — Dev tooling hygiene
 

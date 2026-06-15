@@ -168,6 +168,9 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P14.11** | Phase 14 close-out | Done → `close_phase14.sh`, tag `v0.15.0-phase14` |
 | **P15.0** | Shell script LF normalization | Done → CRLF fix on `scripts/**/*.sh` |
 | **P15.11** | Phase 15 close-out | Done → `close_phase15.sh`, tag `v0.16.0-phase15` |
+| **P16.0** | Dispatch migration docs | Done → `docs/dispatch-migration.md`, ADR 0005 |
+| **P16.1** | Assignment config metadata | Done → `assignment` on `/platform/config`, volunteer probe |
+| **P16.11** | Phase 16 close-out | Pending → tag `v0.17.0-phase16` |
 
 **Phase 15 close-out:** git tag [`v0.16.0-phase15`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.16.0-phase15) (2026-06-13).
 

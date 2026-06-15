@@ -53,6 +53,16 @@ def verify_dispatch_staging(base_url: str, *, timeout: float = 30.0) -> dict[str
         if mode != "dispatch":
             raise RuntimeError(f"expected assignment_mode=dispatch, got {mode!r}")
         result["assignment_mode"] = str(mode)
+        assignment_block = config_body.get("assignment")
+        if not isinstance(assignment_block, dict):
+            raise RuntimeError("platform config missing assignment block")
+        if assignment_block.get("volunteer_requires") != "dispatch":
+            raise RuntimeError(
+                f"expected assignment.volunteer_requires=dispatch, got {assignment_block.get('volunteer_requires')!r}"
+            )
+        if assignment_block.get("production_default") != "dispatch":
+            raise RuntimeError("expected assignment.production_default=dispatch")
+        result["assignment_volunteer_requires"] = str(assignment_block.get("volunteer_requires"))
         dispatch_block = config_body.get("dispatch")
         if not isinstance(dispatch_block, dict) or "long_poll_max_sec" not in dispatch_block:
             raise RuntimeError("platform config missing dispatch.long_poll_max_sec")

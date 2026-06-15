@@ -117,9 +117,12 @@ def resolve_executor(config: VolunteerConfig, agent_id: str) -> CapsuleExecutor:
 
 def assert_platform_model_allowlist(base_url: str, model_id: str) -> None:
     """Ensure the client model_id is published on the platform allowlist."""
-    response = httpx.get(f"{base_url.rstrip('/')}/platform/config", timeout=15.0)
-    response.raise_for_status()
-    models = response.json().get("models")
+    config = fetch_platform_config(base_url)
+    assert_platform_model_allowlist_config(config, model_id)
+
+
+def assert_platform_model_allowlist_config(config: dict[str, Any], model_id: str) -> None:
+    models = config.get("models")
     if not isinstance(models, dict):
         return
     allowlist = models.get("allowlist")
@@ -133,13 +136,34 @@ def assert_platform_model_allowlist(base_url: str, model_id: str) -> None:
         )
 
 
-def assert_dispatch_mode(base_url: str) -> None:
+def fetch_platform_config(base_url: str) -> dict[str, Any]:
     response = httpx.get(f"{base_url.rstrip('/')}/platform/config", timeout=15.0)
     response.raise_for_status()
-    mode = response.json().get("assignment_mode", "pull")
+    body = response.json()
+    if not isinstance(body, dict):
+        raise RuntimeError("platform /platform/config response must be a JSON object")
+    return body
+
+
+def platform_assignment_mode(config: dict[str, Any]) -> str:
+    assignment = config.get("assignment")
+    if isinstance(assignment, dict) and assignment.get("mode"):
+        return str(assignment["mode"])
+    return str(config.get("assignment_mode", "pull"))
+
+
+def assert_dispatch_mode(base_url: str) -> None:
+    config = fetch_platform_config(base_url)
+    assert_dispatch_mode_config(config)
+
+
+def assert_dispatch_mode_config(config: dict[str, Any]) -> None:
+    mode = platform_assignment_mode(config)
     if mode != "dispatch":
         raise RuntimeError(
-            f"platform assignment_mode is {mode!r}; volunteer client requires dispatch"
+            f"platform assignment_mode is {mode!r}; volunteer client requires dispatch "
+            "(set AGENTSWARM_ASSIGNMENT_MODE=dispatch on the platform; "
+            "pull is for maintainer/dev scripts only)"
         )
 
 
@@ -173,9 +197,10 @@ class VolunteerClient:
 
     def connect(self) -> DispatchClient:
         self._set_state(VolunteerState.CONNECTING, "checking platform mode")
-        assert_dispatch_mode(self.config.base_url)
+        platform_config = fetch_platform_config(self.config.base_url)
+        assert_dispatch_mode_config(platform_config)
         validate_model_id(self.config.model_id)
-        assert_platform_model_allowlist(self.config.base_url, self.config.model_id)
+        assert_platform_model_allowlist_config(platform_config, self.config.model_id)
         self._set_state(VolunteerState.CONNECTING, "registering agent")
         client = connect_dispatch_agent(self.config)
         self._executor = resolve_executor(self.config, client.agent_id)

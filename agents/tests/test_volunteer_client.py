@@ -8,7 +8,9 @@ from agentswarm_agents.volunteer_client import (
     VolunteerClient,
     VolunteerConfig,
     assert_dispatch_mode,
+    assert_dispatch_mode_config,
     assert_platform_model_allowlist,
+    platform_assignment_mode,
     resolve_executor,
 )
 
@@ -18,8 +20,20 @@ def test_assert_dispatch_mode_requires_dispatch(monkeypatch: pytest.MonkeyPatch)
     mock_response.json.return_value = {"assignment_mode": "pull"}
     mock_response.raise_for_status = MagicMock()
     with patch("agentswarm_agents.volunteer_client.httpx.get", return_value=mock_response):
-        with pytest.raises(RuntimeError, match="dispatch"):
+        with pytest.raises(RuntimeError, match="maintainer/dev"):
             assert_dispatch_mode("http://127.0.0.1:8000")
+
+
+def test_platform_assignment_mode_prefers_assignment_block() -> None:
+    config = {
+        "assignment_mode": "pull",
+        "assignment": {"mode": "dispatch"},
+    }
+    assert platform_assignment_mode(config) == "dispatch"
+
+
+def test_assert_dispatch_mode_config_accepts_assignment_block() -> None:
+    assert_dispatch_mode_config({"assignment": {"mode": "dispatch"}})
 
 
 def test_assert_platform_model_allowlist_rejects_unknown() -> None:

@@ -100,6 +100,13 @@ def test_verify_dispatch_staging_success() -> None:
     config_resp = MagicMock()
     config_resp.json.return_value = {
         "assignment_mode": "dispatch",
+        "assignment": {
+            "mode": "dispatch",
+            "volunteer_requires": "dispatch",
+            "production_default": "dispatch",
+            "local_dev_default": "pull",
+            "pull_for_maintainer_scripts": True,
+        },
         "auth": {"enforced": False},
         "dispatch": {"long_poll_max_sec": 60.0, "long_poll_interval_sec": 0.25},
         "credits": {

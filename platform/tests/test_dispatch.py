@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from agentswarm_platform.assignment_config import assignment_mode
+from agentswarm_platform.assignment_config import assignment_mode, public_parameters
 from agentswarm_platform.assignment_signing import sign_assignment, verify_assignment
 from test_task_flow import register_agent
 
@@ -18,6 +18,28 @@ def dispatch_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> Test
 def test_assignment_mode_defaults_to_pull(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("AGENTSWARM_ASSIGNMENT_MODE", raising=False)
     assert assignment_mode() == "pull"
+
+
+def test_platform_config_assignment_block_pull_mode(client: TestClient) -> None:
+    response = client.get("/platform/config")
+    assert response.status_code == 200
+    assignment = response.json()["assignment"]
+    assert assignment["mode"] == "pull"
+    assert assignment["volunteer_requires"] == "dispatch"
+    assert assignment["production_default"] == "dispatch"
+    assert assignment["local_dev_default"] == "pull"
+    assert assignment["pull_for_maintainer_scripts"] is True
+
+
+def test_platform_config_assignment_block_dispatch_mode(dispatch_client: TestClient) -> None:
+    response = dispatch_client.get("/platform/config")
+    assert response.json()["assignment"]["mode"] == "dispatch"
+
+
+def test_assignment_public_parameters() -> None:
+    params = public_parameters()
+    assert params["volunteer_requires"] == "dispatch"
+    assert params["production_default"] == "dispatch"
 
 
 def test_assignment_signature_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
