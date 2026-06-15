@@ -10,7 +10,11 @@ from typing import Any
 from agentswarm_platform.assignment_signing import sign_assignment
 from agentswarm_platform.assignment_wait import pool_need_max_age_hours
 from agentswarm_platform.hardware_gates import agent_meets_reviewer_hardware
-from agentswarm_platform.presence_store import evict_stale_presence, presence_is_fresh
+from agentswarm_platform.presence_store import (
+    evict_stale_presence,
+    presence_is_fresh,
+    touch_presence,
+)
 
 
 def ensure_dispatch_schema(conn: sqlite3.Connection) -> None:
@@ -517,6 +521,7 @@ def get_pending_assignment_for_agent(
     ).fetchone()
     if row is None:
         return None
+    touch_presence(conn, agent_id)
     payload = json.loads(row["payload"]) if row["payload"] else {}
     capsule = payload.get("capsule", payload)
     sign_payload = {

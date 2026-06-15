@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -99,6 +100,74 @@ def test_resolve_executor_ollama_requires_server(monkeypatch: pytest.MonkeyPatch
     with patch("agentswarm_agents.volunteer_client.ollama_available", return_value=False):
         with pytest.raises(RuntimeError, match="Ollama"):
             resolve_executor(config, "agent-ollama")
+
+
+def test_volunteer_run_once_heartbeats_busy_during_long_execute(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import threading
+
+    monkeypatch.setenv("AGENTSWARM_ASSIGNMENT_SECRET", "test-secret")
+    monkeypatch.setenv("AGENTSWARM_ALLOWLIST_SKIP", "1")
+    from agentswarm_platform.assignment_signing import sign_assignment
+
+    config = VolunteerConfig(
+        agent_name="test",
+        base_url="http://127.0.0.1:8000",
+        owner="owner",
+        capabilities=["reviewer"],
+        model_id="llm-mock-v1",
+        wait_timeout_sec=0.01,
+        poll_sec=0.01,
+        heartbeat_ttl_sec=30,
+    )
+    volunteer = VolunteerClient(config)
+    mock_client = MagicMock()
+    mock_client.agent_id = "agent-1"
+    assignment = {
+        "lease_id": "lease-1",
+        "task_id": "task-1",
+        "task_type": "reviewer.subjective",
+        "expires_at": "2030-01-01T00:00:00+00:00",
+        "claim_token": "claim",
+        "capsule": {"rubric": [{"id": "quality", "weight": 1.0}]},
+        "assignment_signature": sign_assignment(
+            {
+                "lease_id": "lease-1",
+                "agent_id": "agent-1",
+                "task_id": "task-1",
+                "expires_at": "2030-01-01T00:00:00+00:00",
+            }
+        ),
+    }
+    mock_client.wait_for_assignment.return_value = assignment
+    mock_client.submit_assignment.return_value = "sub-1"
+
+    real_wait = threading.Event.wait
+
+    def fast_heartbeat_wait(self: threading.Event, timeout: float | None = None) -> bool:
+        if timeout is not None and timeout >= 10.0:
+            time.sleep(0.05)
+            return False
+        return real_wait(self, timeout)
+
+    def slow_executor(_assignment: dict) -> dict:
+        time.sleep(0.2)
+        return {"scores": {"quality": 8.0}, "rationale": "ok"}
+
+    volunteer._client = mock_client
+    volunteer._executor = slow_executor
+
+    with patch.object(threading.Event, "wait", fast_heartbeat_wait):
+        assert volunteer.run_once() is True
+
+    busy_calls = [
+        call
+        for call in mock_client.heartbeat.call_args_list
+        if call.kwargs.get("status") == "busy"
+    ]
+    assert len(busy_calls) >= 2
+    mock_client.submit_assignment.assert_called_once()
 
 
 def test_volunteer_run_once_heartbeats_busy_before_execute(monkeypatch: pytest.MonkeyPatch) -> None:

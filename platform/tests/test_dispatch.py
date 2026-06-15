@@ -181,6 +181,53 @@ def _post_reviewer_need(
     return response.json()
 
 
+def test_get_pending_assignment_refreshes_presence(
+    dispatch_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import datetime, timezone
+    from agentswarm_platform import main as platform_main
+    from agentswarm_platform import presence_store
+
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    reviewer_id, _ = register_agent(dispatch_client, ["reviewer"], owner="reviewer-owner")
+    dispatch_client.post(
+        f"/agents/{reviewer_id}/presence",
+        json={"status": "idle", "capabilities": ["reviewer"], "ttl_sec": 120},
+    )
+    need = _post_reviewer_need(dispatch_client)
+    assert need["assigned"] is True
+
+    with platform_main.store._conn() as conn:
+        before = conn.execute(
+            "SELECT last_seen_at FROM agent_presence WHERE agent_id = ?",
+            (reviewer_id,),
+        ).fetchone()
+    assert before is not None
+
+    later = datetime(2026, 6, 13, 12, 0, 1, tzinfo=timezone.utc)
+
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return later if tz is not None else later.replace(tzinfo=None)
+
+    monkeypatch.setattr(presence_store, "datetime", FixedDateTime)
+
+    pending = dispatch_client.get(f"/agents/{reviewer_id}/assignments/pending")
+    assert pending.status_code == 200
+    assert pending.json() is not None
+
+    with platform_main.store._conn() as conn:
+        after = conn.execute(
+            "SELECT last_seen_at FROM agent_presence WHERE agent_id = ?",
+            (reviewer_id,),
+        ).fetchone()
+    assert after is not None
+    assert str(after["last_seen_at"]) == later.replace(microsecond=0).isoformat()
+    assert str(after["last_seen_at"]) != str(before["last_seen_at"])
+
+
 def test_pool_need_redispatches_on_idle_presence(dispatch_client: TestClient) -> None:
     register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
     need = _post_reviewer_need(dispatch_client)

@@ -240,7 +240,31 @@ class VolunteerClient:
             ttl_sec=config.heartbeat_ttl_sec,
             vram_gb=reported_vram,
         )
-        result = self._executor(assignment)
+        stop_heartbeat = threading.Event()
+        heartbeat_interval = max(10.0, config.heartbeat_ttl_sec / 3)
+
+        def _busy_heartbeat_loop() -> None:
+            while not stop_heartbeat.wait(heartbeat_interval):
+                client.heartbeat(
+                    config.capabilities,
+                    status="busy",
+                    model_id=config.model_id,
+                    client_version=CLIENT_VERSION,
+                    ttl_sec=config.heartbeat_ttl_sec,
+                    vram_gb=reported_vram,
+                )
+
+        heartbeat_thread = threading.Thread(
+            target=_busy_heartbeat_loop,
+            name="volunteer-busy-heartbeat",
+            daemon=True,
+        )
+        heartbeat_thread.start()
+        try:
+            result = self._executor(assignment)
+        finally:
+            stop_heartbeat.set()
+            heartbeat_thread.join(timeout=2.0)
         submission_id = client.submit_assignment(assignment, result)
         client.heartbeat(
             config.capabilities,

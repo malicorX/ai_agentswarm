@@ -528,7 +528,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
 | **P18.0** | Parallel goal wait + staging timeouts | ✅ Done | P17.11 |
-| **P18.11** | Phase 18 close-out | ⬜ Pending | P18.0 |
+| **P18.1** | Assignment presence + execute heartbeats | ✅ Done | P18.0 |
+| **P18.11** | Phase 18 close-out | ✅ Done | P18.1 |
 
 ### P18.0 — Parallel goal wait + staging timeouts
 
@@ -538,6 +539,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **In scope** | Parallel `wait_for_goal` in demo; `AGENTSWARM_VERIFY_SUBJECTIVE_GOAL_TIMEOUT_SEC` (default 600); skip prep on close-out retries |
 | **Verification** | `python -m pytest platform/tests/test_demo_volunteer_subjective.py platform/tests/test_verify_volunteer_subjective_staging.py -q` |
 | **Acceptance** | Demo polls goal while volunteers run; staging verify defaults to 600s goal timeout |
+
+### P18.1 — Assignment presence + execute heartbeats
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Avoid `invalid claim token` from stale presence during long capsule runs |
+| **In scope** | `touch_presence` when delivering assignments; periodic `busy` heartbeats during execute; close-out scripts skip duplicate prep |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py agents/tests/test_volunteer_client.py -q` |
+| **Acceptance** | Pending assignment fetch refreshes `last_seen_at`; `run_once` heartbeats `busy` throughout execute |
 
 ### P18.11 — Phase 18 close-out
 

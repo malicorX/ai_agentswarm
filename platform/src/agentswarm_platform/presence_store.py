@@ -169,3 +169,14 @@ def set_presence_status(conn: sqlite3.Connection, agent_id: str, status: str) ->
             agent_id,
         ),
     )
+
+
+def touch_presence(conn: sqlite3.Connection, agent_id: str) -> None:
+    """Refresh last_seen_at without changing status (active assignment delivery)."""
+    conn.execute(
+        "UPDATE agent_presence SET last_seen_at = ? WHERE agent_id = ?",
+        (
+            datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            agent_id,
+        ),
+    )
