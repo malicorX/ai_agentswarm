@@ -19,6 +19,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Check Pages is enabled
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python scripts/check_pages_ready.py \
             --expected-url https://malicorx.github.io/ai_agentswarm

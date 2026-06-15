@@ -36,41 +36,69 @@ def record_pilot_url(root: Path, url: str, *, recorded_at: str | None = None) ->
             "  - [ ] Host pilot static site on theebie.de (`/sites/agentswarm/`) + record live URL",
             f"  - [x] Host pilot static site on theebie.de (`/sites/agentswarm/`) + record live URL → {clean}",
         )
-    status_text = status_text.replace(
-        "  - [ ] Enable GitHub Pages in repo settings (admin) + record live URL",
-        f"  - [x] Enable GitHub Pages in repo settings (admin) + record live URL → {clean}",
-    )
-
-    deploy_text = re.sub(
-        r"\*\*Expected URL \(once enabled\):\*\* `[^`]+`",
-        f"**Live URL:** `{clean}/`",
-        deploy_text,
-        count=1,
-    )
-    deploy_text = re.sub(
-        r"\*\*Maintainer URL \(theebie\.de\):\*\* `[^`]+`",
-        f"**Maintainer URL (theebie.de):** `{clean}/`",
-        deploy_text,
-        count=1,
-    )
-    deploy_text = deploy_text.replace(
-        "- [ ] Pilot static site hosted (URL recorded below)",
-        "- [x] Pilot static site hosted (URL recorded below)",
-        1,
-    )
-    deploy_text = re.sub(
-        r"\| AI News Hub pilot \| [^|]+ \|[^|]*\|",
-        f"| AI News Hub pilot | {clean}/news-hub/ | {recorded} |",
-        deploy_text,
-        count=1,
-    )
-
-    readme_text = re.sub(
-        r"\| \*\*Public pilot\*\* \| \*\*Pending\*\*[^|]+\|",
-        f"| **Public pilot** | [{clean}/]({clean}/) · [dashboard]({clean}/dashboard/) |",
-        readme_text,
-        count=1,
-    )
+        deploy_text = re.sub(
+            r"\*\*Maintainer URL \(theebie\.de\):\*\* `[^`]+`",
+            f"**Maintainer URL (theebie.de):** `{clean}/`",
+            deploy_text,
+            count=1,
+        )
+        deploy_text = deploy_text.replace(
+            "- [ ] Pilot static site hosted (URL recorded below)",
+            "- [x] Pilot static site hosted (URL recorded below)",
+            1,
+        )
+        deploy_text = re.sub(
+            r"\| AI News Hub pilot \| [^|]+ \|[^|]*\|",
+            f"| AI News Hub pilot | {clean}/news-hub/ | {recorded} |",
+            deploy_text,
+            count=1,
+        )
+        readme_text = re.sub(
+            r"\| \*\*Public pilot\*\* \| \*\*Pending\*\*[^|]+\|",
+            f"| **Public pilot** | [{clean}/]({clean}/) · [dashboard]({clean}/dashboard/) |",
+            readme_text,
+            count=1,
+        )
+    else:
+        status_text = status_text.replace(
+            "  - [ ] (Optional) GitHub Pages for forks — enable in repo settings + record URL",
+            f"  - [x] (Optional) GitHub Pages for forks — enable in repo settings + record URL → {clean}",
+        )
+        status_text = status_text.replace(
+            "  - [ ] Enable GitHub Pages in repo settings (admin) + record live URL",
+            f"  - [x] Enable GitHub Pages in repo settings (admin) + record live URL → {clean}",
+        )
+        status_text = status_text.replace(
+            "**Optional next (operator):** GitHub Pages for forks — [deploy.md](deploy.md) Option B.",
+            f"**GitHub Pages (fork mirror):** [{clean}/]({clean}/) — [deploy.md](deploy.md) Option B.",
+        )
+        deploy_text = re.sub(
+            r"\*\*Expected URL \(once enabled\):\*\* `[^`]+`",
+            f"**Live URL:** `{clean}/`",
+            deploy_text,
+            count=1,
+        )
+        deploy_text = re.sub(
+            r"(forks may use )`https://<user>\.github\.io/ai_agentswarm`",
+            rf"\1`{clean}/`",
+            deploy_text,
+            count=1,
+        )
+        pages_row = f"| Pilot site (GitHub Pages) | {clean}/ | {recorded} |"
+        if "| Pilot site (GitHub Pages) |" in deploy_text:
+            deploy_text = re.sub(
+                r"\| Pilot site \(GitHub Pages\) \| [^|]+ \|[^|]*\|",
+                pages_row,
+                deploy_text,
+                count=1,
+            )
+        else:
+            deploy_text = re.sub(
+                r"(\| AI News Hub pilot \| [^\n]+\n)",
+                rf"\1{pages_row}\n",
+                deploy_text,
+                count=1,
+            )
 
     status_path.write_text(status_text, encoding="utf-8")
     deploy_path.write_text(deploy_text, encoding="utf-8")

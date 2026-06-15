@@ -22,7 +22,7 @@ Goal: closed swarm of trusted agents producing the first AI News Hub version.
   - [x] Deploy runbook + `.env.example` + combined Pages workflow (`pilot/` index, news-hub, dashboard)
   - [x] Local preview script `scripts/preview_pilot_site.ps1`
   - [x] Host pilot static site on theebie.de (`/sites/agentswarm/`) + record live URL → https://theebie.de/sites/agentswarm
-  - [ ] (Optional) GitHub Pages for forks — enable in repo settings + record URL
+  - [x] (Optional) GitHub Pages for forks — enable in repo settings + record URL → https://malicorx.github.io/ai_agentswarm
   - [x] Optional: platform on VPS with HTTPS → staging https://theebie.de/agentswarm/api
 - [x] CI workflow (lint + tests)
 - [x] Phase 0 close-out tag `v0.1.0-phase0` → [P0.9](execution-plan.md#p09--phase-0-close-out)
@@ -139,6 +139,6 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 
 **Phase 5 close-out:** git tag [`v0.6.0-phase5`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.6.0-phase5) (2026-06-15).
 
-**Optional next (operator):** GitHub Pages for forks — [deploy.md](deploy.md) Option B.
+**GitHub Pages (fork mirror):** [https://malicorx.github.io/ai_agentswarm/](https://malicorx.github.io/ai_agentswarm/) — [deploy.md](deploy.md) Option B.
 
 **Staging auth:** enabled 2026-06-15 (`auth.enforced=true` on theebie) via `scripts/harden_staging_auth_theebie.sh`.

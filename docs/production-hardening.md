@@ -104,7 +104,7 @@ These are **operator steps**, not automatic code changes:
 
 ## Optional: GitHub Pages (forks)
 
-Maintainer pilot is on theebie (`/sites/agentswarm/`). Forks can mirror via GitHub Pages — one-time **Settings → Pages → GitHub Actions**, then:
+Maintainer pilot is on theebie (`/sites/agentswarm/`). This repo also publishes a fork mirror at **https://malicorx.github.io/ai_agentswarm/** via GitHub Pages (**Settings → Pages → GitHub Actions**):
 
 ```bash
 python scripts/check_pages_ready.py

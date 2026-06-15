@@ -47,10 +47,9 @@ def test_record_pages_url_updates_docs(tmp_path: Path) -> None:
     assert f"[x] Enable GitHub Pages" in status
     assert url in status
     assert f"**Live URL:** `{url}/`" in deploy
-    assert "[x] Pilot static site" in deploy
-    assert f"{url}/news-hub/" in deploy
+    assert f"| Pilot site (GitHub Pages) | {url}/ | 2026-06-15 |" in deploy
     assert "2026-06-15" in deploy
-    assert url in readme
+    assert "**Pending**" in readme
 
 
 def test_record_pages_url_rejects_non_https(tmp_path: Path) -> None:

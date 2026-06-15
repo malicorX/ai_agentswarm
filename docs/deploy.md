@@ -275,7 +275,7 @@ agentswarm-deployer --once
 
 A workflow at `.github/workflows/pages.yml` publishes the combined `pilot/` site on push to `main`. Useful for contributors who do not have theebie access; **not required** for the maintainer deploy.
 
-**Live URL (maintainer):** `https://theebie.de/sites/agentswarm/` — forks may use `https://<user>.github.io/ai_agentswarm`.
+**Live URL (maintainer):** `https://theebie.de/sites/agentswarm/` — forks may use `https://malicorx.github.io/ai_agentswarm/`.
 
 1. Enable **GitHub Pages** in repo Settings → Pages → Source: **GitHub Actions**.
 2. Push to `main` (or run the **Deploy pilot site** workflow manually).
@@ -436,6 +436,7 @@ Use this when completing [execution plan P0.7](execution-plan.md):
 Verify: `python scripts/verify_production_staging.py` (quick bundle) · `AGENTSWARM_VERIFY_FULL=1` for full · See [production-hardening.md](production-hardening.md)
 
 | AI News Hub pilot | https://theebie.de/sites/agentswarm/news-hub/ | 2026-06-15 |
+| Pilot site (GitHub Pages) | https://malicorx.github.io/ai_agentswarm/ | 2026-06-15 |
 
 ---
 
