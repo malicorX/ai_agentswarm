@@ -145,9 +145,11 @@ def list_pending_need_ids_for_agent(
             specific.append(need_id)
         else:
             generic.append(need_id)
-        if len(specific) + len(generic) >= limit:
+        if len(specific) >= limit:
             break
-    return (specific + generic)[:limit]
+    if specific:
+        return specific[:limit]
+    return generic[:limit]
 
 
 def mark_need_assigned(
