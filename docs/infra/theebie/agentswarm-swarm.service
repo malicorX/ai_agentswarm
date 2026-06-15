@@ -1,0 +1,16 @@
+[Unit]
+Description=AgentSwarm production worker swarm (theebie.de)
+After=network.target agentswarm-platform.service
+Wants=agentswarm-platform.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/agentswarm
+EnvironmentFile=/etc/agentswarm/swarm.env
+ExecStart=/opt/agentswarm/.venv/bin/agentswarm-swarm --poll-interval 2
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

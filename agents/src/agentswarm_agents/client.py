@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from typing import Any
 
 import httpx
@@ -46,13 +47,20 @@ class PlatformClient:
         response.raise_for_status()
         return response.json()
 
-    def claim(self, task_id: str) -> str:
-        response = self._http.post(
-            f"/tasks/{task_id}/claim",
-            json={"agent_id": self.agent_id},
-        )
-        response.raise_for_status()
-        return response.json()["claim_token"]
+    def claim(self, task_id: str, *, max_attempts: int = 5) -> str:
+        delay = 1.0
+        for attempt in range(max_attempts):
+            response = self._http.post(
+                f"/tasks/{task_id}/claim",
+                json={"agent_id": self.agent_id},
+            )
+            if response.status_code == 429 and attempt + 1 < max_attempts:
+                time.sleep(delay)
+                delay = min(delay * 2, 30.0)
+                continue
+            response.raise_for_status()
+            return response.json()["claim_token"]
+        raise RuntimeError(f"claim budget exceeded for {task_id}")
 
     def submit(self, claim_token: str, task_id: str, result: dict[str, Any]) -> str:
         signature = sign_payload(

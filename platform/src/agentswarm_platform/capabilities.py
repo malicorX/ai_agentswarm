@@ -19,6 +19,7 @@ _FALLBACK_CAPABILITIES = frozenset(
         "deployer",
         "planner",
         "orchestrator",
+        "moderator",
     }
 )
 

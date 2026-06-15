@@ -125,3 +125,4 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P6.9** | Git-backed coder capsule | Done |
 | **P6.10** | Staging API on theebie.de (`/agentswarm/api`) | Done → https://theebie.de/agentswarm/api |
 | **P5.0** | Production platform API (VPS, HTTPS, backups) | Done → https://theebie.de/agentswarm/api |
+| **P5.1** | Live swarm on production (`agentswarm-swarm`) | Done → https://theebie.de/agentswarm/api |

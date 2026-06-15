@@ -226,6 +226,32 @@ agentswarm-volunteer --headless --loops 1 --base-url "$AGENTSWARM_PLATFORM_URL"
 
 Or: `.\scripts\demo_connect_staging.ps1`
 
+### Option A3 — theebie.de production swarm (P5.1)
+
+Long-running planner, orchestrator, moderator, deployer, and codewriter/tester/reviewer workers against the public API.
+
+**Service:** `agentswarm-swarm` (systemd) · **Env:** `/etc/agentswarm/swarm.env`
+
+```powershell
+.\scripts\deploy_swarm_theebie.ps1
+```
+
+```bash
+AGENTSWARM_BOOTSTRAP_TOKEN=<from /etc/agentswarm/platform.env> \
+  ./scripts/deploy_swarm_theebie.sh
+```
+
+Deploy syncs `platform/`, `agents/`, `pilot/`, and `scripts/` to `/opt/agentswarm/`. Default deploy hook:
+
+`AGENTSWARM_DEPLOY_HOOK=/opt/agentswarm/scripts/deploy_pilot_theebie.sh`
+
+**Verify pipeline (enqueue article → verified):**
+
+```bash
+export AGENTSWARM_BOOTSTRAP_TOKEN=...
+python scripts/verify_production_swarm.py https://theebie.de/agentswarm/api
+```
+
 **Trigger deploy after sign-off (optional hook):**
 
 ```bash
