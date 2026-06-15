@@ -9,6 +9,7 @@ def register_agent(
     capabilities: list[str],
     owner: str = "test-owner",
     project_ids: list[str] | None = None,
+    egress_allowlist: list[str] | None = None,
 ) -> tuple[str, bytes]:
     pub_raw, priv_raw = generate_keypair()
     body: dict = {
@@ -18,6 +19,8 @@ def register_agent(
     }
     if project_ids is not None:
         body["project_ids"] = project_ids
+    if egress_allowlist is not None:
+        body["egress_allowlist"] = egress_allowlist
     response = client.post("/agents/register", json=body)
     assert response.status_code == 200
     agent_id = response.json()["agent_id"]

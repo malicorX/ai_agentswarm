@@ -622,6 +622,20 @@ def submit_task(body: SubmitRequest) -> SubmitResponse:
             return store.complete_reviewer_subjective_submit(
                 body.claim_token, body.result, body.signature
             )
+        if task_type == "scraper.fetch":
+            return store.complete_scraper_submit(
+                body.claim_token, body.result, body.signature
+            )
+        if task_type == "summarizer.summarize":
+            return store.complete_summarizer_submit(
+                body.claim_token, body.result, body.signature
+            )
+        if task_type == "classifier.label":
+            payload = store.get_task_payload_by_claim_token(body.claim_token) or {}
+            if payload.get("pipeline"):
+                return store.complete_classifier_pipeline_submit(
+                    body.claim_token, body.result, body.signature
+                )
         return store.submit_task(body.claim_token, body.result, body.signature)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

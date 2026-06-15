@@ -1,0 +1,10 @@
+{
+  "feeds": [
+    {
+      "name": "agentswarm-github-commits",
+      "url": "https://github.com/malicorX/ai_agentswarm/commits/main.atom",
+      "source": "GitHub",
+      "egress_hosts": ["github.com"]
+    }
+  ]
+}

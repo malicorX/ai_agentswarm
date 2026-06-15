@@ -300,7 +300,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P6.10 Staging API on theebie.de → https://theebie.de/agentswarm/api (`scripts/deploy_platform_theebie.sh`)
 ✅ P5.0  Production platform (systemd, TLS, backups, external verify) → same URL
 ✅ P5.1 Live swarm on production (`agentswarm-swarm`, `deploy_swarm_theebie.sh`)
-→  P5.2 News hub as a product
+✅ P5.2 News hub product pipeline (`enqueue_news_feed.py`, content agents)
+→  P5.3 External contributor trial
 ```
 
 ---

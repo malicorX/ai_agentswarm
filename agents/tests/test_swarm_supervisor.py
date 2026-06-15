@@ -12,7 +12,8 @@ from agentswarm_agents.swarm_supervisor import (
 
 
 def test_worker_command_uses_module() -> None:
-    cmd = _worker_command(DEFAULT_WORKERS[0], poll_interval=3.0)
+    spec = WorkerSpec("planner", "agentswarm_agents.workers.planner")
+    cmd = _worker_command(spec, poll_interval=3.0)
     assert cmd[0] == sys.executable
     assert "agentswarm_agents.workers.planner" in cmd
     assert cmd[-1] == "3.0"

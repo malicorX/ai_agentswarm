@@ -32,15 +32,15 @@
     },
     {
       "id": "summarizer",
-      "description": "Produces concise summaries (Phase 1+ external agents)",
-      "task_types": [],
+      "description": "Produces concise summaries for news-hub ingestion",
+      "task_types": ["summarizer.summarize"],
       "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 20 },
       "default_egress_hosts": []
     },
     {
       "id": "scraper",
       "description": "Fetches content from declared sources",
-      "task_types": [],
+      "task_types": ["scraper.fetch"],
       "requires_explicit_egress": true,
       "default_budget": { "max_concurrent_claims": 1, "max_claims_per_hour": 10 },
       "default_egress_hosts": []

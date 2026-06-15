@@ -1705,6 +1705,221 @@ class Store:
             )
         return SubmitResponse(submission_id=submission_id)
 
+    def get_task_payload_by_claim_token(self, claim_token: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT payload FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                return None
+            return json.loads(row["payload"]) if row["payload"] else {}
+
+    def complete_scraper_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        from agentswarm_platform.content_pipeline import (
+            summarizer_enqueue_spec,
+            validate_scraper_result,
+        )
+
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "scraper.fetch":
+                raise ValueError("not a scraper task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            drafts = validate_scraper_result(result)
+            enqueue_specs = [summarizer_enqueue_spec(draft) for draft in drafts]
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            enqueued = enqueue_child_tasks(
+                conn,
+                parent_task_id=row["task_id"],
+                specs=enqueue_specs,
+                trigger="scraper.fetch",
+                append_audit=self._append_audit,
+                project_id=self._project_id_for_task(conn, row["task_id"]),
+            )
+            self._append_audit(
+                conn,
+                "scraper.completed",
+                row["claimed_by"],
+                {
+                    "task_id": row["task_id"],
+                    "draft_count": len(drafts),
+                    "enqueued_task_ids": enqueued,
+                },
+            )
+        return SubmitResponse(submission_id=submission_id, enqueued_task_ids=enqueued)
+
+    def complete_summarizer_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        from agentswarm_platform.content_pipeline import (
+            classifier_enqueue_spec,
+            validate_summarizer_result,
+        )
+
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "summarizer.summarize":
+                raise ValueError("not a summarizer task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            draft, summary = validate_summarizer_result(result)
+            enqueue_specs = [classifier_enqueue_spec(draft=draft, summary=summary)]
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            enqueued = enqueue_child_tasks(
+                conn,
+                parent_task_id=row["task_id"],
+                specs=enqueue_specs,
+                trigger="summarizer.summarize",
+                append_audit=self._append_audit,
+                project_id=self._project_id_for_task(conn, row["task_id"]),
+            )
+            self._append_audit(
+                conn,
+                "summarizer.completed",
+                row["claimed_by"],
+                {"task_id": row["task_id"], "enqueued_task_ids": enqueued},
+            )
+        return SubmitResponse(submission_id=submission_id, enqueued_task_ids=enqueued)
+
+    def complete_classifier_pipeline_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        from agentswarm_platform.content_pipeline import (
+            build_article,
+            codewriter_enqueue_spec,
+            validate_classifier_result,
+        )
+
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "classifier.label":
+                raise ValueError("not a classifier task")
+            payload = json.loads(row["payload"]) if row["payload"] else {}
+            if not payload.get("pipeline"):
+                raise ValueError("not a pipeline classifier task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            label = validate_classifier_result(result, payload)
+            draft = payload.get("draft")
+            summary = payload.get("summary")
+            if not isinstance(draft, dict) or not isinstance(summary, str):
+                raise ValueError("pipeline classifier payload incomplete")
+            article = build_article(draft=draft, summary=summary, label=label)
+            enqueue_specs = [codewriter_enqueue_spec(article)]
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            enqueued = enqueue_child_tasks(
+                conn,
+                parent_task_id=row["task_id"],
+                specs=enqueue_specs,
+                trigger="classifier.label",
+                append_audit=self._append_audit,
+                project_id=self._project_id_for_task(conn, row["task_id"]),
+            )
+            self._append_audit(
+                conn,
+                "classifier.pipeline.completed",
+                row["claimed_by"],
+                {
+                    "task_id": row["task_id"],
+                    "article_id": article["id"],
+                    "enqueued_task_ids": enqueued,
+                },
+            )
+        return SubmitResponse(submission_id=submission_id, enqueued_task_ids=enqueued)
+
     def complete_deploy_approve_submit(
         self,
         claim_token: str,

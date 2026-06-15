@@ -21,6 +21,9 @@ class WorkerSpec:
 
 
 DEFAULT_WORKERS: tuple[WorkerSpec, ...] = (
+    WorkerSpec("scraper", "agentswarm_agents.workers.scraper"),
+    WorkerSpec("summarizer", "agentswarm_agents.workers.summarizer"),
+    WorkerSpec("classifier", "agentswarm_agents.workers.classifier"),
     WorkerSpec("planner", "agentswarm_agents.workers.planner"),
     WorkerSpec("orchestrator", "agentswarm_agents.workers.orchestrator"),
     WorkerSpec("moderator", "agentswarm_agents.workers.moderator"),

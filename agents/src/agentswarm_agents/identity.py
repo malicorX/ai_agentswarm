@@ -78,6 +78,7 @@ def connect_agent(
     owner: str,
     capabilities: list[str],
     base_url: str | None = None,
+    egress_allowlist: list[str] | None = None,
 ) -> PlatformClient:
     """Load or create persistent identity and connect to the platform."""
     url = (base_url or platform_url()).rstrip("/")
@@ -90,13 +91,17 @@ def connect_agent(
         pub, priv = generate_keypair()
         pub_b64, _ = _encode_keys(pub, priv)
 
+    body: dict[str, Any] = {
+        "public_key": pub_b64,
+        "owner": owner,
+        "capabilities": capabilities,
+    }
+    if egress_allowlist is not None:
+        body["egress_allowlist"] = egress_allowlist
+
     response = httpx.post(
         f"{url}/agents/register",
-        json={
-            "public_key": pub_b64,
-            "owner": owner,
-            "capabilities": capabilities,
-        },
+        json=body,
         headers=owner_auth_headers(),
         timeout=30.0,
     )

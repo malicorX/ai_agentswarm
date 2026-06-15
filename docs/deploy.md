@@ -252,6 +252,17 @@ export AGENTSWARM_BOOTSTRAP_TOKEN=...
 python scripts/verify_production_swarm.py https://theebie.de/agentswarm/api
 ```
 
+### Option A4 — News hub content pipeline (P5.2)
+
+Automated ingestion: `scraper.fetch` → `summarizer.summarize` → `classifier.label` → `codewriter.add-article` → tester/reviewer → live site after deploy.
+
+**Feed config:** `config/news-feeds.json`  
+**Enqueue feeds:** `python scripts/enqueue_news_feed.py` (requires bootstrap token)  
+**Verify pipeline:** `python scripts/verify_news_pipeline.py`  
+**Cron on theebie:** installed by `deploy_swarm_theebie.sh` → `/etc/cron.d/agentswarm-news-feed` (every 6h)
+
+Content agents are included in `agentswarm-swarm` (scraper, summarizer, classifier).
+
 **Trigger deploy after sign-off (optional hook):**
 
 ```bash
