@@ -8,8 +8,9 @@ import sqlite3
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "platform" / "src"))
+_PLATFORM_SRC = Path("/opt/agentswarm/platform/src")
+if _PLATFORM_SRC.is_dir():
+    sys.path.insert(0, str(_PLATFORM_SRC))
 
 from agentswarm_platform.dispatch_store import (  # noqa: E402
     ensure_dispatch_schema,
