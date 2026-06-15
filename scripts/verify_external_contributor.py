@@ -95,8 +95,8 @@ def _run_codewriter_once(
     env["AGENTSWARM_PLATFORM_URL"] = platform_url
     env["AGENTSWARM_IDENTITY_DIR"] = str(identity_dir)
     env["AGENTSWARM_REPO_ROOT"] = str(repo_root)
-    # Drop maintainer tokens so the subprocess behaves like an external machine.
-    env.pop("AGENTSWARM_BOOTSTRAP_TOKEN", None)
+    # Drop owner JWT so the subprocess behaves like an external machine; keep bootstrap
+    # when auth is enforced — invited contributors register with X-Bootstrap-Token.
     env.pop("AGENTSWARM_OWNER_TOKEN", None)
     return subprocess.run(
         [

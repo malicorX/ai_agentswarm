@@ -412,6 +412,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python -m pytest platform/tests/test_creative_appeal.py -q` |
 | **Acceptance** | Rejected goal → appeal pending → overturn sets verified + refunds poster |
 
+### P7.4 — Full staging verify bundle
+
+| Field | Value |
+|-------|--------|
+| **Goal** | One-command full pre-release verify against theebie, including P7 unit + live checks |
+| **In scope** | Extend `verify_production_staging.py` full mode (P7 pytest bundle, `verify_creative_appeal_staging.py`), `run_full_staging_verify.sh` / `.ps1`, optional `verify-staging-full.yml`, fix external contributor codewriter auth under enforced registration |
+| **Verification** | `bash scripts/run_full_staging_verify.sh` (or `.ps1`) · `python -m pytest platform/tests/test_verify_production_staging_full.py -q` |
+| **Acceptance** | Full bundle passes on theebie with bootstrap token; news/MCP skippable via env when swarm idle |
+
 ---
 
 ## Current focus
@@ -448,6 +457,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P7.1 Credit pricing table — `credit_pricing.py`, `credits.pricing` on config
 ✅ P7.2 Volunteer model allowlist — ADR 0007, `models` on config
 ✅ P7.3 Human appeal for subjective rejects — ADR 0008
+✅ P7.4 Full staging verify bundle — `run_full_staging_verify.sh`, P7 checks in full mode
 ```
 
 ---

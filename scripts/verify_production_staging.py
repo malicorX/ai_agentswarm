@@ -47,6 +47,14 @@ def _run_pytest(relative_test_path: str) -> None:
         )
 
 
+_P7_UNIT_TESTS = (
+    "platform/tests/test_credit_pricing.py",
+    "platform/tests/test_platform_model_allowlist.py",
+    "platform/tests/test_creative_appeal.py",
+    "platform/tests/test_assignment_long_poll.py",
+)
+
+
 def verify_production_staging(
     base_url: str,
     *,
@@ -131,34 +139,51 @@ def verify_production_staging(
         results["unit_dispatch"] = "passed"
 
     if not quick:
-        news_proc = subprocess.run(
-            [sys.executable, str(scripts / "verify_news_pipeline.py")],
-            cwd=_ROOT,
-            env={**os.environ, "AGENTSWARM_PLATFORM_URL": clean},
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if news_proc.returncode != 0:
-            raise RuntimeError(
-                "news pipeline verify failed:\n"
-                f"{news_proc.stdout}\n{news_proc.stderr}"
-            )
-        results["news_pipeline"] = "passed"
+        for relative in _P7_UNIT_TESTS:
+            _run_pytest(relative)
+        results["unit_p7"] = "passed"
 
-        mcp_proc = subprocess.run(
-            [sys.executable, str(scripts / "verify_mcp_adapter.py")],
-            cwd=_ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if mcp_proc.returncode != 0:
-            raise RuntimeError(
-                "mcp adapter verify failed:\n"
-                f"{mcp_proc.stdout}\n{mcp_proc.stderr}"
+        if results["platform"].get("assignment_mode") == "dispatch":
+            appeal_mod = _load_script_module(
+                "verify_creative_appeal_staging",
+                scripts / "verify_creative_appeal_staging.py",
             )
-        results["mcp_adapter"] = "passed"
+            results["creative_appeal"] = appeal_mod.verify_creative_appeal_staging(clean)
+
+        if not _env_flag("AGENTSWARM_VERIFY_SKIP_NEWS", default=False):
+            news_proc = subprocess.run(
+                [sys.executable, str(scripts / "verify_news_pipeline.py")],
+                cwd=_ROOT,
+                env={**os.environ, "AGENTSWARM_PLATFORM_URL": clean},
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if news_proc.returncode != 0:
+                raise RuntimeError(
+                    "news pipeline verify failed:\n"
+                    f"{news_proc.stdout}\n{news_proc.stderr}"
+                )
+            results["news_pipeline"] = "passed"
+        else:
+            results["news_pipeline"] = "skipped"
+
+        if not _env_flag("AGENTSWARM_VERIFY_SKIP_MCP", default=False):
+            mcp_proc = subprocess.run(
+                [sys.executable, str(scripts / "verify_mcp_adapter.py")],
+                cwd=_ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if mcp_proc.returncode != 0:
+                raise RuntimeError(
+                    "mcp adapter verify failed:\n"
+                    f"{mcp_proc.stdout}\n{mcp_proc.stderr}"
+                )
+            results["mcp_adapter"] = "passed"
+        else:
+            results["mcp_adapter"] = "skipped"
 
         if _env_flag("AGENTSWARM_VERIFY_SWARM", default=False):
             swarm_mod = _load_script_module(

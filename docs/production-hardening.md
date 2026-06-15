@@ -36,7 +36,23 @@ AGENTSWARM_VERIFY_FULL=1 AGENTSWARM_EXPECT_DISPATCH=1 AGENTSWARM_BOOTSTRAP_TOKEN
   python scripts/verify_production_staging.py
 ```
 
-Adds: credibility simulation tests, external contributor task flow, news pipeline, MCP adapter.
+Adds: credibility simulation tests, external contributor task flow, P7 unit tests + creative appeal live smoke, news pipeline, MCP adapter.
+
+**One-command full verify** (fetches bootstrap token from theebie over SSH):
+
+```bash
+bash scripts/run_full_staging_verify.sh
+# Windows:
+pwsh scripts/run_full_staging_verify.ps1
+```
+
+Skip slow live flows when swarm is idle:
+
+```bash
+AGENTSWARM_VERIFY_SKIP_NEWS=1 AGENTSWARM_VERIFY_SKIP_MCP=1 bash scripts/run_full_staging_verify.sh
+```
+
+GitHub Actions: **Verify staging (full)** (`workflow_dispatch`) — set repo secret `AGENTSWARM_BOOTSTRAP_TOKEN`; news pipeline skipped in CI by default.
 
 Optional swarm smoke (slow):
 
@@ -53,6 +69,8 @@ Individual scripts (same as before):
 | `verify_credibility_staging.py` | Pilot params on `/platform/config` |
 | `verify_registration_auth.py` | Unit tests + live open/enforced registration check |
 | `verify_dispatch_staging.py` | Dispatch mode: presence, credits, assignments smoke |
+| `verify_creative_appeal_staging.py` | Creative goal appeal routes (P7.3 live smoke) |
+| `run_full_staging_verify.sh` / `.ps1` | Full bundle + SSH bootstrap fetch for theebie |
 | `verify_external_contributor.py` | Non-maintainer quickstart |
 | `verify_news_pipeline.py` | Enqueue feed → verified article task |
 | `verify_production_swarm.py` | Swarm services processing tasks |

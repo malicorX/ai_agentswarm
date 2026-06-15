@@ -1,0 +1,28 @@
+name: Verify staging (full)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  full-staging-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e platform -e agents
+
+      - name: Full staging verify (theebie)
+        env:
+          AGENTSWARM_BOOTSTRAP_TOKEN: ${{ secrets.AGENTSWARM_BOOTSTRAP_TOKEN }}
+          AGENTSWARM_VERIFY_FULL: "1"
+          AGENTSWARM_EXPECT_DISPATCH: "1"
+          AGENTSWARM_EXPECT_REGISTRATION_AUTH: "1"
+          AGENTSWARM_VERIFY_SKIP_NEWS: "1"
+        run: python scripts/verify_production_staging.py https://theebie.de/agentswarm/api
