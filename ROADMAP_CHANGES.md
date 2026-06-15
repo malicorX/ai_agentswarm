@@ -531,7 +531,7 @@ Existing endpoints **remain**:
 4. **Coordinator** — single LLM call or multi-step planner.
 5. ~~**Human appeal** path for subjective rejects~~ — **Resolved (ADR 0008):** `POST /creative/goals/{id}/appeal` + maintainer `/appeal/resolve`.
 6. ~~**Credit pricing** table per task class~~ — **Resolved (P7.1):** `credit_pricing.py`, `GET /platform/config` → `credits.pricing`, optional `difficulty` on creative goals.
-7. **Forge** — GitHub-first vs forge-agnostic in v1.
+7. ~~**Forge** — GitHub-first vs forge-agnostic in v1.~~ — **Resolved (ADR 0009):** v1 uses local `git` CLI only; `forge_type` (`git`, `github`, `gitlab`) is metadata for audit/UI; no forge REST APIs in v1.
 
 ---
 

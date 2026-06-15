@@ -4,6 +4,7 @@ import re
 import sqlite3
 from typing import Any
 
+from agentswarm_platform.forge_types import validate_forge_type
 from agentswarm_platform.models import utc_now_iso
 
 _SHA_RE = re.compile(r"^[0-9a-f]{7,40}$", re.IGNORECASE)
@@ -36,9 +37,7 @@ def validate_git_artifact(artifact: dict[str, Any]) -> None:
         raise ValueError("git_artifact.branch is required")
     if not isinstance(commit_sha, str) or not _SHA_RE.match(commit_sha.strip()):
         raise ValueError("git_artifact.commit_sha must be a git sha")
-    forge_type = artifact.get("forge_type", "git")
-    if forge_type not in ("git", "github", "gitlab"):
-        raise ValueError("git_artifact.forge_type is invalid")
+    forge_type = validate_forge_type(str(artifact.get("forge_type", "git")))
 
 
 def insert_git_artifact(
@@ -50,6 +49,7 @@ def insert_git_artifact(
     artifact: dict[str, Any],
 ) -> None:
     validate_git_artifact(artifact)
+    forge_type = validate_forge_type(str(artifact.get("forge_type", "git")))
     conn.execute(
         """
         INSERT INTO git_artifacts (
@@ -64,7 +64,7 @@ def insert_git_artifact(
             artifact["repo_url"].strip(),
             artifact["branch"].strip(),
             artifact["commit_sha"].strip().lower(),
-            str(artifact.get("forge_type", "git")),
+            forge_type,
             utc_now_iso(),
         ),
     )

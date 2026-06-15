@@ -59,6 +59,22 @@ def test_configure_project_repo(dispatch_client: TestClient, bare_repo: str) -> 
     assert body["default_branch"] == "main"
 
 
+@pytest.mark.parametrize("forge_type", ["github", "gitlab"])
+def test_configure_project_repo_forge_labels(
+    dispatch_client: TestClient, bare_repo: str, forge_type: str
+) -> None:
+    response = dispatch_client.patch(
+        "/projects/default/repo",
+        json={
+            "repo_url": bare_repo,
+            "default_branch": "main",
+            "forge_type": forge_type,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["forge_type"] == forge_type
+
+
 def test_git_patch_assignment_e2e(dispatch_client: TestClient, bare_repo: str) -> None:
     dispatch_client.patch(
         "/projects/default/repo",

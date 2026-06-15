@@ -71,6 +71,7 @@ def commit_and_push(
 
 
 def execute_git_patch_capsule(capsule: dict[str, Any]) -> dict[str, Any]:
+    """Apply a bounded text patch via local git (ADR 0009 — forge-agnostic v1)."""
     git_info = capsule.get("git")
     patch = capsule.get("patch")
     if not isinstance(git_info, dict):

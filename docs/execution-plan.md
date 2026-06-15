@@ -489,6 +489,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P7.6 Reviewer hardware / VRAM guidance — `docs/volunteer-hardware.md`
 ✅ Phase 7 close-out — weekly staging verify cron, tag `v0.8.0-phase7`
 ✅ P8.0 Staging model allowlist enforcement — `models.enforced=true` on theebie
+✅ P8.1 Forge-agnostic git — ADR 0009, `forge_type` metadata only in v1
 ```
 
 ---
@@ -500,6 +501,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
 | **P8.0** | Staging model allowlist enforcement | ✅ Done | P7.2, ADR 0007 |
+| **P8.1** | Forge-agnostic git (ADR 0009) | ✅ Done | P6.9 |
 
 ### P8.0 — Staging model allowlist enforcement
 
@@ -509,6 +511,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **In scope** | `harden_platform_model_allowlist_theebie.sh`, `verify_model_allowlist_staging.py`, wire into staging bundle + deploy verify |
 | **Verification** | `bash scripts/harden_staging_model_allowlist_theebie.sh` · `python -m pytest platform/tests/test_verify_model_allowlist_staging.py -q` |
 | **Acceptance** | `models.enforced=true` on theebie; unknown model presence rejected; allowlisted model accepted |
+
+### P8.1 — Forge-agnostic git (ADR 0009)
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Lock v1 git capsules as forge-agnostic; resolve ROADMAP_CHANGES open Q7 |
+| **In scope** | ADR 0009, `forge_types.py`, tests for `github`/`gitlab` labels, ROADMAP_CHANGES close-out |
+| **Verification** | `python -m pytest platform/tests/test_forge_types.py platform/tests/test_git_patch.py -q` |
+| **Acceptance** | Execution is local `git` only; `forge_type` is metadata; GitHub/GitLab are labels not API dependencies |
 
 ---
 

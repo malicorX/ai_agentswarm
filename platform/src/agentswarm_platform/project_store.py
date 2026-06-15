@@ -7,6 +7,7 @@ import uuid
 from typing import Any, Callable
 
 from agentswarm_platform.governance_templates import resolve_governance_config
+from agentswarm_platform.forge_types import validate_forge_type
 from agentswarm_platform.models import utc_now_iso
 
 DEFAULT_PROJECT_ID = "default"
@@ -195,8 +196,7 @@ def update_project_repo(
         raise ValueError(f"unknown project: {project_id}")
     if not repo_url.strip():
         raise ValueError("repo_url is required")
-    if forge_type not in ("git", "github", "gitlab"):
-        raise ValueError("forge_type must be git, github, or gitlab")
+    forge_type = validate_forge_type(forge_type)
     branch = default_branch.strip() or "main"
     conn.execute(
         """
