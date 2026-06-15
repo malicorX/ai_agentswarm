@@ -38,3 +38,50 @@ def test_min_attempts_blocks_action() -> None:
     findings, actions = build_moderation_actions(summary)
     assert findings == []
     assert actions == []
+
+
+def test_deploy_signoff_backlog_flags_platform() -> None:
+    summary = {
+        "canary_failures_top": [],
+        "replication_groups": {},
+        "deploy_requests": {
+            "by_status": {"pending": 1},
+            "pending_signoff_tasks": 2,
+            "pending_execute_tasks": 0,
+        },
+    }
+    findings, actions = build_moderation_actions(summary)
+    assert findings[0]["type"] == "pending_deploy_signoffs"
+    assert actions[0]["subject_id"] == "deploy"
+    assert "sign-off" in actions[0]["reason"]
+
+
+def test_deploy_execute_backlog_flags_platform() -> None:
+    summary = {
+        "canary_failures_top": [],
+        "replication_groups": {},
+        "deploy_requests": {
+            "by_status": {"approved": 1},
+            "pending_signoff_tasks": 0,
+            "pending_execute_tasks": 1,
+        },
+    }
+    findings, actions = build_moderation_actions(summary)
+    assert findings[0]["type"] == "pending_deploy_execute"
+    assert "execution" in actions[0]["reason"]
+
+
+def test_deploy_backlog_flags_disabled() -> None:
+    summary = {
+        "canary_failures_top": [],
+        "replication_groups": {},
+        "deploy_requests": {
+            "by_status": {"pending": 1},
+            "pending_signoff_tasks": 2,
+            "pending_execute_tasks": 0,
+        },
+    }
+    policy = ModerationPolicy(flag_deploy_backlog=False)
+    findings, actions = build_moderation_actions(summary, policy)
+    assert findings == []
+    assert actions == []

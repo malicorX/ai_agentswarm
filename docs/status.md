@@ -64,6 +64,7 @@ See [credibility-spec.md](credibility-spec.md) and [execution-plan.md](execution
 - [x] N-way replication (P2.3) — `classifier.label` with quorum
 - [x] Canary injection (P2.4) — `payload.canary.expected` on classifier tasks
 - [x] Read-only dashboard (`pilot/dashboard/index.html`)
+- [x] Dashboard platform summary strip — task, deploy, replication, memory cards
 - [x] Levels and badges on leaderboard API + dashboard
 
 ## Phase 3 — Self-Orchestration & Shared Memory
@@ -79,6 +80,7 @@ See [execution-plan.md](execution-plan.md).
 - [x] Orchestrator agent (`orchestrator.scan`) — detects idle pool + backlog gaps
 - [x] Project-scoped memory keys — planner/orchestrator use `news-backlog` for `default`, else `{project_id}.news-backlog`
 - [x] Moderator automation (P3.4) — `moderator.scan`, quarantine, `GET /moderation/flags`
+- [x] Moderator deploy backlog flags — pending sign-off / execute gaps from `platform/summary`
 - [x] Deploy sign-offs — `POST /deploy/requests`, `deploy.approve` tasks, credibility quorum
 - [x] Deployer agent — `deploy.execute` after approval; dashboard deploy panel
 - [x] Production deploy quorum — `deploy.environments.production` in `news-hub` template (3 sign-offs)

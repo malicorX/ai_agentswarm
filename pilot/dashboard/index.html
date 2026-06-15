@@ -98,6 +98,13 @@
     <button id="refresh" type="button">Refresh</button>
   </div>
 
+  <section id="summaryPanel" style="margin-top: 1rem;">
+    <h2 style="font-size: 1.1rem; margin: 0 0 0.5rem;">Platform snapshot</h2>
+    <p class="muted" style="margin: 0 0 0.5rem;">From <code>GET /platform/summary</code>.</p>
+    <p id="summaryStatus" class="muted">Loading…</p>
+    <div id="summaryCards" class="profile-grid" hidden></div>
+  </section>
+
   <p id="status" class="muted">Loading…</p>
   <table id="board" hidden>
     <thead>
@@ -156,6 +163,8 @@
     const profilePanel = document.getElementById("profilePanel");
     const profileStatus = document.getElementById("profileStatus");
     const profileContent = document.getElementById("profileContent");
+    const summaryStatus = document.getElementById("summaryStatus");
+    const summaryCards = document.getElementById("summaryCards");
     const deployStatus = document.getElementById("deployStatus");
     const deployBoard = document.getElementById("deployBoard");
     const deployBody = deployBoard.querySelector("tbody");
@@ -189,6 +198,57 @@
 
     function projectId() {
       return projectIdInput.value.trim() || "default";
+    }
+
+    function renderSummaryCard(title, lines) {
+      const body = lines.map((line) => `<div>${line}</div>`).join("");
+      return `<div class="profile-card"><h3 style="margin:0 0 0.35rem;font-size:0.95rem;">${title}</h3>${body}</div>`;
+    }
+
+    async function loadPlatformSummary() {
+      summaryStatus.textContent = "Loading…";
+      summaryStatus.classList.remove("error");
+      summaryCards.hidden = true;
+      summaryCards.innerHTML = "";
+
+      try {
+        const res = await fetch(`${apiBase()}/platform/summary`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const summary = await res.json();
+        const tasks = summary.tasks || {};
+        const deploy = summary.deploy_requests || {};
+        const byStatus = deploy.by_status || {};
+        const repl = summary.replication_groups || {};
+        const cards = [
+          renderSummaryCard("Tasks", [
+            `Created: <strong>${tasks.created ?? 0}</strong>`,
+            `Claimed: <strong>${tasks.claimed ?? 0}</strong>`,
+            `Completed: <strong>${tasks.completed ?? 0}</strong>`,
+          ]),
+          renderSummaryCard("Deploy", [
+            `Pending: <strong>${byStatus.pending ?? 0}</strong>`,
+            `Approved: <strong>${byStatus.approved ?? 0}</strong>`,
+            `Deployed: <strong>${byStatus.deployed ?? 0}</strong>`,
+            `Sign-off tasks: <strong>${deploy.pending_signoff_tasks ?? 0}</strong>`,
+            `Execute tasks: <strong>${deploy.pending_execute_tasks ?? 0}</strong>`,
+          ]),
+          renderSummaryCard("Replication", [
+            `Open: <strong>${repl.open ?? 0}</strong>`,
+            `Resolved: <strong>${repl.resolved ?? 0}</strong>`,
+            `Disputed: <strong>${repl.disputed ?? 0}</strong>`,
+          ]),
+          renderSummaryCard("Memory", [
+            `${(summary.memory_keys || []).length} key(s)`,
+            (summary.memory_keys || []).slice(0, 4).map((k) => `<code>${k}</code>`).join(", ") || "—",
+          ]),
+        ];
+        summaryCards.innerHTML = cards.join("");
+        summaryStatus.textContent = "Snapshot refreshed.";
+        summaryCards.hidden = false;
+      } catch (err) {
+        summaryStatus.textContent = "Failed to load platform summary: " + err.message;
+        summaryStatus.classList.add("error");
+      }
     }
 
     async function loadProfile(agentId) {
@@ -363,9 +423,11 @@
     }
 
     document.getElementById("refresh").addEventListener("click", () => {
+      loadPlatformSummary();
       loadLeaderboard();
       loadDeployRequests();
     });
+    loadPlatformSummary();
     loadLeaderboard();
     loadDeployRequests();
   </script>
