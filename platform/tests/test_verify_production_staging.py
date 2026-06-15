@@ -85,6 +85,15 @@ def test_verify_production_staging_quick_orchestration() -> None:
                     },
                 ),
                 type(
+                    "HardwareMod",
+                    (),
+                    {
+                        "verify_hardware_gates_staging": staticmethod(
+                            lambda url, **kwargs: {"low_vram_rejected": "skipped"}
+                        )
+                    },
+                ),
+                type(
                     "ExternalMod",
                     (),
                     {

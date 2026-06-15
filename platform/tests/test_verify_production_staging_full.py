@@ -82,6 +82,15 @@ def test_verify_production_staging_full_orchestration() -> None:
                     },
                 ),
                 type(
+                    "HardwareMod",
+                    (),
+                    {
+                        "verify_hardware_gates_staging": staticmethod(
+                            lambda url, **kwargs: {"low_vram_rejected": "skipped"}
+                        )
+                    },
+                ),
+                type(
                     "ExternalMod",
                     (),
                     {
@@ -116,4 +125,4 @@ def test_verify_production_staging_full_orchestration() -> None:
     assert result["news_pipeline"] == "skipped"
     assert result["mcp_adapter"] == "passed"
     assert appeal_calls == ["https://theebie.de/agentswarm/api"]
-    assert mock_pytest.call_count == 9
+    assert mock_pytest.call_count == 10

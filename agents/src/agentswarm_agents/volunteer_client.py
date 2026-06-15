@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -45,6 +46,18 @@ class VolunteerConfig:
     poll_sec: float = 2.0
     wait_timeout_sec: float = 30.0
     heartbeat_ttl_sec: int = 120
+    vram_gb: float | None = None
+
+
+def resolve_reported_vram_gb(config: VolunteerConfig) -> float | None:
+    if config.vram_gb is not None:
+        return config.vram_gb
+    raw = os.environ.get("AGENTSWARM_VRAM_GB", "").strip()
+    if raw:
+        return float(raw)
+    if "reviewer" in config.capabilities:
+        return 8.0
+    return None
 
 
 def connect_dispatch_agent(config: VolunteerConfig) -> DispatchClient:
@@ -175,12 +188,14 @@ class VolunteerClient:
             raise RuntimeError("call connect() before run_once()")
         client = self._client
         config = self.config
+        reported_vram = resolve_reported_vram_gb(config)
         client.heartbeat(
             config.capabilities,
             status="idle",
             model_id=config.model_id,
             client_version=CLIENT_VERSION,
             ttl_sec=config.heartbeat_ttl_sec,
+            vram_gb=reported_vram,
         )
         assignment = client.wait_for_assignment(
             poll_sec=config.poll_sec,
@@ -200,6 +215,7 @@ class VolunteerClient:
             model_id=config.model_id,
             client_version=CLIENT_VERSION,
             ttl_sec=config.heartbeat_ttl_sec,
+            vram_gb=reported_vram,
         )
         self._set_state(VolunteerState.IDLE, "waiting for assignment")
         self._log(f"submitted {submission_id}")

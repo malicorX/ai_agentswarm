@@ -494,6 +494,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P8.3 Volunteer subjective demo — `demo_volunteer_subjective_staging.sh`
 ✅ Phase 8 close-out — `close_phase8.sh`, tag `v0.9.0-phase8`
 ✅ P9.0 Pending pool need redispatch — idle presence + submit idle retry dispatch
+✅ P9.1 Reviewer VRAM hardware gates — `vram_gb` on presence, dispatcher filter
 ```
 
 ---
@@ -505,6 +506,16 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
 | **P9.0** | Pending pool need redispatch | ✅ Done | P6.2, P8.3 |
+| **P9.1** | Reviewer VRAM hardware gates | ✅ Done | P7.6, P8.0 |
+
+### P9.1 — Reviewer VRAM hardware gates
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Enforce minimum self-reported VRAM for reviewer dispatch (ROADMAP_CHANGES open Q3 server-side) |
+| **In scope** | `hardware_gates.py`, `vram_gb` on presence, dispatcher filter, staging verify + hardening |
+| **Verification** | `python -m pytest platform/tests/test_hardware_gates.py -q` · `bash scripts/harden_staging_hardware_gates_theebie.sh` |
+| **Acceptance** | `hardware.enforced=true` on theebie; low/missing `vram_gb` rejected; eligible reviewers still assign |
 
 ### P9.0 — Pending pool need redispatch
 

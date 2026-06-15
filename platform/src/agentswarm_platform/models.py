@@ -232,6 +232,7 @@ class AgentPresenceRequest(BaseModel):
     status: str = "idle"
     capabilities: list[str]
     model_id: str | None = None
+    vram_gb: float | None = None
     load: float = 0.0
     client_version: str | None = None
     ttl_sec: int = 60
@@ -242,6 +243,7 @@ class AgentPresenceResponse(BaseModel):
     status: str
     capabilities: list[str]
     model_id: str | None = None
+    vram_gb: float | None = None
     load: float
     client_version: str | None = None
     ttl_sec: int

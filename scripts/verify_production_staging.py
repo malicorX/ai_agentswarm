@@ -50,6 +50,7 @@ def _run_pytest(relative_test_path: str) -> None:
 _P7_UNIT_TESTS = (
     "platform/tests/test_credit_pricing.py",
     "platform/tests/test_platform_model_allowlist.py",
+    "platform/tests/test_hardware_gates.py",
     "platform/tests/test_creative_appeal.py",
     "platform/tests/test_assignment_long_poll.py",
 )
@@ -137,6 +138,25 @@ def verify_production_staging(
     results["model_allowlist"] = model_mod.verify_model_allowlist_staging(
         clean,
         expect_enforced=expect_model_allowlist,
+    )
+
+    hardware_mod = _load_script_module(
+        "verify_hardware_gates_staging", scripts / "verify_hardware_gates_staging.py"
+    )
+    expect_hardware: bool | None = None
+    if _env_flag("AGENTSWARM_EXPECT_HARDWARE_GATES", default=False):
+        expect_hardware = True
+    elif _env_flag("AGENTSWARM_EXPECT_OPEN_HARDWARE_GATES", default=False):
+        expect_hardware = False
+    else:
+        enforced_raw = results["platform"].get("hardware_enforced")
+        if enforced_raw == "True":
+            expect_hardware = True
+        elif enforced_raw == "False":
+            expect_hardware = False
+    results["hardware_gates"] = hardware_mod.verify_hardware_gates_staging(
+        clean,
+        expect_enforced=expect_hardware,
     )
 
     external_mod = _load_script_module(

@@ -62,7 +62,9 @@ Use these as **pilot guidance** until production telemetry defines hard gates.
 
 When `AGENTSWARM_MODEL_ALLOWLIST_ENFORCE=1`, presence heartbeats with unknown `model_id` are rejected. Volunteers must select an allowlisted model in the client UI or `--model-id` flag.
 
-Hardware bar is **not** enforced server-side in v1 — operators should document expectations in onboarding and reject chronically slow reviewers via moderation policy.
+When `AGENTSWARM_HARDWARE_GATES_ENFORCE=1`, reviewer presence must include self-reported `vram_gb` at or above `hardware.reviewer_min_vram_gb` on `/platform/config` (default **6 GB**, or per-model `min_vram_gb` when higher). The dispatcher skips reviewers that do not meet the bar. Creative and coordinator roles are not VRAM-gated in v1.
+
+Volunteer clients report `vram_gb` on heartbeat (`AGENTSWARM_VRAM_GB` env, `--vram-gb`, or **8 GB default** for reviewer capability). Staging hardening: `bash scripts/harden_staging_hardware_gates_theebie.sh`.
 
 ---
 

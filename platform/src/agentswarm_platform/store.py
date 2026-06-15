@@ -113,6 +113,7 @@ from agentswarm_platform.git_store import (
     get_git_artifact,
     insert_git_artifact,
 )
+from agentswarm_platform.hardware_gates import validate_presence_hardware
 from agentswarm_platform.credits_ledger import (
     burn_credits,
     credits_enabled,
@@ -2581,6 +2582,7 @@ class Store:
         load: float,
         client_version: str | None,
         ttl_sec: int,
+        vram_gb: float | None = None,
     ) -> dict[str, Any]:
         agent = self.get_agent(agent_id)
         if agent is None:
@@ -2588,6 +2590,11 @@ class Store:
         if status not in ("idle", "busy"):
             raise ValueError("status must be idle or busy")
         validate_presence_model_id(model_id)
+        validate_presence_hardware(
+            capabilities,
+            model_id=model_id,
+            vram_gb=vram_gb,
+        )
         with self._conn() as conn:
             recorded = upsert_presence(
                 conn,
@@ -2598,12 +2605,18 @@ class Store:
                 load=load,
                 client_version=client_version,
                 ttl_sec=ttl_sec,
+                vram_gb=vram_gb,
             )
             self._append_audit(
                 conn,
                 "agent.presence",
                 agent_id,
-                {"status": status, "capabilities": capabilities, "model_id": model_id},
+                {
+                    "status": status,
+                    "capabilities": capabilities,
+                    "model_id": model_id,
+                    "vram_gb": vram_gb,
+                },
             )
         if status == "idle" and dispatch_enabled():
             self._redispatch_pending_pool_needs()

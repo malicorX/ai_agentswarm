@@ -5,6 +5,7 @@ import random
 import sqlite3
 from typing import Any
 
+from agentswarm_platform.hardware_gates import agent_meets_reviewer_hardware
 from agentswarm_platform.presence_store import list_idle_agents_for_capability
 
 
@@ -35,6 +36,15 @@ def select_agent_for_need(
         )
     if exclude_agents:
         candidates = [c for c in candidates if c["agent_id"] not in exclude_agents]
+    if capability_required == "reviewer":
+        candidates = [
+            candidate
+            for candidate in candidates
+            if agent_meets_reviewer_hardware(
+                model_id=candidate.get("model_id"),
+                vram_gb=candidate.get("vram_gb"),
+            )
+        ]
     if not candidates:
         return None
     top_load = candidates[0]["load"]

@@ -271,6 +271,7 @@ def platform_config() -> dict[str, object]:
 
     from agentswarm_platform.credit_pricing import public_parameters as credits_parameters
     from agentswarm_platform.coordinator_config import public_parameters as coordinator_parameters
+    from agentswarm_platform.hardware_gates import public_parameters as hardware_parameters
     from agentswarm_platform.model_allowlist import public_parameters as models_parameters
 
     payload: dict[str, object] = {
@@ -278,6 +279,7 @@ def platform_config() -> dict[str, object]:
         "auth": auth_parameters(),
         "credibility": public_parameters(),
         "credits": credits_parameters(),
+        "hardware": hardware_parameters(),
         "models": models_parameters(),
         "versioning": {**versioning_public_parameters(), **version_parameters()},
     }
@@ -373,6 +375,7 @@ def record_agent_presence(agent_id: str, body: AgentPresenceRequest) -> AgentPre
             load=body.load,
             client_version=body.client_version,
             ttl_sec=body.ttl_sec,
+            vram_gb=body.vram_gb,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

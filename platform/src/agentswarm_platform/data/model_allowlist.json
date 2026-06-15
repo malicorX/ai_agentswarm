@@ -1,16 +1,21 @@
 {
   "version": "2",
   "description": "Curated local LLM runtimes for volunteer clients (ADR 0007)",
+  "hardware": {
+    "reviewer_min_vram_gb": 6.0
+  },
   "models": [
     {
       "id": "llm-mock-v1",
       "label": "Mock in-process (dev)",
-      "runtime": "in-process"
+      "runtime": "in-process",
+      "min_vram_gb": 0
     },
     {
       "id": "llm-docker-worker-v1",
       "label": "Docker worker capsule",
-      "runtime": "docker"
+      "runtime": "docker",
+      "min_vram_gb": 0
     },
     {
       "id": "ollama/llama3.2",
@@ -18,7 +23,8 @@
       "runtime": "ollama",
       "endpoint": "http://127.0.0.1:11434",
       "ollama_model": "llama3.2",
-      "local_only": true
+      "local_only": true,
+      "min_vram_gb": 6
     }
   ]
 }

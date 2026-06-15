@@ -21,17 +21,21 @@ class DispatchClient(PlatformClient):
         load: float = 0.0,
         client_version: str | None = None,
         ttl_sec: int = 120,
+        vram_gb: float | None = None,
     ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "status": status,
+            "capabilities": capabilities,
+            "model_id": model_id,
+            "load": load,
+            "client_version": client_version,
+            "ttl_sec": ttl_sec,
+        }
+        if vram_gb is not None:
+            payload["vram_gb"] = vram_gb
         response = self._http.post(
             f"/agents/{self.agent_id}/presence",
-            json={
-                "status": status,
-                "capabilities": capabilities,
-                "model_id": model_id,
-                "load": load,
-                "client_version": client_version,
-                "ttl_sec": ttl_sec,
-            },
+            json=payload,
         )
         response.raise_for_status()
         return response.json()

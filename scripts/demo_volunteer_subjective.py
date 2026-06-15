@@ -24,6 +24,7 @@ from agentswarm_agents.volunteer_client import (
     CLIENT_VERSION,
     VolunteerClient,
     VolunteerConfig,
+    resolve_reported_vram_gb,
 )
 from agentswarm_platform.crypto import generate_keypair, public_key_b64
 
@@ -139,6 +140,7 @@ def connect_volunteer_idle(
         model_id=config.model_id,
         client_version=CLIENT_VERSION,
         ttl_sec=config.heartbeat_ttl_sec,
+        vram_gb=resolve_reported_vram_gb(config),
     )
     return volunteer, config
 

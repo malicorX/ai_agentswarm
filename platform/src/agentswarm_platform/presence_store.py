@@ -14,6 +14,7 @@ def ensure_presence_schema(conn: sqlite3.Connection) -> None:
             status TEXT NOT NULL,
             capabilities TEXT NOT NULL,
             model_id TEXT,
+            vram_gb REAL,
             load REAL NOT NULL DEFAULT 0,
             client_version TEXT,
             ttl_sec INTEGER NOT NULL,
@@ -21,6 +22,9 @@ def ensure_presence_schema(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(agent_presence)").fetchall()}
+    if "vram_gb" not in columns:
+        conn.execute("ALTER TABLE agent_presence ADD COLUMN vram_gb REAL")
 
 
 def upsert_presence(
@@ -33,17 +37,19 @@ def upsert_presence(
     load: float,
     client_version: str | None,
     ttl_sec: int,
+    vram_gb: float | None = None,
 ) -> dict[str, Any]:
     now = datetime.now(timezone.utc).replace(microsecond=0)
     conn.execute(
         """
         INSERT INTO agent_presence (
-            agent_id, status, capabilities, model_id, load, client_version, ttl_sec, last_seen_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            agent_id, status, capabilities, model_id, vram_gb, load, client_version, ttl_sec, last_seen_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(agent_id) DO UPDATE SET
             status = excluded.status,
             capabilities = excluded.capabilities,
             model_id = excluded.model_id,
+            vram_gb = excluded.vram_gb,
             load = excluded.load,
             client_version = excluded.client_version,
             ttl_sec = excluded.ttl_sec,
@@ -54,6 +60,7 @@ def upsert_presence(
             status,
             json.dumps(capabilities),
             model_id,
+            vram_gb,
             load,
             client_version,
             ttl_sec,
@@ -65,6 +72,7 @@ def upsert_presence(
         "status": status,
         "capabilities": capabilities,
         "model_id": model_id,
+        "vram_gb": vram_gb,
         "load": load,
         "client_version": client_version,
         "ttl_sec": ttl_sec,
@@ -111,6 +119,7 @@ def list_idle_agents_for_capability(
                 "owner": owner,
                 "owner_id": row["owner_id"],
                 "model_id": row["model_id"],
+                "vram_gb": row["vram_gb"],
                 "load": float(row["load"] or 0),
             }
         )

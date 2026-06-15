@@ -62,6 +62,9 @@ def verify_production_platform(
         models_block = config_body.get("models")
         if isinstance(models_block, dict):
             result["models_enforced"] = str(bool(models_block.get("enforced")))
+        hardware_block = config_body.get("hardware")
+        if isinstance(hardware_block, dict):
+            result["hardware_enforced"] = str(bool(hardware_block.get("enforced")))
         if expect_dispatch is True and mode != "dispatch":
             raise RuntimeError(f"expected assignment_mode=dispatch, got {mode!r}")
         if expect_dispatch is False and mode != "pull":
