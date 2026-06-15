@@ -1,4 +1,5 @@
-# Creative subjective path demo (dispatch mode)
+# Creative subjective path demo (dispatch mode) — legacy parallel clients
+# Prefer: scripts/demo_volunteer_subjective.py (sequential volunteer clients, P8.3)
 # Requires platform running with:
 #   $env:AGENTSWARM_ASSIGNMENT_MODE = "dispatch"
 #   $env:AGENTSWARM_ASSIGNMENT_SECRET = "dev-secret"

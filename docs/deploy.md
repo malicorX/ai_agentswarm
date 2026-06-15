@@ -228,6 +228,16 @@ Or: `.\scripts\demo_connect_staging.ps1`
 
 **Hardware:** see [volunteer-hardware.md](volunteer-hardware.md) for VRAM/RAM guidance by `model_id`.
 
+**Subjective volunteer demo (P8.3):**
+
+```bash
+bash scripts/demo_volunteer_subjective_staging.sh
+# Local Ollama (optional):
+bash scripts/demo_volunteer_subjective_staging.sh --ollama
+```
+
+The staging wrapper SSH-fetches `AGENTSWARM_BOOTSTRAP_TOKEN` and `AGENTSWARM_ASSIGNMENT_SECRET` from `/etc/agentswarm/platform.env` when unset locally. Volunteers register presence **before** the creative goal is posted (parallel threads).
+
 ### Option A3 — theebie.de production swarm (P5.1)
 
 Long-running planner, orchestrator, moderator, deployer, and codewriter/tester/reviewer workers against the public API.
