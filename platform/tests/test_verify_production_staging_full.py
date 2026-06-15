@@ -73,6 +73,15 @@ def test_verify_production_staging_full_orchestration() -> None:
                     },
                 ),
                 type(
+                    "ModelMod",
+                    (),
+                    {
+                        "verify_model_allowlist_staging": staticmethod(
+                            lambda url, **kwargs: {"allowed_model_presence": "ok"}
+                        )
+                    },
+                ),
+                type(
                     "ExternalMod",
                     (),
                     {

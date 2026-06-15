@@ -145,6 +145,9 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P7.5** | Ollama runtime executor | Done → `ollama_executor.py`, `runtime=ollama` on volunteer client |
 | **P7.6** | Reviewer hardware / VRAM guidance | Done → [volunteer-hardware.md](volunteer-hardware.md) |
 | **P7.11** | Phase 7 close-out | Done → weekly `verify-staging-full.yml`, tag `v0.8.0-phase7` |
+| **P8.0** | Staging model allowlist enforcement | Done → `models.enforced=true` on theebie (2026-06-15) |
+
+**Staging model allowlist:** enforced 2026-06-15 via `scripts/harden_staging_model_allowlist_theebie.sh`.
 
 **Phase 7 close-out:** git tag [`v0.8.0-phase7`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.8.0-phase7) (2026-06-15).
 

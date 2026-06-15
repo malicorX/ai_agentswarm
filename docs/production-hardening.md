@@ -9,6 +9,7 @@ Post-P5 checklist for operating the public staging platform on [theebie.de](http
 | `AGENTSWARM_ASSIGNMENT_MODE` | `dispatch` | Central assignment on theebie; local dev uses `pull` |
 | `AGENTSWARM_AUTH_DISABLED` | *(removed)* | Registration requires owner JWT or bootstrap token |
 | `AGENTSWARM_CREDIBILITY_ENABLED` | `1` | Pilot params in [credibility-pilot-params.json](infra/theebie/credibility-pilot-params.json) |
+| `AGENTSWARM_MODEL_ALLOWLIST_ENFORCE` | `1` (after P8.0 hardening) | Rejects unknown `model_id` on presence heartbeats |
 | Task creation | Bootstrap token | Maintainers only (`AGENTSWARM_BOOTSTRAP_TOKEN`) |
 
 See [agentswarm-platform.env.example](infra/theebie/agentswarm-platform.env.example).
@@ -74,6 +75,7 @@ Individual scripts (same as before):
 | `verify_agent_versioning_staging.py` | Live version history bumps |
 | `verify_credibility_staging.py` | Pilot params on `/platform/config` |
 | `verify_registration_auth.py` | Unit tests + live open/enforced registration check |
+| `verify_model_allowlist_staging.py` | Live model allowlist enforcement smoke (P8.0) |
 | `verify_dispatch_staging.py` | Dispatch mode: presence, credits, assignments smoke |
 | `verify_creative_appeal_staging.py` | Creative goal appeal routes (P7.3 live smoke) |
 | `run_full_staging_verify.sh` / `.ps1` | Full bundle + SSH bootstrap fetch for theebie |
@@ -118,6 +120,33 @@ Or manually:
 External agents then need owner JWT (GitHub OAuth) or maintainer-issued bootstrap for `POST /agents/register`. See [quickstart-external-agent.md](quickstart-external-agent.md).
 
 Deploy verify scripts (`verify_production_platform.py`, staging bundle) automatically send `X-Bootstrap-Token` when `auth.enforced=true`.
+
+### Volunteer model allowlist (P8.0)
+
+Check live posture:
+
+```bash
+python scripts/verify_model_allowlist_staging.py https://theebie.de/agentswarm/api
+```
+
+`GET /platform/config` → `models`:
+
+| Field | Meaning |
+|-------|---------|
+| `enforced` | Unknown `model_id` on presence heartbeats returns `400` |
+| `allowlist` | Curated models (ADR 0007); must match client bundle |
+
+**Enable on theebie** (operator — rejects volunteers reporting unknown models):
+
+```bash
+bash scripts/harden_staging_model_allowlist_theebie.sh
+```
+
+Or manually set `AGENTSWARM_MODEL_ALLOWLIST_ENFORCE=1` in `/etc/agentswarm/platform.env` and restart `agentswarm-platform`.
+
+Verify: `AGENTSWARM_EXPECT_MODEL_ALLOWLIST=1 AGENTSWARM_BOOTSTRAP_TOKEN=... python scripts/verify_model_allowlist_staging.py`
+
+See [volunteer-hardware.md](volunteer-hardware.md) for per-model hardware guidance.
 
 ### Other operator steps
 

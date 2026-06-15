@@ -120,6 +120,25 @@ def verify_production_staging(
         expect_enforced=expect_registration_auth,
     )
 
+    model_mod = _load_script_module(
+        "verify_model_allowlist_staging", scripts / "verify_model_allowlist_staging.py"
+    )
+    expect_model_allowlist: bool | None = None
+    if _env_flag("AGENTSWARM_EXPECT_MODEL_ALLOWLIST", default=False):
+        expect_model_allowlist = True
+    elif _env_flag("AGENTSWARM_EXPECT_OPEN_MODEL_ALLOWLIST", default=False):
+        expect_model_allowlist = False
+    else:
+        enforced_raw = results["platform"].get("models_enforced")
+        if enforced_raw == "True":
+            expect_model_allowlist = True
+        elif enforced_raw == "False":
+            expect_model_allowlist = False
+    results["model_allowlist"] = model_mod.verify_model_allowlist_staging(
+        clean,
+        expect_enforced=expect_model_allowlist,
+    )
+
     external_mod = _load_script_module(
         "verify_external_contributor", scripts / "verify_external_contributor.py"
     )

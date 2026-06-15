@@ -59,6 +59,9 @@ def verify_production_platform(
         auth_block = config_body.get("auth")
         if isinstance(auth_block, dict):
             result["auth_enforced"] = str(bool(auth_block.get("enforced")))
+        models_block = config_body.get("models")
+        if isinstance(models_block, dict):
+            result["models_enforced"] = str(bool(models_block.get("enforced")))
         if expect_dispatch is True and mode != "dispatch":
             raise RuntimeError(f"expected assignment_mode=dispatch, got {mode!r}")
         if expect_dispatch is False and mode != "pull":

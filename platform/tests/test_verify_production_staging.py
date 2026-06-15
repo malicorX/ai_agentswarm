@@ -76,6 +76,15 @@ def test_verify_production_staging_quick_orchestration() -> None:
                     {"verify_registration_auth_staging": staticmethod(capture_reg_auth)},
                 ),
                 type(
+                    "ModelMod",
+                    (),
+                    {
+                        "verify_model_allowlist_staging": staticmethod(
+                            lambda url, **kwargs: {"allowed_model_presence": "ok"}
+                        )
+                    },
+                ),
+                type(
                     "ExternalMod",
                     (),
                     {

@@ -488,7 +488,27 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P7.5 Ollama runtime executor — `ollama_executor.py`, localhost-only endpoint guard
 ✅ P7.6 Reviewer hardware / VRAM guidance — `docs/volunteer-hardware.md`
 ✅ Phase 7 close-out — weekly staging verify cron, tag `v0.8.0-phase7`
+✅ P8.0 Staging model allowlist enforcement — `models.enforced=true` on theebie
 ```
+
+---
+
+## Phase 8 — Production volunteer hardening
+
+**Goal:** Close remaining operational gaps before wider volunteer rollout.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P8.0** | Staging model allowlist enforcement | ✅ Done | P7.2, ADR 0007 |
+
+### P8.0 — Staging model allowlist enforcement
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Enforce curated `model_id` on theebie staging platform (ADR 0007 production default) |
+| **In scope** | `harden_platform_model_allowlist_theebie.sh`, `verify_model_allowlist_staging.py`, wire into staging bundle + deploy verify |
+| **Verification** | `bash scripts/harden_staging_model_allowlist_theebie.sh` · `python -m pytest platform/tests/test_verify_model_allowlist_staging.py -q` |
+| **Acceptance** | `models.enforced=true` on theebie; unknown model presence rejected; allowlisted model accepted |
 
 ---
 
