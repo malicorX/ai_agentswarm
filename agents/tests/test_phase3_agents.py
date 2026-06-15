@@ -58,4 +58,4 @@ def test_detect_owner_cluster_gaps() -> None:
     gaps, enqueue = detect_gaps(summary, None, memory_key="news-backlog")
     assert gaps[0]["type"] == "owner_agent_clusters"
     assert gaps[0]["clusters"][0]["agent_count"] == 5
-    assert enqueue == []
+    assert enqueue[0]["task_type"] == "moderator.scan"

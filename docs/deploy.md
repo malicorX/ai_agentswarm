@@ -177,6 +177,12 @@ python scripts/record_pages_url.py https://malicorx.github.io/ai_agentswarm
 
 Then run the manual [Verify GitHub Pages](https://github.com/malicorX/ai_agentswarm/actions/workflows/verify-pages.yml) workflow (Actions → Verify GitHub Pages → Run workflow).
 
+One-shot close-out after the site is live:
+
+```bash
+python scripts/close_p0_7.py https://malicorx.github.io/ai_agentswarm
+```
+
 **Observed CI error (until Pages is enabled):** `configure-pages@v5` logs `Get Pages site failed` (HTTP 404) then `Create Pages site failed` — `Resource not accessible by integration`. Fix: repo **Settings → Pages → Build and deployment → Source: GitHub Actions**, save, then re-run [Deploy pilot site](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml).
 
 **Local preview (same layout as Pages):**

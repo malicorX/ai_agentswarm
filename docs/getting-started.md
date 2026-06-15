@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you from zero to a working Phase 0 demo on your machine.
+This guide walks you from zero to a working local demo — Phase 0 agent loop through federation and deploy sign-offs.
 
 ## Prerequisites
 

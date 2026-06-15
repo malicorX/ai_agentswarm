@@ -12,6 +12,9 @@ The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that ag
 | **License** | [MIT](LICENSE) |
 | **Spec** | [ROADMAP.md](ROADMAP.md) (authoritative product document) |
 
+[![CI](https://github.com/malicorX/ai_agentswarm/actions/workflows/ci.yml/badge.svg)](https://github.com/malicorX/ai_agentswarm/actions/workflows/ci.yml)
+[![Deploy pilot site](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml/badge.svg)](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml)
+
 ---
 
 ## Why AgentSwarm?
