@@ -60,9 +60,6 @@ def test_verify_lease_reclaim_staging_happy_path(monkeypatch) -> None:
     pending_a.json.return_value = {"task_id": "task-lease-1"}
     pending_a2 = MagicMock()
     pending_a2.json.return_value = None
-    redispatch_ok = MagicMock()
-    redispatch_ok.raise_for_status = MagicMock()
-    redispatch_ok.json.return_value = {"assigned": True, "task_id": "task-lease-1"}
     pending_b = MagicMock()
     pending_b.json.return_value = {"task_id": "task-lease-1"}
     released_a = MagicMock()
@@ -82,7 +79,6 @@ def test_verify_lease_reclaim_staging_happy_path(monkeypatch) -> None:
         presence_ok,
         need_ok,
         presence_ok,
-        redispatch_ok,
     ]
 
     with patch.object(httpx, "Client", return_value=mock_client):

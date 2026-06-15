@@ -507,6 +507,35 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 ---
 
+## Phase 12 — Automatic redispatch after reclaim
+
+**Goal:** Reclaimed pool needs redispatch to idle volunteers without a manual `POST /pool/need` retry.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P12.0** | Auto redispatch after reclaim | 🔄 In progress | P11.11 |
+| **P12.11** | Phase 12 close-out | ⬜ Pending | P12.0 |
+
+### P12.0 — Auto redispatch after reclaim
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Heal orphaned claimed tasks / assigned needs before dispatch; staging verify passes without manual redispatch |
+| **In scope** | `prepare_pool_need_for_dispatch()`, simplify `verify_lease_reclaim_staging.py` |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py platform/tests/test_verify_lease_reclaim_staging.py -q` · `python scripts/verify_lease_reclaim_staging.py https://theebie.de/agentswarm/api` |
+| **Acceptance** | Reviewer B receives reclaimed task via presence + wait alone |
+
+### P12.11 — Phase 12 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag automatic-redispatch milestone after live verify on theebie |
+| **In scope** | `close_phase12.sh` / `.ps1`, status/README updates, tag `v0.13.0-phase12` |
+| **Verification** | `bash scripts/close_phase12.sh` · `python -m pytest platform/tests agents/tests -q` |
+| **Acceptance** | Lease reclaim verify exits 0 without manual `pool/need` redispatch |
+
+---
+
 ## Phase 11 — Lease reclaim observability
 
 **Goal:** Prove assignment lease recovery works on live staging, not only in unit tests.

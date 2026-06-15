@@ -299,6 +299,40 @@ def reconcile_claimed_tasks_without_active_lease(
     return reconciled
 
 
+def prepare_pool_need_for_dispatch(conn: sqlite3.Connection, need_id: str) -> None:
+    """Heal orphaned assignment state so a pending pool need can be dispatched."""
+    need = get_pool_need(conn, need_id)
+    if need is None:
+        return
+    task_id = str(need["task_id"])
+    active = conn.execute(
+        """
+        SELECT 1 FROM assignment_leases
+        WHERE task_id = ? AND status = 'active'
+        LIMIT 1
+        """,
+        (task_id,),
+    ).fetchone()
+    if active is not None:
+        return
+    conn.execute(
+        """
+        UPDATE tasks
+        SET status = 'created', claimed_by = NULL, claim_token = NULL, claim_deadline = NULL
+        WHERE task_id = ? AND status = 'claimed' AND assignment_only = 1
+        """,
+        (task_id,),
+    )
+    conn.execute(
+        """
+        UPDATE pool_needs
+        SET status = 'pending', assigned_agent_id = NULL, lease_id = NULL
+        WHERE task_id = ? AND status = 'assigned'
+        """,
+        (task_id,),
+    )
+
+
 def reconcile_assigned_pool_needs_without_active_lease(
     conn: sqlite3.Connection,
 ) -> list[str]:

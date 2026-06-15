@@ -177,21 +177,6 @@ def verify_lease_reclaim_staging(
             json=presence_b,
         ).raise_for_status()
 
-        redispatch = client.post(
-            f"{clean}/pool/need",
-            json={
-                "role": "reviewer",
-                "capability_required": "reviewer",
-                "task_id": task_id,
-                "constraints": {"include_owners": [owner_b]},
-            },
-            headers=headers,
-        )
-        redispatch.raise_for_status()
-        redispatch_body = redispatch.json()
-        if not redispatch_body.get("assigned"):
-            raise RuntimeError("expected reclaimed task to redispatch to reviewer B")
-
         reclaimed = client.get(
             f"{clean}/agents/{agent_b}/assignments/pending",
             params={"wait_sec": assignment_wait_sec},

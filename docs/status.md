@@ -160,6 +160,8 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P10.11** | Phase 10 close-out | Done → `close_phase10.sh`, tag `v0.11.0-phase10` |
 | **P11.0** | Live lease reclaim verify | Done → `verify_lease_reclaim_staging.py`, pool reconcile |
 | **P11.11** | Phase 11 close-out | Done → `close_phase11.sh`, tag `v0.12.0-phase11` |
+| **P12.0** | Auto redispatch after reclaim | In progress → `prepare_pool_need_for_dispatch()` |
+| **P12.11** | Phase 12 close-out | Pending → tag `v0.13.0-phase12` |
 
 **Phase 11 close-out:** git tag [`v0.12.0-phase11`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.12.0-phase11) (2026-06-15).
 

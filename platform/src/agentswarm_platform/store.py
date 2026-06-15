@@ -108,6 +108,7 @@ from agentswarm_platform.dispatch_store import (
     mark_need_assigned,
     maintain_dispatch_pool,
     new_claim_token,
+    prepare_pool_need_for_dispatch,
 )
 from agentswarm_platform.dispatcher import dispatch_pool_need as pick_dispatch_agent
 from agentswarm_platform.git_store import (
@@ -2702,6 +2703,7 @@ class Store:
 
     def _dispatch_need(self, need_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
+            prepare_pool_need_for_dispatch(conn, need_id)
             need_row = get_pool_need(conn, need_id)
             if need_row is None or need_row["status"] != "pending":
                 return None

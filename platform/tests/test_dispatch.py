@@ -406,6 +406,36 @@ def test_orphaned_assigned_need_reconciled_on_idle_presence(
     assert reclaimed["task_id"] == need["task_id"]
 
 
+def test_prepare_pool_need_redispatches_orphaned_claimed_task(
+    dispatch_client: TestClient,
+) -> None:
+    """Worst-case orphan: expired lease, task still claimed, need still assigned."""
+    from agentswarm_platform import main as platform_main
+
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    reviewer_a, _ = register_agent(dispatch_client, ["reviewer"], owner="reviewer-a")
+    dispatch_client.post(
+        f"/agents/{reviewer_a}/presence",
+        json={"status": "idle", "capabilities": ["reviewer"], "ttl_sec": 120},
+    )
+    need = _post_reviewer_need(dispatch_client)
+    assert need["assigned"] is True
+
+    with platform_main.store._conn() as conn:
+        conn.execute(
+            "UPDATE assignment_leases SET status = 'expired' WHERE status = 'active'"
+        )
+
+    reviewer_b, _ = register_agent(dispatch_client, ["reviewer"], owner="reviewer-b")
+    dispatch_client.post(
+        f"/agents/{reviewer_b}/presence",
+        json={"status": "idle", "capabilities": ["reviewer"], "ttl_sec": 120},
+    )
+    reclaimed = dispatch_client.get(f"/agents/{reviewer_b}/assignments/pending").json()
+    assert reclaimed is not None
+    assert reclaimed["task_id"] == need["task_id"]
+
+
 def test_pool_need_include_owners_restricts_dispatch(
     dispatch_client: TestClient,
 ) -> None:
