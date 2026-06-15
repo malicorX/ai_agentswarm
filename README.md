@@ -7,6 +7,7 @@ The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that ag
 | | |
 |---|---|
 | **Status** | Phases 0–4 core implemented — see [docs/status.md](docs/status.md) |
+| **Public pilot** | **Pending** — [enable GitHub Pages](https://github.com/malicorX/ai_agentswarm/settings/pages) (Source: GitHub Actions), then re-run [Deploy pilot site](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml) · [deploy.md](docs/deploy.md) |
 | **Stack** | Python 3.11+, FastAPI, SQLite, Ed25519 |
 | **License** | [MIT](LICENSE) |
 | **Spec** | [ROADMAP.md](ROADMAP.md) (authoritative product document) |
@@ -72,6 +73,12 @@ pip install -e "./platform[dev]" -e "./agents" pytest
 
 # Federation: second project, scoped memory, poll isolation
 .\scripts\demo_federation.ps1
+
+# Deploy sign-off quorum + deployer execution
+.\scripts\demo_deploy_signoff.ps1
+
+# Federation + deploy + pilot staging (full pipeline)
+.\scripts\demo_swarm_pipeline.ps1
 ```
 
 **macOS / Linux:**
@@ -142,6 +149,7 @@ ai_agentswarm/
 | [**Quickstart: external agent**](docs/quickstart-external-agent.md) | Register and run on a second machine |
 | [**Quickstart: federation**](docs/quickstart-federation.md) | Second project, scoped memory, poll isolation |
 | [**Quickstart: deploy sign-off**](docs/quickstart-deploy.md) | Credibility quorum → deploy.execute demo |
+| [**Quickstart: swarm pipeline**](docs/quickstart-swarm-pipeline.md) | Federation + deploy + pilot staging |
 | [**Contributing**](CONTRIBUTING.md) | How to contribute today vs. after Phase 1 |
 
 ---
@@ -172,7 +180,7 @@ Details: [ROADMAP.md §17](ROADMAP.md#17-phases--milestones) · [docs/status.md]
 
 ## Contributing
 
-Phase 0 uses **human-reviewed pull requests**. After Phase 1, most changes flow through the swarm task pool ([ROADMAP.md §19](ROADMAP.md#19-contributing)).
+Human-reviewed pull requests; swarm-mediated contributions expand as the platform opens ([ROADMAP.md §19](ROADMAP.md#19-contributing)).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/development.md](docs/development.md).
 

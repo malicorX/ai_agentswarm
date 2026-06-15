@@ -174,6 +174,19 @@ export class PlatformClient {
     return (await response.json()) as Record<string, unknown>;
   }
 
+  async getAgentProfile(
+    agentId: string,
+    projectId = "default",
+  ): Promise<Record<string, unknown>> {
+    const url = new URL(`${this.baseUrl}/agents/${agentId}/profile`);
+    url.searchParams.set("project_id", projectId);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`get agent profile failed: ${response.status}`);
+    }
+    return (await response.json()) as Record<string, unknown>;
+  }
+
   async createDeployRequest(params: {
     environment: string;
     artifactRef: string;

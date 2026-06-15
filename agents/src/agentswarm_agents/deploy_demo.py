@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, Protocol
 
 import httpx
 
 from agentswarm_agents.client import platform_url
+from agentswarm_agents.workers.deployer import build_execution_result, run_deploy_hooks
 from agentswarm_platform.crypto import generate_keypair, public_key_b64, sign_payload
-
 
 class HttpClient(Protocol):
     def get(self, url: str, **kwargs: Any) -> Any: ...
@@ -117,13 +118,11 @@ def run_deploy_demo(http: HttpClient, base_url: str = "") -> None:
     execute_task_id = approved_body["execute_task_id"]
     assert execute_task_id
 
-    execute_result = {
-        "request_id": request_id,
-        "environment": "staging",
-        "artifact_ref": "demo-sha-001",
-        "outcome": "simulated",
-        "message": "deploy demo complete",
-    }
+    hook_details: dict[str, Any] = {}
+    staging_flag = os.environ.get("AGENTSWARM_DEPLOY_STAGING", "").lower()
+    if staging_flag in ("1", "true", "yes"):
+        hook_details = run_deploy_hooks(approved_body)
+    execute_result = build_execution_result(approved_body, hook_details=hook_details)
     _submit_task(
         http,
         base,
@@ -138,7 +137,7 @@ def run_deploy_demo(http: HttpClient, base_url: str = "") -> None:
     final = deployed.json()
     assert final["status"] == "deployed"
     assert final["executed_by_agent_id"] == deployer_id
-    assert final["execution_result"]["outcome"] == "simulated"
+    assert final["execution_result"]["outcome"] == execute_result["outcome"]
     assert final["signoff_count"] == 2
 
 

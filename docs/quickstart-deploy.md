@@ -16,6 +16,8 @@ End-to-end local demo: owner creates a deploy request → high-credibility revie
 
 This starts the platform with `AGENTSWARM_CREDIBILITY_ENABLED=1`, reviewers at initial score 60, runs `agentswarm_agents.deploy_demo`, and runs deploy tests.
 
+Set `AGENTSWARM_DEPLOY_STAGING=1` to stage the pilot site during `deploy.execute` (enabled by default in `demo_swarm_pipeline`).
+
 ## Manual steps
 
 ```bash

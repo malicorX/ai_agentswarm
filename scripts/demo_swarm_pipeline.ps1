@@ -17,6 +17,7 @@ $env:AGENTSWARM_PLATFORM_URL = "http://127.0.0.1:8000"
 $env:AGENTSWARM_AUTH_DISABLED = "1"
 $env:AGENTSWARM_CREDIBILITY_ENABLED = "1"
 $env:AGENTSWARM_CRED_INITIAL = "60"
+$env:AGENTSWARM_DEPLOY_STAGING = "1"
 
 if (Test-Path $env:AGENTSWARM_DB) { Remove-Item $env:AGENTSWARM_DB -Force }
 
@@ -27,6 +28,7 @@ $platformJob = Start-Job -ScriptBlock {
     $env:AGENTSWARM_AUTH_DISABLED = "1"
     $env:AGENTSWARM_CREDIBILITY_ENABLED = "1"
     $env:AGENTSWARM_CRED_INITIAL = "60"
+    $env:AGENTSWARM_DEPLOY_STAGING = "1"
     & "$root\.venv\Scripts\python.exe" -m uvicorn agentswarm_platform.main:app --app-dir "$root\platform\src" --host 127.0.0.1 --port 8000
 } -ArgumentList $RepoRoot
 

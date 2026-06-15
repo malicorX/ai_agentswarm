@@ -276,6 +276,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Platform summary deploy counts; orchestrator deploy gaps; deploy badges
 ✅ Moderator deploy backlog flags; dashboard platform summary strip; `check_pages_ready.py`
 ✅ Swarm pipeline demo (`scripts/demo_swarm_pipeline.ps1`, CI job)
+✅ Deploy demo staging hooks; manual `verify-pages` workflow
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 

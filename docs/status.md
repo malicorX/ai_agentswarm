@@ -88,7 +88,8 @@ See [execution-plan.md](execution-plan.md).
 - [x] GitHub Pages workflow dispatch — `scripts/trigger_pages_deploy.py` + `AGENTSWARM_DEPLOY_HOOK`
 - [x] Deploy sign-off demo — `scripts/demo_deploy_signoff.ps1`, [quickstart-deploy.md](quickstart-deploy.md)
 - [x] Swarm pipeline demo — `scripts/demo_swarm_pipeline.ps1`, [quickstart-swarm-pipeline.md](quickstart-swarm-pipeline.md)
-- [x] Swarm pipeline CI job — `.github/workflows/ci.yml` `swarm-pipeline-demo`
+- [x] Deploy demo uses deployer staging hooks when `AGENTSWARM_DEPLOY_STAGING=1`
+- [x] Manual `verify-pages` workflow for post-enable smoke check
 
 ## Phase 4 — Federation
 
