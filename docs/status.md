@@ -173,6 +173,8 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P16.11** | Phase 16 close-out | Done → `close_phase16.sh`, tag `v0.17.0-phase16` |
 | **P17.0** | Busy heartbeat during assignment execute | Done → volunteer busy + submit detail errors |
 | **P17.11** | Phase 17 close-out | Done → `close_phase17.sh`, tag `v0.18.0-phase17` |
+| **P18.0** | Parallel goal wait + staging timeouts | Done → 600s goal default, parallel waiter |
+| **P18.11** | Phase 18 close-out | Pending → tag `v0.19.0-phase18` |
 
 **Phase 17 close-out:** git tag [`v0.18.0-phase17`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.18.0-phase17) (2026-06-13).
 

@@ -73,6 +73,11 @@ if ($env:AGENTSWARM_VERIFY_SKIP_PREP -ne "1") {
 }
 $subjectiveOk = $false
 foreach ($attempt in 1, 2, 3, 4, 5) {
+    if ($attempt -gt 1) {
+        $env:AGENTSWARM_VERIFY_SKIP_PREP = "1"
+    } else {
+        Remove-Item Env:AGENTSWARM_VERIFY_SKIP_PREP -ErrorAction SilentlyContinue
+    }
     python scripts/verify_volunteer_subjective_staging.py $ApiUrl
     if ($LASTEXITCODE -eq 0) {
         $subjectiveOk = $true

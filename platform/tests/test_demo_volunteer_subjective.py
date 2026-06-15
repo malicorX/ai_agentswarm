@@ -55,8 +55,26 @@ def test_run_volunteer_subjective_demo_e2e() -> None:
         event.set()
         return [], [], barrier
 
+    goal_waiter_started = False
+
+    class TrackingThread:
+        def __init__(self, target=None, name=None, daemon=None):
+            self._target = target
+            self.name = name
+
+        def start(self) -> None:
+            nonlocal goal_waiter_started
+            if self.name == "goal-waiter":
+                goal_waiter_started = True
+                if self._target is not None:
+                    self._target()
+
+        def join(self, timeout=None) -> None:
+            return None
+
     with (
         patch.object(mod.httpx, "Client", return_value=mock_client),
+        patch.object(mod, "threading", wraps=mod.threading) as threading_mod,
         patch.object(mod, "_start_volunteer_threads", side_effect=fake_start_threads),
         patch.object(mod, "_join_volunteer_threads") as join_threads,
         patch.object(
@@ -70,6 +88,7 @@ def test_run_volunteer_subjective_demo_e2e() -> None:
             return_value={"status": "verified", "aggregate_score": 8.0},
         ),
     ):
+        threading_mod.Thread = TrackingThread
         result = mod.run_volunteer_subjective_demo(
             "https://theebie.de/agentswarm/api",
             min_reviewers=2,
@@ -77,4 +96,5 @@ def test_run_volunteer_subjective_demo_e2e() -> None:
 
     assert result["goal_id"] == "goal-demo-1"
     assert result["goal_status"] == "verified"
+    assert goal_waiter_started is True
     join_threads.assert_called_once()

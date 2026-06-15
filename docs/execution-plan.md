@@ -516,7 +516,37 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P16.11 Phase 16 close-out — `close_phase16.sh`, tag `v0.17.0-phase16`
 ✅ P17.0 Busy heartbeat during assignment execute — volunteer `busy` before capsule run; submit detail errors
 ✅ P17.11 Phase 17 close-out — `close_phase17.sh`, tag `v0.18.0-phase17`
+✅ P18.0 Parallel goal wait + staging timeouts — demo parallel waiter, 600s goal default
 ```
+
+---
+
+## Phase 18 — Subjective staging hardening
+
+**Goal:** Close-out subjective verify succeeds reliably on busy theebie staging.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P18.0** | Parallel goal wait + staging timeouts | ✅ Done | P17.11 |
+| **P18.11** | Phase 18 close-out | ⬜ Pending | P18.0 |
+
+### P18.0 — Parallel goal wait + staging timeouts
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Avoid `awaiting_reviews` flakes when volunteer threads outlive sequential goal polling |
+| **In scope** | Parallel `wait_for_goal` in demo; `AGENTSWARM_VERIFY_SUBJECTIVE_GOAL_TIMEOUT_SEC` (default 600); skip prep on close-out retries |
+| **Verification** | `python -m pytest platform/tests/test_demo_volunteer_subjective.py platform/tests/test_verify_volunteer_subjective_staging.py -q` |
+| **Acceptance** | Demo polls goal while volunteers run; staging verify defaults to 600s goal timeout |
+
+### P18.11 — Phase 18 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag subjective-staging-hardening milestone |
+| **In scope** | `close_phase18.sh` / `.ps1`, tag `v0.19.0-phase18` |
+| **Verification** | `bash scripts/close_phase18.sh` |
+| **Acceptance** | Subjective verify passes on first or second close-out attempt |
 
 ---
 
@@ -547,7 +577,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `bash scripts/close_phase17.sh` |
 | **Acceptance** | Close-out bundle green including subjective verify |
 
-```
+---
 
 ## Phase 16 — Dispatch migration phase 3
 
@@ -586,7 +616,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `bash scripts/close_phase16.sh` |
 | **Acceptance** | Close-out checks `assignment` block on staging config |
 
-```
+---
 
 ## Phase 15 — Dev tooling hygiene
 

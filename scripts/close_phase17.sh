@@ -64,6 +64,11 @@ if [[ "${AGENTSWARM_VERIFY_SKIP_PREP:-}" != "1" ]]; then
   bash scripts/prep_staging_subjective_verify.sh
 fi
 for attempt in 1 2 3 4 5; do
+  if [[ "$attempt" -gt 1 ]]; then
+    export AGENTSWARM_VERIFY_SKIP_PREP=1
+  else
+    unset AGENTSWARM_VERIFY_SKIP_PREP || true
+  fi
   if python scripts/verify_volunteer_subjective_staging.py "$API_URL"; then
     break
   fi

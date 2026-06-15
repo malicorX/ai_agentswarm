@@ -280,7 +280,7 @@ def _start_volunteer_threads(
             ready_barrier.wait()
             if not goal_posted.wait(timeout=goal_timeout_sec):
                 raise RuntimeError("timed out waiting for creative goal to be posted")
-            role_total_wait = goal_timeout_sec + wait_timeout_sec
+            role_total_wait = goal_timeout_sec + (wait_timeout_sec * 4)
             deadline = time.monotonic() + role_total_wait
             if require_role_assignments:
                 wait_for_volunteer_assignment(
@@ -322,7 +322,7 @@ def _join_volunteer_threads(
     goal_timeout_sec: float,
     wait_timeout_sec: float,
 ) -> None:
-    join_deadline = time.monotonic() + goal_timeout_sec + (wait_timeout_sec * 2) + 30.0
+    join_deadline = time.monotonic() + goal_timeout_sec + (wait_timeout_sec * 4) + 30.0
     for thread in threads:
         remaining = max(0.0, join_deadline - time.monotonic())
         thread.join(timeout=remaining)
@@ -418,28 +418,19 @@ def run_volunteer_subjective_demo(
         finally:
             goal_terminal.set()
 
-    if require_role_assignments:
-        _join_volunteer_threads(
-            threads,
-            errors,
-            goal_timeout_sec=goal_timeout_sec,
-            wait_timeout_sec=wait_timeout_sec,
-        )
-        goal = wait_for_goal(clean, goal_id, timeout_sec=goal_timeout_sec)
-    else:
-        goal_waiter = threading.Thread(target=_wait_goal_parallel, name="goal-waiter", daemon=True)
-        goal_waiter.start()
-        _join_volunteer_threads(
-            threads,
-            errors,
-            goal_timeout_sec=goal_timeout_sec,
-            wait_timeout_sec=wait_timeout_sec,
-        )
-        goal_waiter.join()
-        if goal_wait_error:
-            raise goal_wait_error[0]
-        if goal is None:
-            raise RuntimeError("goal waiter did not return a result")
+    goal_waiter = threading.Thread(target=_wait_goal_parallel, name="goal-waiter", daemon=True)
+    goal_waiter.start()
+    _join_volunteer_threads(
+        threads,
+        errors,
+        goal_timeout_sec=goal_timeout_sec,
+        wait_timeout_sec=wait_timeout_sec,
+    )
+    goal_waiter.join()
+    if goal_wait_error:
+        raise goal_wait_error[0]
+    if goal is None:
+        raise RuntimeError("goal waiter did not return a result")
 
     if goal.get("status") != "verified":
         raise RuntimeError(f"expected goal verified, got {goal.get('status')!r}")

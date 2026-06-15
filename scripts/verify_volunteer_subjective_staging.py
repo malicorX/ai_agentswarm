@@ -57,15 +57,31 @@ def _clean_url(base_url: str) -> str:
     return clean
 
 
+def resolve_subjective_verify_timeouts() -> tuple[float, float]:
+    """Goal and assignment wait timeouts for staging subjective verify."""
+    goal_timeout_sec = float(
+        os.environ.get("AGENTSWARM_VERIFY_SUBJECTIVE_GOAL_TIMEOUT_SEC", "600")
+    )
+    wait_timeout_sec = float(
+        os.environ.get("AGENTSWARM_VERIFY_SUBJECTIVE_WAIT_SEC", "60")
+    )
+    return goal_timeout_sec, wait_timeout_sec
+
+
 def verify_volunteer_subjective_staging(
     base_url: str,
     *,
     min_reviewers: int = 1,
-    goal_timeout_sec: float = 420.0,
-    wait_timeout_sec: float = 60.0,
+    goal_timeout_sec: float | None = None,
+    wait_timeout_sec: float | None = None,
 ) -> dict[str, str]:
     """Run coordinator → creative → reviewers demo against staging."""
     clean = _clean_url(base_url)
+    resolved_goal_timeout, resolved_wait_timeout = resolve_subjective_verify_timeouts()
+    if goal_timeout_sec is None:
+        goal_timeout_sec = resolved_goal_timeout
+    if wait_timeout_sec is None:
+        wait_timeout_sec = resolved_wait_timeout
     if not os.environ.get("AGENTSWARM_BOOTSTRAP_TOKEN", "").strip():
         raise RuntimeError(
             "AGENTSWARM_BOOTSTRAP_TOKEN is required for subjective demo verify"
@@ -104,10 +120,13 @@ def main() -> int:
         "AGENTSWARM_STAGING_API_URL", "https://theebie.de/agentswarm/api"
     )
     min_reviewers = int(os.environ.get("AGENTSWARM_VERIFY_SUBJECTIVE_MIN_REVIEWERS", "1"))
+    goal_timeout, wait_timeout = resolve_subjective_verify_timeouts()
     try:
         result = verify_volunteer_subjective_staging(
             base_url,
             min_reviewers=min_reviewers,
+            goal_timeout_sec=goal_timeout,
+            wait_timeout_sec=wait_timeout,
         )
     except (ValueError, RuntimeError) as exc:
         print(f"Volunteer subjective staging verify failed: {exc}", file=sys.stderr)

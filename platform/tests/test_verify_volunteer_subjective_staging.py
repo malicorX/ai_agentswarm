@@ -66,3 +66,17 @@ def test_verify_volunteer_subjective_staging_runs_demo(monkeypatch) -> None:
 
     assert result["goal_status"] == "verified"
     assert result["goal_id"] == "goal-test"
+
+
+def test_resolve_subjective_verify_timeouts_defaults(monkeypatch) -> None:
+    mod = _load_module()
+    monkeypatch.delenv("AGENTSWARM_VERIFY_SUBJECTIVE_GOAL_TIMEOUT_SEC", raising=False)
+    monkeypatch.delenv("AGENTSWARM_VERIFY_SUBJECTIVE_WAIT_SEC", raising=False)
+    assert mod.resolve_subjective_verify_timeouts() == (600.0, 60.0)
+
+
+def test_resolve_subjective_verify_timeouts_from_env(monkeypatch) -> None:
+    mod = _load_module()
+    monkeypatch.setenv("AGENTSWARM_VERIFY_SUBJECTIVE_GOAL_TIMEOUT_SEC", "900")
+    monkeypatch.setenv("AGENTSWARM_VERIFY_SUBJECTIVE_WAIT_SEC", "45")
+    assert mod.resolve_subjective_verify_timeouts() == (900.0, 45.0)
