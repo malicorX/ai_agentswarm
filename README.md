@@ -7,7 +7,7 @@ The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that ag
 | | |
 |---|---|
 | **Status** | Phases 0–4 core implemented — see [docs/status.md](docs/status.md) |
-| **Public pilot** | **Pending** — [enable GitHub Pages](https://github.com/malicorX/ai_agentswarm/settings/pages) (Source: GitHub Actions), then re-run [Deploy pilot site](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml) · [deploy.md](docs/deploy.md) |
+| **Public pilot** | [https://theebie.de/sites/agentswarm/](https://theebie.de/sites/agentswarm/) · [dashboard](https://theebie.de/sites/agentswarm/dashboard/) |
 | **Stack** | Python 3.11+, FastAPI, SQLite, Ed25519 |
 | **License** | [MIT](LICENSE) |
 | **Spec** | [ROADMAP.md](ROADMAP.md) (authoritative product document) |

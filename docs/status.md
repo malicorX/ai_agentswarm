@@ -18,10 +18,11 @@ Goal: closed swarm of trusted agents producing the first AI News Hub version.
 - [x] Three reference agents (`codewriter`, `tester`, `reviewer`)
 - [x] Pull-based protocol skeleton (REST, localhost)
 - [x] AI News Hub pilot scaffold
-- [ ] Manual deploy by human maintainer → [P0.7](execution-plan.md#p07--deploy-runbook--manual-deploy) · [deploy.md](deploy.md)
+- [x] Manual deploy by human maintainer → [P0.7](execution-plan.md#p07--deploy-runbook--manual-deploy) · [deploy.md](deploy.md)
   - [x] Deploy runbook + `.env.example` + combined Pages workflow (`pilot/` index, news-hub, dashboard)
   - [x] Local preview script `scripts/preview_pilot_site.ps1`
-  - [ ] Enable GitHub Pages in repo settings (admin) + record live URL
+  - [x] Host pilot static site on theebie.de (`/sites/agentswarm/`) + record live URL → https://theebie.de/sites/agentswarm
+  - [ ] (Optional) GitHub Pages for forks — enable in repo settings + record URL
   - [ ] Optional: platform on VPS with HTTPS
 - [x] CI workflow (lint + tests)
 - [x] Phase 0 close-out tag `v0.1.0-phase0` → [P0.9](execution-plan.md#p09--phase-0-close-out)

@@ -40,7 +40,7 @@ Packages are **sequential within a phase** unless marked parallel. Do not skip a
 | P4 | AI News Hub scaffold | ✅ Done | P1 |
 | P5 | CI + quality gates | ✅ Done | P2 |
 | P6 | Documentation | ✅ Done | P0 |
-| **P0.7** | **Deploy runbook + manual deploy** | 🔲 Partial (Pages workflow ready; enable in Settings) | P2, P4 |
+| **P0.7** | **Deploy runbook + manual deploy** | ✅ Pilot on theebie.de (`/sites/agentswarm/`); Pages optional for forks | P2, P4 |
 | P0.8 | Cross-platform demo script | ✅ Done | P3 |
 | P0.9 | Phase 0 close-out tag | ✅ Done | P0.7 |
 

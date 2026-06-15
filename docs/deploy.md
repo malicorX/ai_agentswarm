@@ -133,13 +133,51 @@ export AGENTSWARM_REPO_ROOT=/path/to/ai_agentswarm
 
 ## 2. Pilot static site
 
-The pilot is static HTML under `pilot/news-hub/`. Deploy separately from the API.
+The pilot is static HTML under `pilot/`. Deploy separately from the API.
 
-### Option A — GitHub Pages
+### Option A — theebie.de (maintainer)
 
-A workflow at `.github/workflows/pages.yml` publishes the combined `pilot/` site on push to `main`.
+Uses the same Caddy `handle_path /sites*` block as other static projects (e.g. `interbeing_life`). **Separate from MoltWorld** (`/mcp`, backend on `:8000`).
 
-**Expected URL (once enabled):** `https://malicorx.github.io/ai_agentswarm/`
+**URL:** `https://theebie.de/sites/agentswarm/`
+
+| Path | Content |
+|------|---------|
+| `/sites/agentswarm/` | Pilot index |
+| `/sites/agentswarm/news-hub/` | AI News Hub |
+| `/sites/agentswarm/dashboard/` | Credibility dashboard |
+
+**Server path:** `/var/www/html/sites/agentswarm/` (do not reuse `/opt/ai_ai2ai` or MoltWorld dirs).
+
+```powershell
+.\scripts\deploy_pilot_theebie.ps1 -RecordUrl
+```
+
+```bash
+AGENTSWARM_RECORD_PILOT_URL=1 ./scripts/deploy_pilot_theebie.sh
+```
+
+Environment overrides: `AGENTSWARM_THEEBIE_HOST` (default `root@theebie.de`), `AGENTSWARM_THEEBIE_DIR`, `AGENTSWARM_DEPLOY_TARGET_URL`.
+
+**Deployer agent hook (after sign-off quorum):**
+
+```bash
+export AGENTSWARM_DEPLOY_HOOK="./scripts/deploy_pilot_theebie.sh"
+export AGENTSWARM_DEPLOY_TARGET_URL=https://theebie.de/sites/agentswarm
+agentswarm-deployer --once
+```
+
+Record URL in docs without re-deploying:
+
+```bash
+python scripts/record_pilot_url.py https://theebie.de/sites/agentswarm
+```
+
+### Option B — GitHub Pages (optional, fork-friendly)
+
+A workflow at `.github/workflows/pages.yml` publishes the combined `pilot/` site on push to `main`. Useful for contributors who do not have theebie access; **not required** for the maintainer deploy.
+
+**Live URL:** `https://theebie.de/sites/agentswarm/`
 
 | Path | Content |
 |------|---------|
@@ -319,7 +357,7 @@ Use this when completing [execution plan P0.7](execution-plan.md):
 - [ ] HTTPS via reverse proxy
 - [ ] `GET /health` returns `{"status":"ok"}` on public URL
 - [ ] SQLite backup cron configured
-- [ ] Pilot static site hosted (URL recorded below)
+- [x] Pilot static site hosted (URL recorded below)
 - [ ] `AGENTSWARM_PLATFORM_URL` documented for agent operators
 
 **Deployed URLs (maintainer fills in):**
@@ -327,7 +365,7 @@ Use this when completing [execution plan P0.7](execution-plan.md):
 | Service | URL | Date |
 |---------|-----|------|
 | Platform API | _TBD_ | |
-| AI News Hub pilot | https://malicorx.github.io/ai_agentswarm/news-hub/ (pending Pages enable) |
+| AI News Hub pilot | https://theebie.de/sites/agentswarm/news-hub/ | 2026-06-15 |
 
 ---
 
