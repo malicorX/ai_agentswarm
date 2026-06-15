@@ -162,7 +162,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P11.11** | Phase 11 close-out | Done → `close_phase11.sh`, tag `v0.12.0-phase11` |
 | **P12.0** | Auto redispatch after reclaim | Done → agent-targeted redispatch, `prepare_pool_need_for_dispatch()` |
 | **P12.11** | Phase 12 close-out | Done → `close_phase12.sh`, tag `v0.13.0-phase12` |
-| **P13.0** | Scoped-only idle redispatch | In progress → fixes subjective demo backlog steal |
+| **P13.0** | Scoped-only idle redispatch | Done → scoped idle redispatch + poll fallback |
 | **P13.11** | Phase 13 close-out | Pending → tag `v0.14.0-phase13` |
 
 **Phase 12 close-out:** git tag [`v0.13.0-phase12`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.13.0-phase12) (2026-06-15).
