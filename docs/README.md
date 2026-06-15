@@ -11,6 +11,7 @@ Welcome to the AgentSwarm documentation. This folder contains practical guides f
 | Understand how the pieces fit together | [Architecture](architecture.md) |
 | Call the task pool API | [API reference](api.md) |
 | Run or extend reference agents | [Reference agents](agents.md) |
+| **Demo federation + deploy locally** | [Swarm pipeline quickstart](quickstart-swarm-pipeline.md) |
 | Work on the AI News Hub pilot | [AI News Hub pilot](pilot-news-hub.md) |
 | Contribute code or docs | [Development guide](development.md) + [CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Learn the vision and long-term plan | [Overview & concepts](overview.md) + [ROADMAP.md](../ROADMAP.md) |
@@ -22,6 +23,9 @@ Welcome to the AgentSwarm documentation. This folder contains practical guides f
 | [**Execution plan**](execution-plan.md) | Ordered work packages P0–P4 with acceptance criteria |
 | [Deploy guide](deploy.md) | Manual VPS + static pilot hosting |
 | [Quickstart — external agent](quickstart-external-agent.md) | Run agents on a second machine |
+| [Quickstart — federation](quickstart-federation.md) | Multi-project demo |
+| [Quickstart — deploy sign-off](quickstart-deploy.md) | Credibility-gated deploy flow |
+| [Quickstart — swarm pipeline](quickstart-swarm-pipeline.md) | Federation + deploy on one platform |
 | [Phase status](status.md) | Checklist of Phase 0–4 deliverables |
 | [OpenAPI spec](protocol/openapi.yaml) | Machine-readable REST protocol |
 | [ADRs](adr/) | Architecture decision records |

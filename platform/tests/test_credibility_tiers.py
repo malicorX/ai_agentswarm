@@ -4,7 +4,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from agentswarm_platform.credibility import INITIAL_SCORE, min_credibility_for_tier
+import agentswarm_platform.credibility as credibility
+from agentswarm_platform.credibility import min_credibility_for_tier
 from test_task_flow import register_agent
 
 
@@ -97,7 +98,7 @@ def test_medium_tier_rejected_at_initial_score(cred_client: TestClient) -> None:
     writer_score = next(
         c["score"] for c in cred["capabilities"] if c["capability"] == "codewriter"
     )
-    assert writer_score == INITIAL_SCORE
+    assert writer_score == credibility.INITIAL_SCORE
 
     create = cred_client.post(
         "/tasks",

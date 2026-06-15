@@ -76,7 +76,7 @@ paths:
       summary: Platform summary for orchestration
       responses:
         "200":
-          description: Task counts, memory keys, canary stats
+          description: Task counts, replication stats, memory keys, deploy_requests (by_status, pending_signoff_tasks, pending_execute_tasks)
   /memory:
     get:
       summary: List memory keys

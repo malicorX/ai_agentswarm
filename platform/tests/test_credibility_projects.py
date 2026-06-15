@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from agentswarm_platform.credibility import INITIAL_SCORE
+import agentswarm_platform.credibility as credibility
 from agentswarm_platform.crypto import generate_keypair, public_key_b64, sign_payload
 from test_task_flow import register_agent
 
@@ -140,7 +140,7 @@ def test_per_project_credibility_isolated(cred_client: TestClient) -> None:
     hub_writer = next(
         c for c in hub_score["capabilities"] if c["capability"] == "codewriter"
     )
-    assert hub_writer["score"] > INITIAL_SCORE
+    assert hub_writer["score"] > credibility.INITIAL_SCORE
 
     default_only = cred_client.get(
         f"/agents/{writer_id}/credibility", params={"project_id": "default"}

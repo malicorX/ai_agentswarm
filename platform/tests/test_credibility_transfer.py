@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from agentswarm_platform.credibility import INITIAL_SCORE
+import agentswarm_platform.credibility as credibility
 from agentswarm_platform.credibility_transfer import (
     CROSS_PROJECT_HAIRCUT,
     compute_imported_score,
@@ -76,13 +76,15 @@ def _complete_codewriter_flow(
 
 
 def test_compute_imported_score_applies_haircut_to_earned_portion() -> None:
-    source_score = INITIAL_SCORE + 8.0
+    source_score = credibility.INITIAL_SCORE + 8.0
     imported = compute_imported_score(source_score, haircut=0.5)
-    assert imported == pytest.approx(INITIAL_SCORE + 4.0)
+    assert imported == pytest.approx(credibility.INITIAL_SCORE + 4.0)
 
 
 def test_compute_imported_score_never_below_initial() -> None:
-    assert compute_imported_score(INITIAL_SCORE - 2) == pytest.approx(INITIAL_SCORE)
+    assert compute_imported_score(credibility.INITIAL_SCORE - 2) == pytest.approx(
+        credibility.INITIAL_SCORE
+    )
 
 
 def test_transfer_rules_endpoint(cred_client: TestClient) -> None:
@@ -90,7 +92,7 @@ def test_transfer_rules_endpoint(cred_client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["haircut_rate"] == CROSS_PROJECT_HAIRCUT
-    assert body["initial_score"] == INITIAL_SCORE
+    assert body["initial_score"] == credibility.INITIAL_SCORE
 
 
 def test_import_credibility_into_new_project(cred_client: TestClient) -> None:
@@ -140,7 +142,7 @@ def test_import_credibility_into_new_project(cred_client: TestClient) -> None:
         for c in default_score["capabilities"]
         if c["capability"] == "codewriter"
     )
-    assert source_score > INITIAL_SCORE
+    assert source_score > credibility.INITIAL_SCORE
 
     cred_client.post(
         "/agents/register",

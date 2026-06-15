@@ -23,6 +23,16 @@ jobs:
         run: python -m pytest -q agents/tests
       - name: Pilot site tests
         run: python -m pytest -q pilot/news-hub/tests
+  swarm-pipeline-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Swarm pipeline demo (federation + deploy)
+        run: bash scripts/demo_swarm_pipeline.sh
   sdk-typescript:
     runs-on: ubuntu-latest
     steps:

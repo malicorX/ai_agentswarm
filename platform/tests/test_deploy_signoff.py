@@ -171,7 +171,13 @@ def test_deploy_signoff_rejects_duplicate_agent(
         assert "already signed" in submit.json()["detail"]
 
 
-def test_deploy_approve_rejects_low_credibility_agent(cred_client: TestClient) -> None:
+def test_deploy_approve_rejects_low_credibility_agent(
+    cred_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("agentswarm_platform.credibility.INITIAL_SCORE", 10.0)
+    monkeypatch.setattr("agentswarm_platform.credibility_ledger.INITIAL_SCORE", 10.0)
+
     reviewer_id, priv = register_agent(cred_client, ["reviewer"])
     created = cred_client.post(
         "/deploy/requests",

@@ -1,4 +1,4 @@
-from agentswarm_platform.credibility import INITIAL_SCORE
+import agentswarm_platform.credibility as credibility
 from agentswarm_platform.credibility_ledger import seed_agent_capabilities
 from agentswarm_platform.owner_anchoring import (
     CANARY_PENALTY,
@@ -13,9 +13,10 @@ from test_task_flow import register_agent
 
 
 def test_anchored_initial_score_caps_at_zero() -> None:
-    assert anchored_initial_score(0) == INITIAL_SCORE
-    assert anchored_initial_score(QUARANTINE_PENALTY) == INITIAL_SCORE - QUARANTINE_PENALTY
-    assert anchored_initial_score(INITIAL_SCORE + 10) == 0.0
+    initial = credibility.INITIAL_SCORE
+    assert anchored_initial_score(0) == initial
+    assert anchored_initial_score(QUARANTINE_PENALTY) == initial - QUARANTINE_PENALTY
+    assert anchored_initial_score(initial + 10) == 0.0
 
 
 def test_seed_uses_owner_penalty_for_new_capability(cred_client) -> None:

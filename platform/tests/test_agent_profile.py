@@ -2,7 +2,7 @@ from test_task_flow import register_agent
 
 
 def test_agent_profile_includes_levels_and_badges(cred_client) -> None:
-    from agentswarm_platform.credibility import INITIAL_SCORE
+    import agentswarm_platform.credibility as credibility
     from agentswarm_platform.crypto import sign_payload as sp
 
     writer_id, writer_priv = register_agent(cred_client, ["codewriter"])
@@ -78,7 +78,7 @@ def test_agent_profile_includes_levels_and_badges(cred_client) -> None:
     writer_cred = next(
         row for row in profile["credibility"] if row["capability"] == "codewriter"
     )
-    assert writer_cred["score"] > INITIAL_SCORE
+    assert writer_cred["score"] > credibility.INITIAL_SCORE
     assert writer_cred["level"]["label"] in ("novice", "apprentice", "journeyman")
     badge_ids = {badge["id"] for badge in profile["badges"]}
     assert "first_accept" in badge_ids

@@ -59,6 +59,7 @@ try {
         platform/tests/test_governance.py `
         platform/tests/test_deploy_signoff.py `
         platform/tests/test_moderation_policy.py
+    if ($LASTEXITCODE -ne 0) { throw "Pipeline tests failed (exit $LASTEXITCODE)" }
 
     Write-Host "demo_swarm_pipeline.ps1 complete"
 }

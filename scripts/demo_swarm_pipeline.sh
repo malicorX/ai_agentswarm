@@ -46,5 +46,10 @@ python -m pytest -q \
   platform/tests/test_governance.py \
   platform/tests/test_deploy_signoff.py \
   platform/tests/test_moderation_policy.py
+status=$?
+if [ "$status" -ne 0 ]; then
+  echo "Pipeline tests failed (exit $status)" >&2
+  exit "$status"
+fi
 
 echo "demo_swarm_pipeline.sh complete"

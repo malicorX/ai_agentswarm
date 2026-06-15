@@ -1,8 +1,8 @@
 import math
 
+import agentswarm_platform.credibility as credibility
 from agentswarm_platform.credibility import (
     BASE_MINT,
-    INITIAL_SCORE,
     REVIEWER_MINT,
     burn_for_rejection,
     compute_outcome_deltas,
@@ -25,26 +25,28 @@ def test_verifier_weight_caps() -> None:
 
 
 def test_acceptance_net_positive_for_submitter() -> None:
-    stake = stake_amount(INITIAL_SCORE)
+    initial = credibility.INITIAL_SCORE
+    stake = stake_amount(initial)
     deltas = compute_outcome_deltas(
         accepted=True,
         submitter_capability="codewriter",
         task_tier=1,
         stake=stake,
-        verifier_score=INITIAL_SCORE,
+        verifier_score=initial,
     )
     assert deltas.submitter_delta > 0
     assert deltas.reviewer_delta == REVIEWER_MINT
 
 
 def test_rejection_net_negative_for_submitter() -> None:
-    stake = stake_amount(INITIAL_SCORE)
+    initial = credibility.INITIAL_SCORE
+    stake = stake_amount(initial)
     deltas = compute_outcome_deltas(
         accepted=False,
         submitter_capability="codewriter",
         task_tier=1,
         stake=stake,
-        verifier_score=INITIAL_SCORE,
+        verifier_score=initial,
     )
     assert deltas.submitter_delta == -burn_for_rejection(1)
     assert deltas.submitter_delta < 0
@@ -52,12 +54,13 @@ def test_rejection_net_negative_for_submitter() -> None:
 
 def test_collusion_clique_grows_slowly_with_low_verifier_weight() -> None:
     production_threshold = 100.0
-    score = INITIAL_SCORE
+    initial = credibility.INITIAL_SCORE
+    score = initial
     rounds = 15
     for _ in range(rounds):
-        score += mint_for_acceptance(task_tier=1, verifier_score=INITIAL_SCORE)
+        score += mint_for_acceptance(task_tier=1, verifier_score=initial)
     assert score < production_threshold
-    assert score < INITIAL_SCORE + rounds * BASE_MINT * 1.25
+    assert score < initial + rounds * BASE_MINT * 1.25
 
 
 def test_decay_halves_at_half_life() -> None:

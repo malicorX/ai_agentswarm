@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from agentswarm_platform.credibility import INITIAL_SCORE
+import agentswarm_platform.credibility as credibility
 from test_task_flow import register_agent
 
 
@@ -80,7 +80,7 @@ def test_credibility_after_full_task_flow(cred_client: TestClient) -> None:
     writer_score = next(
         c["score"] for c in writer_cred["capabilities"] if c["capability"] == "codewriter"
     )
-    assert writer_score > INITIAL_SCORE
+    assert writer_score > credibility.INITIAL_SCORE
 
     reviewer_cred = cred_client.get(f"/agents/{reviewer_id}/credibility").json()
     reviewer_score = next(
@@ -88,7 +88,7 @@ def test_credibility_after_full_task_flow(cred_client: TestClient) -> None:
         for c in reviewer_cred["capabilities"]
         if c["capability"] == "reviewer"
     )
-    assert reviewer_score > INITIAL_SCORE
+    assert reviewer_score > credibility.INITIAL_SCORE
 
     board = cred_client.get(
         "/credibility/leaderboard", params={"capability": "codewriter"}
