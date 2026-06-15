@@ -9,7 +9,8 @@
     },
     "moderation": {
       "canary_failure_rate_threshold": 0.5,
-      "min_canary_attempts": 2
+      "min_canary_attempts": 2,
+      "max_agents_per_owner": 5
     },
     "deploy": {
       "required_signoffs": 2,

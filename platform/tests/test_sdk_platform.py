@@ -30,3 +30,4 @@ def test_platform_summary_includes_deploy_counts(client: TestClient) -> None:
     assert "by_status" in deploy
     assert "pending_signoff_tasks" in deploy
     assert "pending_execute_tasks" in deploy
+    assert "owner_clusters" in summary

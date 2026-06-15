@@ -277,7 +277,8 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Moderator deploy backlog flags; dashboard platform summary strip; `check_pages_ready.py`
 ✅ Swarm pipeline demo (`scripts/demo_swarm_pipeline.ps1`, CI job)
 ✅ Deploy demo staging hooks; manual `verify-pages` workflow
-→  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
+✅ Owner agent-cluster moderation (`owner_clusters`, `max_agents_per_owner`)
+→  P0.7  Deploy (enable GitHub Pages — see issue #1)
 ```
 
 **Recommended order for solo developer:**

@@ -242,6 +242,12 @@
             (summary.memory_keys || []).slice(0, 4).map((k) => `<code>${k}</code>`).join(", ") || "—",
           ]),
         ];
+        const clusters = summary.owner_clusters || [];
+        if (clusters.length) {
+          cards.push(renderSummaryCard("Owner clusters", clusters.map(
+            (c) => `<code>${c.owner}</code>: <strong>${c.agent_count}</strong> agents`
+          )));
+        }
         summaryCards.innerHTML = cards.join("");
         summaryStatus.textContent = "Snapshot refreshed.";
         summaryCards.hidden = false;

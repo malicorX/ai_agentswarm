@@ -37,6 +37,8 @@ def test_platform_summary(client: TestClient) -> None:
     assert "tasks" in summary
     assert "memory_keys" in summary
     assert "deploy_requests" in summary
+    assert "owner_clusters" in summary
+    assert isinstance(summary["owner_clusters"], list)
     assert "by_status" in summary["deploy_requests"]
 
 

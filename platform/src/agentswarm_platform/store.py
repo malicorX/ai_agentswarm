@@ -30,6 +30,7 @@ from agentswarm_platform.moderation_store import (
     list_moderation_flags,
 )
 from agentswarm_platform.owner_anchoring import owner_anchoring_summary
+from agentswarm_platform.owner_analytics import summarize_owner_clusters
 from agentswarm_platform.project_bootstrap import apply_project_bootstrap
 from agentswarm_platform.project_store import (
     DEFAULT_PROJECT_ID,
@@ -1833,6 +1834,7 @@ class Store:
                 "SELECT memory_key FROM memory_entries ORDER BY memory_key ASC"
             ).fetchall()
             deploy_summary = summarize_deploy_requests(conn)
+            owner_clusters = summarize_owner_clusters(conn, min_agents=3)
         tasks = {row["status"]: int(row["n"]) for row in task_rows}
         replication_groups = {row["status"]: int(row["n"]) for row in repl_rows}
         canary_failures_top = [
@@ -1849,6 +1851,7 @@ class Store:
             "canary_failures_top": canary_failures_top,
             "memory_keys": [row["memory_key"] for row in memory_rows],
             "deploy_requests": deploy_summary,
+            "owner_clusters": owner_clusters,
         }
 
     def get_agent_credibility(

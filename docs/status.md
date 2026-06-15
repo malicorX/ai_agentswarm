@@ -90,6 +90,7 @@ See [execution-plan.md](execution-plan.md).
 - [x] Swarm pipeline demo — `scripts/demo_swarm_pipeline.ps1`, [quickstart-swarm-pipeline.md](quickstart-swarm-pipeline.md)
 - [x] Deploy demo uses deployer staging hooks when `AGENTSWARM_DEPLOY_STAGING=1`
 - [x] Manual `verify-pages` workflow for post-enable smoke check
+- [x] Owner agent-cluster moderation — `owner_clusters` in platform summary; `moderation.max_agents_per_owner`
 
 ## Phase 4 — Federation
 

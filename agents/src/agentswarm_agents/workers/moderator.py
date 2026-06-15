@@ -40,6 +40,7 @@ def execute_scan(base_url: str, project_id: str = "default") -> dict[str, Any]:
             "canary_failure_rate_threshold": policy.canary_failure_rate_threshold,
             "min_canary_attempts": policy.min_canary_attempts,
             "flag_deploy_backlog": policy.flag_deploy_backlog,
+            "max_agents_per_owner": policy.max_agents_per_owner,
         },
     }
 

@@ -9,6 +9,7 @@ class ModerationPolicy:
     canary_failure_rate_threshold: float = 0.5
     min_canary_attempts: int = 2
     flag_deploy_backlog: bool = True
+    max_agents_per_owner: int = 0
 
 
 def resolve_moderation_policy(governance_config: dict[str, Any] | None) -> ModerationPolicy:
@@ -26,10 +27,16 @@ def resolve_moderation_policy(governance_config: dict[str, Any] | None) -> Moder
     except (TypeError, ValueError):
         resolved_attempts = 2
     flag_deploy = moderation.get("flag_deploy_backlog", True)
+    max_per_owner = moderation.get("max_agents_per_owner", 0)
+    try:
+        resolved_max_per_owner = int(max_per_owner)
+    except (TypeError, ValueError):
+        resolved_max_per_owner = 0
     return ModerationPolicy(
         canary_failure_rate_threshold=max(0.0, min(1.0, resolved_threshold)),
         min_canary_attempts=max(1, resolved_attempts),
         flag_deploy_backlog=bool(flag_deploy),
+        max_agents_per_owner=max(0, resolved_max_per_owner),
     )
 
 
@@ -154,6 +161,33 @@ def build_moderation_actions(
                         "approved_requests": approved_waiting,
                         "open_execute_tasks": pending_execute_tasks,
                     },
+                }
+            )
+
+    if resolved.max_agents_per_owner > 0:
+        for cluster in summary.get("owner_clusters") or []:
+            count = int(cluster.get("agent_count", 0))
+            owner = str(cluster.get("owner", ""))
+            if count < resolved.max_agents_per_owner or not owner:
+                continue
+            findings.append(
+                {
+                    "type": "owner_agent_cluster",
+                    "owner": owner,
+                    "agent_count": count,
+                }
+            )
+            actions.append(
+                {
+                    "type": "flag",
+                    "subject_type": "owner",
+                    "subject_id": owner,
+                    "reason": (
+                        f"owner {owner!r} has {count} registered agents "
+                        f"(threshold {resolved.max_agents_per_owner})"
+                    ),
+                    "severity": "medium",
+                    "details": cluster,
                 }
             )
 
