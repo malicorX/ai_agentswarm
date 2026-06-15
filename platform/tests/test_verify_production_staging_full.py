@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -104,8 +105,21 @@ def test_verify_production_staging_full_orchestration() -> None:
                     (),
                     {"verify_creative_appeal_staging": staticmethod(capture_appeal)},
                 ),
+                type(
+                    "SubjectiveMod",
+                    (),
+                    {
+                        "verify_volunteer_subjective_staging": staticmethod(
+                            lambda url, **kwargs: {
+                                "goal_status": "verified",
+                                "goal_id": "goal-ci",
+                            }
+                        )
+                    },
+                ),
             ],
         ),
+        patch.dict(os.environ, {"AGENTSWARM_ASSIGNMENT_SECRET": "test-secret"}),
         patch.object(mod, "_run_pytest") as mock_pytest,
         patch.object(mod.subprocess, "run") as mock_run,
         patch.object(mod, "_env_flag", side_effect=lambda name, default=False: name == "AGENTSWARM_VERIFY_SKIP_NEWS"),
@@ -122,6 +136,7 @@ def test_verify_production_staging_full_orchestration() -> None:
     assert result["mode"] == "full"
     assert result["unit_p7"] == "passed"
     assert result["creative_appeal"]["get_missing_goal"] == "404"
+    assert result["volunteer_subjective"]["goal_status"] == "verified"
     assert result["news_pipeline"] == "skipped"
     assert result["mcp_adapter"] == "passed"
     assert appeal_calls == ["https://theebie.de/agentswarm/api"]

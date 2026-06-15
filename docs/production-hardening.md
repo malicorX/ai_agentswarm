@@ -37,7 +37,7 @@ AGENTSWARM_VERIFY_FULL=1 AGENTSWARM_EXPECT_DISPATCH=1 AGENTSWARM_BOOTSTRAP_TOKEN
   python scripts/verify_production_staging.py
 ```
 
-Adds: credibility simulation tests, external contributor task flow, P7 unit tests + creative appeal live smoke, news pipeline, MCP adapter.
+Adds: credibility simulation tests, external contributor task flow, P7 unit tests + creative appeal live smoke, **volunteer subjective demo** (when `AGENTSWARM_ASSIGNMENT_SECRET` is set), news pipeline, MCP adapter.
 
 **One-command full verify** (fetches bootstrap token from theebie over SSH):
 
@@ -57,7 +57,7 @@ GitHub Actions: **Verify staging (full)** (`.github/workflows/verify-staging-ful
 
 - **Manual:** Actions → *Verify staging (full)* → Run workflow
 - **Scheduled:** Sundays 06:00 UTC (weekly cron, P7.11)
-- **Secret:** `AGENTSWARM_BOOTSTRAP_TOKEN` on the repo; news pipeline skipped in CI by default (`AGENTSWARM_VERIFY_SKIP_NEWS=1`)
+- **Secrets:** `AGENTSWARM_BOOTSTRAP_TOKEN` and `AGENTSWARM_ASSIGNMENT_SECRET` on the repo; news/MCP skipped in CI by default (`AGENTSWARM_VERIFY_SKIP_NEWS=1`, `AGENTSWARM_VERIFY_SKIP_MCP=1`); subjective demo runs with `min_reviewers=1` (P9.2)
 
 Maintainer close-out: `bash scripts/close_phase8.sh` (pytest + dispatch smoke + volunteer subjective demo). Phase 7: `close_phase7.sh`.
 
@@ -78,6 +78,8 @@ Individual scripts (same as before):
 | `verify_model_allowlist_staging.py` | Live model allowlist enforcement smoke (P8.0) |
 | `verify_dispatch_staging.py` | Dispatch mode: presence, credits, assignments smoke |
 | `verify_creative_appeal_staging.py` | Creative goal appeal routes (P7.3 live smoke) |
+| `verify_volunteer_subjective_staging.py` | Live coordinator → creative → reviewers path (P9.2) |
+| `demo_volunteer_subjective_staging.sh` | Maintainer one-command subjective demo (P8.3) |
 | `run_full_staging_verify.sh` / `.ps1` | Full bundle + SSH bootstrap fetch for theebie |
 | `verify_external_contributor.py` | Non-maintainer quickstart |
 | `verify_news_pipeline.py` | Enqueue feed → verified article task |

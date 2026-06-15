@@ -28,8 +28,11 @@ jobs:
       - name: Full staging verify (theebie)
         env:
           AGENTSWARM_BOOTSTRAP_TOKEN: ${{ secrets.AGENTSWARM_BOOTSTRAP_TOKEN }}
+          AGENTSWARM_ASSIGNMENT_SECRET: ${{ secrets.AGENTSWARM_ASSIGNMENT_SECRET }}
           AGENTSWARM_VERIFY_FULL: "1"
           AGENTSWARM_EXPECT_DISPATCH: "1"
           AGENTSWARM_EXPECT_REGISTRATION_AUTH: "1"
           AGENTSWARM_VERIFY_SKIP_NEWS: "1"
+          AGENTSWARM_VERIFY_SKIP_MCP: "1"
+          AGENTSWARM_VERIFY_SUBJECTIVE_MIN_REVIEWERS: "1"
         run: python scripts/verify_production_staging.py https://theebie.de/agentswarm/api

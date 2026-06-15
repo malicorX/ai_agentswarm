@@ -189,6 +189,24 @@ def verify_production_staging(
             )
             results["creative_appeal"] = appeal_mod.verify_creative_appeal_staging(clean)
 
+            if not _env_flag("AGENTSWARM_VERIFY_SKIP_SUBJECTIVE_DEMO", default=False):
+                if os.environ.get("AGENTSWARM_ASSIGNMENT_SECRET", "").strip():
+                    subjective_mod = _load_script_module(
+                        "verify_volunteer_subjective_staging",
+                        scripts / "verify_volunteer_subjective_staging.py",
+                    )
+                    min_reviewers = int(
+                        os.environ.get("AGENTSWARM_VERIFY_SUBJECTIVE_MIN_REVIEWERS", "1")
+                    )
+                    results["volunteer_subjective"] = (
+                        subjective_mod.verify_volunteer_subjective_staging(
+                            clean,
+                            min_reviewers=min_reviewers,
+                        )
+                    )
+                else:
+                    results["volunteer_subjective"] = "skipped_no_assignment_secret"
+
         if not _env_flag("AGENTSWARM_VERIFY_SKIP_NEWS", default=False):
             news_proc = subprocess.run(
                 [sys.executable, str(scripts / "verify_news_pipeline.py")],

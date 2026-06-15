@@ -495,6 +495,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ Phase 8 close-out — `close_phase8.sh`, tag `v0.9.0-phase8`
 ✅ P9.0 Pending pool need redispatch — idle presence + submit idle retry dispatch
 ✅ P9.1 Reviewer VRAM hardware gates — `vram_gb` on presence, dispatcher filter
+✅ P9.2 Weekly subjective demo in CI — `verify_volunteer_subjective_staging.py`
 ```
 
 ---
@@ -507,6 +508,16 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 |----|---------|--------|------------|
 | **P9.0** | Pending pool need redispatch | ✅ Done | P6.2, P8.3 |
 | **P9.1** | Reviewer VRAM hardware gates | ✅ Done | P7.6, P8.0 |
+| **P9.2** | Weekly subjective demo in CI | ✅ Done | P8.3, P9.1 |
+
+### P9.2 — Weekly subjective demo in CI
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Run live volunteer subjective path in full staging verify + weekly GitHub Actions |
+| **In scope** | `verify_volunteer_subjective_staging.py`, wire into `verify_production_staging.py` full mode, `verify-staging-full.yml` secret |
+| **Verification** | `python -m pytest platform/tests/test_verify_volunteer_subjective_staging.py -q` · `bash scripts/run_full_staging_verify.sh` |
+| **Acceptance** | Full verify runs demo when `AGENTSWARM_ASSIGNMENT_SECRET` is set; CI uses repo secret |
 
 ### P9.1 — Reviewer VRAM hardware gates
 
