@@ -23,7 +23,7 @@ Goal: closed swarm of trusted agents producing the first AI News Hub version.
   - [x] Local preview script `scripts/preview_pilot_site.ps1`
   - [x] Host pilot static site on theebie.de (`/sites/agentswarm/`) + record live URL → https://theebie.de/sites/agentswarm
   - [ ] (Optional) GitHub Pages for forks — enable in repo settings + record URL
-  - [ ] Optional: platform on VPS with HTTPS
+  - [x] Optional: platform on VPS with HTTPS → staging https://theebie.de/agentswarm/api
 - [x] CI workflow (lint + tests)
 - [x] Phase 0 close-out tag `v0.1.0-phase0` → [P0.9](execution-plan.md#p09--phase-0-close-out)
 
@@ -123,4 +123,5 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P6.7** | Coordinator decomposition | Done |
 | **P6.8** | Production volunteer client (.exe) | Done |
 | **P6.9** | Git-backed coder capsule | Done |
+| **P6.10** | Staging API on theebie.de (`/agentswarm/api`) | Done → https://theebie.de/agentswarm/api |
 | **P5.0** | Production platform API (VPS, HTTPS, backups) | Not started |

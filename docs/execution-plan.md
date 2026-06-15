@@ -297,7 +297,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P6.7  Coordinator decomposition (`pool_needs` + deferred reviewer needs from coordinator plan)
 ✅ P6.8  Volunteer client shell (`agentswarm-volunteer`, `scripts/build_volunteer_exe.ps1`)
 ✅ P6.9  Git-backed coder capsule (`PATCH /projects/{id}/repo`, `POST .../git/patches`)
-→  P6.10 Staging API on theebie.de
+✅ P6.10 Staging API on theebie.de → https://theebie.de/agentswarm/api (`scripts/deploy_platform_theebie.sh`)
 ```
 
 ---

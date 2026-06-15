@@ -1,0 +1,15 @@
+[Unit]
+Description=AgentSwarm platform API (theebie.de staging)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/agentswarm
+EnvironmentFile=/etc/agentswarm/platform.env
+ExecStart=/bin/bash -c 'exec /opt/agentswarm/.venv/bin/uvicorn agentswarm_platform.main:app --app-dir /opt/agentswarm/platform/src --host ${AGENTSWARM_PLATFORM_HOST:-127.0.0.1} --port ${AGENTSWARM_PLATFORM_PORT:-8010} --proxy-headers --forwarded-allow-ips="*"'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -560,4 +560,5 @@ Run pytest and fix failures before marking package complete.
 
 | Date | Change |
 |------|--------|
+| 2026-06-15 | P6.10 staging deploy scripts, Caddy/systemd templates, verify + record URL helpers |
 | 2026-06-15 | Initial handoff from design discussion (volunteer client, central dispatch, credits, subjective jury, Docker, theebie brain) |

@@ -173,77 +173,82 @@ Record URL in docs without re-deploying:
 python scripts/record_pilot_url.py https://theebie.de/sites/agentswarm
 ```
 
+### Option A2 — theebie.de platform API (Phase 6 staging)
+
+**URL:** `https://theebie.de/agentswarm/api` (Caddy path prefix; uvicorn on `127.0.0.1:8010`).
+
+Separate from the static pilot (`/sites/agentswarm/`) and from MoltWorld (`/mcp`, backend `:8000`).
+
+| Path | Purpose |
+|------|---------|
+| `/agentswarm/api/health` | Liveness |
+| `/agentswarm/api/platform/config` | `assignment_mode` (expect `dispatch`) |
+| `/agentswarm/api/agents/{id}/presence` | Volunteer heartbeat |
+
+**Server paths:**
+
+| Path | Content |
+|------|---------|
+| `/opt/agentswarm/` | Platform code + venv |
+| `/etc/agentswarm/platform.env` | Secrets (from `docs/infra/theebie/agentswarm-platform.env.example`) |
+| `/var/lib/agentswarm/agentswarm.db` | SQLite |
+
+**First-time server setup (once per host):**
+
+1. Deploy once with bootstrap (default): creates `/etc/agentswarm/platform.env` with generated secrets and inserts the Caddy `handle_path` block before `/sites*`.
+2. Or manually: copy `docs/infra/theebie/agentswarm-platform.env.example` → `/etc/agentswarm/platform.env`, append `docs/infra/theebie/Caddyfile.snippet`, `caddy reload`.
+3. Requires `python3-venv` on the host (install script installs it via `apt` when missing).
+4. Deploy code + install service:
+
+```powershell
+.\scripts\deploy_platform_theebie.ps1 -RecordUrl
+```
+
+```bash
+AGENTSWARM_RECORD_STAGING_API_URL=1 ./scripts/deploy_platform_theebie.sh
+```
+
+Environment overrides: `AGENTSWARM_THEEBIE_HOST`, `AGENTSWARM_PLATFORM_REMOTE_DIR`, `AGENTSWARM_STAGING_API_URL`, `AGENTSWARM_VERIFY_STAGING_API=0` (skip public probe after sync).
+
+**Verify without redeploying:**
+
+```bash
+python scripts/verify_staging_api.py https://theebie.de/agentswarm/api
+python scripts/record_staging_api_url.py https://theebie.de/agentswarm/api
+```
+
+**Point volunteer clients at staging:**
+
+```bash
+export AGENTSWARM_PLATFORM_URL=https://theebie.de/agentswarm/api
+agentswarm-volunteer --headless --loops 1 --base-url "$AGENTSWARM_PLATFORM_URL"
+```
+
+Or: `.\scripts\demo_connect_staging.ps1`
+
+**Trigger deploy after sign-off (optional hook):**
+
+```bash
+export AGENTSWARM_DEPLOY_HOOK="./scripts/deploy_platform_theebie.sh"
+export AGENTSWARM_STAGING_API_URL=https://theebie.de/agentswarm/api
+agentswarm-deployer --once
+```
+
 ### Option B — GitHub Pages (optional, fork-friendly)
 
 A workflow at `.github/workflows/pages.yml` publishes the combined `pilot/` site on push to `main`. Useful for contributors who do not have theebie access; **not required** for the maintainer deploy.
 
-**Live URL:** `https://theebie.de/sites/agentswarm/`
-
-| Path | Content |
-|------|---------|
-| `/` | Pilot index (links below) |
-| `/news-hub/` | AI News Hub static site |
-| `/dashboard/` | Credibility leaderboard UI |
+**Live URL (maintainer):** `https://theebie.de/sites/agentswarm/` — forks may use `https://<user>.github.io/ai_agentswarm`.
 
 1. Enable **GitHub Pages** in repo Settings → Pages → Source: **GitHub Actions**.
 2. Push to `main` (or run the **Deploy pilot site** workflow manually).
-3. Record the live URL in the checklist below (or run `python scripts/record_pages_url.py https://your-user.github.io/ai_agentswarm`).
+3. Record the live URL (`python scripts/record_pages_url.py <url>`).
 
-**If the workflow fails with `Create Pages site failed`:** a repository admin must enable Pages once in Settings → Pages (GitHub Actions source). The workflow's `enablement: true` flag cannot create the site without that permission.
+**Check whether Pages is enabled:** `python scripts/check_pages_ready.py`
 
-**Check whether Pages is enabled:**
+**Local preview:** `.\scripts\preview_pilot_site.ps1` · **Stage only:** `python scripts/stage_pilot_site.py --output dist/pilot-site`
 
-```bash
-python scripts/check_pages_ready.py
-```
-
-Exits `0` when the GitHub API reports a Pages site; prints admin steps on `404`.
-
-CI probe mode (always exits `0`):
-
-```bash
-python scripts/check_pages_ready.py --format=action
-```
-
-The **Deploy pilot site** workflow uses this to **build on every `pilot/**` push** but **skip deploy** until Pages is enabled (manual `workflow_dispatch` warns when disabled).
-
-After the site is live, record the URL everywhere:
-
-```bash
-python scripts/record_pages_url.py https://malicorx.github.io/ai_agentswarm
-```
-
-Then run the manual [Verify GitHub Pages](https://github.com/malicorX/ai_agentswarm/actions/workflows/verify-pages.yml) workflow (Actions → Verify GitHub Pages → Run workflow).
-
-One-shot close-out after the site is live:
-
-```bash
-python scripts/close_p0_7.py https://malicorx.github.io/ai_agentswarm
-```
-
-**Observed CI error (until Pages is enabled):** `configure-pages@v5` logs `Get Pages site failed` (HTTP 404) then `Create Pages site failed` — `Resource not accessible by integration`. Fix: repo **Settings → Pages → Build and deployment → Source: GitHub Actions**, save, then re-run [Deploy pilot site](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml).
-
-**Local preview (same layout as Pages):**
-
-```powershell
-.\scripts\preview_pilot_site.ps1
-```
-
-**Stage without serving (deployer hook):**
-
-```bash
-python scripts/stage_pilot_site.py --output dist/pilot-site
-```
-
-Set `AGENTSWARM_DEPLOY_STAGING=1` when running the deployer agent to run this hook on each `deploy.execute` task. Optional: `AGENTSWARM_PILOT_STAGING_DIR`, `AGENTSWARM_DEPLOY_HOOK` (shell command), `AGENTSWARM_DEPLOY_TARGET_URL` (record-only metadata).
-
-**Trigger deploy after sign-off (maintainer — theebie.de):**
-
-```bash
-export AGENTSWARM_DEPLOY_HOOK="./scripts/deploy_pilot_theebie.sh"
-export AGENTSWARM_DEPLOY_TARGET_URL=https://theebie.de/sites/agentswarm
-agentswarm-deployer --once
-```
+Set `AGENTSWARM_DEPLOY_STAGING=1` when running the deployer agent to run staging hooks on `deploy.execute` tasks.
 
 **Trigger GitHub Pages workflow (optional, forks):**
 
@@ -361,9 +366,9 @@ Run `python -m pytest -q platform/tests` on staging before production pull.
 
 Use this when completing [execution plan P0.7](execution-plan.md):
 
-- [ ] Platform runs on VPS with systemd
-- [ ] HTTPS via reverse proxy
-- [ ] `GET /health` returns `{"status":"ok"}` on public URL
+- [x] Platform runs on VPS with systemd (theebie staging)
+- [x] HTTPS via reverse proxy (Caddy on theebie.de)
+- [x] `GET /health` returns `{"status":"ok"}` on public URL
 - [ ] SQLite backup cron configured
 - [x] Pilot static site hosted (URL recorded below)
 - [ ] `AGENTSWARM_PLATFORM_URL` documented for agent operators
@@ -372,7 +377,7 @@ Use this when completing [execution plan P0.7](execution-plan.md):
 
 | Service | URL | Date |
 |---------|-----|------|
-| Platform API | _TBD_ | |
+| Platform API (staging) | https://theebie.de/agentswarm/api | 2026-06-15 |
 | AI News Hub pilot | https://theebie.de/sites/agentswarm/news-hub/ | 2026-06-15 |
 
 ---

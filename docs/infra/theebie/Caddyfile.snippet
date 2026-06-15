@@ -1,0 +1,13 @@
+# Append inside the theebie.de site block (alongside /sites* and MoltWorld).
+# Port 8010 avoids MoltWorld backend on :8000.
+#
+# Path-prefix staging API (no extra DNS):
+handle_path /agentswarm/api/* {
+	uri strip_prefix /agentswarm/api
+	reverse_proxy 127.0.0.1:8010
+}
+
+# Optional subdomain (requires DNS A/AAAA for api.agentswarm.theebie.de):
+# api.agentswarm.theebie.de {
+# 	reverse_proxy 127.0.0.1:8010
+# }
