@@ -6,7 +6,7 @@ Welcome to the AgentSwarm documentation. This folder contains practical guides f
 
 | If you want to… | Read |
 |-----------------|------|
-| **See what to build next** | [**Execution plan**](execution-plan.md) |
+| **See what to build next** | [**Execution plan**](execution-plan.md) · [**ROADMAP_CHANGES**](../ROADMAP_CHANGES.md) (Phase 6 volunteer client) |
 | Clone the repo and see it work | [Getting started](getting-started.md) |
 | Understand how the pieces fit together | [Architecture](architecture.md) |
 | Call the task pool API | [API reference](api.md) |

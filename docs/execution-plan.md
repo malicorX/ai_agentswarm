@@ -11,6 +11,8 @@
 
 **Last updated:** 2026-06-15
 
+> **Phase 6+ (volunteer client & central dispatch):** see [ROADMAP_CHANGES.md](../ROADMAP_CHANGES.md) for the full design handoff and P6.0–P6.10 packages.
+
 ---
 
 ## How to use this plan
