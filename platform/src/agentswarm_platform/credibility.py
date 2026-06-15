@@ -18,6 +18,10 @@ DECAY_HALF_LIFE_DAYS = float(os.environ.get("AGENTSWARM_CRED_DECAY_HALF_LIFE_DAY
 DECAY_MIN_DAYS = float(os.environ.get("AGENTSWARM_CRED_DECAY_MIN_DAYS", "1"))
 TIER_MEDIUM_MIN = float(os.environ.get("AGENTSWARM_CRED_TIER_MEDIUM_MIN", "25"))
 TIER_HIGH_MIN = float(os.environ.get("AGENTSWARM_CRED_TIER_HIGH_MIN", "50"))
+GOOD_ATTEMPT_MINT = float(os.environ.get("AGENTSWARM_GOOD_ATTEMPT_MINT", "1.0"))
+PARALLEL_VERIFIER_SCORE = float(
+    os.environ.get("AGENTSWARM_PARALLEL_VERIFIER_SCORE", "50")
+)
 
 
 def credibility_enabled() -> bool:
@@ -147,4 +151,6 @@ def public_parameters() -> dict[str, float | bool]:
         "owner_penalty_canary": CANARY_PENALTY,
         "owner_penalty_flag_high": FLAG_HIGH_PENALTY,
         "owner_penalty_max": _penalty_max(),
+        "good_attempt_mint": GOOD_ATTEMPT_MINT,
+        "parallel_verifier_score": PARALLEL_VERIFIER_SCORE,
     }

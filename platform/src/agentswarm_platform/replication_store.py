@@ -4,12 +4,12 @@ import json
 import sqlite3
 from typing import Any
 
+from agentswarm_platform.credibility_ledger import apply_parallel_group_credibility
 from agentswarm_platform.replication import (
     evaluate_quorum,
-    parse_replication_config,
     result_fingerprint,
     shared_replication_payload,
-    validate_classifier_result,
+    validate_parallel_result,
 )
 
 
@@ -27,16 +27,29 @@ def ensure_replication_schema(conn: sqlite3.Connection) -> None:
             winning_fingerprint TEXT,
             winning_result TEXT,
             created_at TEXT NOT NULL,
-            resolved_at TEXT
+            resolved_at TEXT,
+            parallel_kind TEXT NOT NULL DEFAULT 'replication',
+            good_attempt_mint REAL NOT NULL DEFAULT 0
         );
         """
     )
     columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(replication_groups)").fetchall()
+    }
+    if "parallel_kind" not in columns:
+        conn.execute(
+            "ALTER TABLE replication_groups ADD COLUMN parallel_kind TEXT NOT NULL DEFAULT 'replication'"
+        )
+    if "good_attempt_mint" not in columns:
+        conn.execute(
+            "ALTER TABLE replication_groups ADD COLUMN good_attempt_mint REAL NOT NULL DEFAULT 0"
+        )
+    task_columns = {
         row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
     }
-    if "replication_group_id" not in columns:
+    if "replication_group_id" not in task_columns:
         conn.execute("ALTER TABLE tasks ADD COLUMN replication_group_id TEXT")
-    if "replication_slot" not in columns:
+    if "replication_slot" not in task_columns:
         conn.execute("ALTER TABLE tasks ADD COLUMN replication_slot INTEGER")
 
 
@@ -48,6 +61,7 @@ def get_replication_group(
     ).fetchone()
     if row is None:
         return None
+    keys = row.keys()
     tasks = conn.execute(
         """
         SELECT task_id, status, replication_slot, claimed_by,
@@ -77,6 +91,10 @@ def get_replication_group(
         "slots": row["slots"],
         "quorum": row["quorum"],
         "status": row["status"],
+        "parallel_kind": row["parallel_kind"] if "parallel_kind" in keys else "replication",
+        "good_attempt_mint": float(row["good_attempt_mint"])
+        if "good_attempt_mint" in keys
+        else 0.0,
         "winning_result": json.loads(row["winning_result"])
         if row["winning_result"]
         else None,
@@ -114,8 +132,7 @@ def record_replication_submit(
     payload: dict[str, Any],
     result: dict[str, Any],
 ) -> dict[str, Any]:
-    if task_type == "classifier.label":
-        validate_classifier_result(payload, result)
+    validate_parallel_result(task_type, payload, result)
     group = conn.execute(
         "SELECT * FROM replication_groups WHERE group_id = ?", (group_id,)
     ).fetchone()
@@ -141,8 +158,12 @@ def record_replication_submit(
     if evaluation.status == "pending":
         return {"status": "pending", "fingerprint_counts": evaluation.counts}
 
-    from agentswarm_platform.models import TaskStatus, utc_now_iso
+    from agentswarm_platform.models import utc_now_iso
 
+    keys = group.keys()
+    good_attempt_mint = (
+        float(group["good_attempt_mint"]) if "good_attempt_mint" in keys else 0.0
+    )
     resolved_at = utc_now_iso()
     if evaluation.status == "quorum_met":
         conn.execute(
@@ -165,6 +186,7 @@ def record_replication_submit(
             task_type=task_type,
             winning_fingerprint=evaluation.winning_fingerprint,
             disputed=False,
+            good_attempt_mint=good_attempt_mint,
         )
         return {
             "status": "quorum_met",
@@ -186,6 +208,7 @@ def record_replication_submit(
         task_type=task_type,
         winning_fingerprint=None,
         disputed=True,
+        good_attempt_mint=good_attempt_mint,
     )
     return {"status": "disputed", "fingerprint_counts": evaluation.counts}
 
@@ -197,6 +220,7 @@ def _finalize_replication_tasks(
     task_type: str,
     winning_fingerprint: str | None,
     disputed: bool,
+    good_attempt_mint: float,
 ) -> None:
     from agentswarm_platform.models import TaskStatus
 
@@ -228,6 +252,15 @@ def _finalize_replication_tasks(
             "UPDATE tasks SET status = ? WHERE task_id = ?",
             (new_status, task["task_id"]),
         )
+
+    apply_parallel_group_credibility(
+        conn,
+        group_id=group_id,
+        task_type=task_type,
+        winning_fingerprint=winning_fingerprint,
+        disputed=disputed,
+        good_attempt_mint=good_attempt_mint,
+    )
 
 
 def agent_already_in_group(

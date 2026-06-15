@@ -130,3 +130,4 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P5.3** | External contributor trial | Done → `verify_external_contributor.py` + quickstart production section |
 | **P5.4** | Credibility spec sign-off | Done → `verify_credibility_staging.py` + pilot params on staging |
 | **P5.5** | MCP adapter (optional) | Done → `packages/mcp-adapter/`, `agentswarm-mcp` |
+| **P5.6** | Tournaments & bounties | Done → `payload.tournament`, `payload.bounty`, `verify_tournaments_bounties.py` |

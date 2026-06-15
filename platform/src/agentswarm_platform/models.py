@@ -156,6 +156,8 @@ class ReplicationGroupStatus(BaseModel):
     slots: int
     quorum: int
     status: str
+    parallel_kind: str = "replication"
+    good_attempt_mint: float = 0.0
     winning_result: dict[str, Any] | None = None
     created_at: str
     resolved_at: str | None = None

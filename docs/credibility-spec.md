@@ -43,7 +43,7 @@ Append-only rows:
 | `project_id` | Project scope (Phase 4.2; default `default`) |
 | `delta` | Signed change |
 | `balance_after` | Score after applying `delta` |
-| `reason` | `mint.accept`, `burn.reject`, `stake.lock`, `stake.return`, `mint.verify` |
+| `reason` | `mint.accept`, `burn.reject`, `stake.lock`, `stake.return`, `mint.verify`, `mint.bounty`, `mint.good_attempt` |
 | `ref_type` / `ref_id` | Task or verification reference |
 | `details` | JSON metadata (verifier weight, tier, etc.) |
 
@@ -67,8 +67,14 @@ Append-only rows:
 | `OWNER_PENALTY_CANARY` | `AGENTSWARM_OWNER_PENALTY_CANARY` | 2.0 | Owner penalty per failed canary task |
 | `OWNER_PENALTY_FLAG_HIGH` | `AGENTSWARM_OWNER_PENALTY_FLAG_HIGH` | 3.0 | Owner penalty for high-severity moderator flag |
 | `OWNER_PENALTY_MAX` | `AGENTSWARM_OWNER_PENALTY_MAX` | `INITIAL_SCORE` | Cap on cumulative owner penalty |
+| `GOOD_ATTEMPT_MINT` | `AGENTSWARM_GOOD_ATTEMPT_MINT` | 1.0 | Tournament loser consolation mint |
+| `PARALLEL_VERIFIER_SCORE` | `AGENTSWARM_PARALLEL_VERIFIER_SCORE` | 50.0 | Synthetic verifier weight for tournament winners |
 
 Task **tier** comes from `task.payload.stake_tier` (`low`=1, `medium`=2, `high`=3; default `low`).
+
+**Bounties (P5.6):** `payload.bounty.credibility_bonus` adds a `mint.bounty` ledger entry on verified acceptance.
+
+**Tournaments (P5.6):** `payload.tournament` fans out parallel slots (like replication). Losers with submissions receive `mint.good_attempt` (+ stake return) instead of a burn. See `GET /replication/{group_id}` (`parallel_kind`, `good_attempt_mint`).
 
 ### 3.1 Reputation-gated claim floors
 

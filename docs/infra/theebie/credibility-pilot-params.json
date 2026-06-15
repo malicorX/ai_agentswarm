@@ -17,5 +17,6 @@
   "owner_penalty_quarantine": 5.0,
   "owner_penalty_canary": 2.0,
   "owner_penalty_flag_high": 3.0,
-  "owner_penalty_max": 10.0
+  "good_attempt_mint": 1.0,
+  "parallel_verifier_score": 50.0
 }

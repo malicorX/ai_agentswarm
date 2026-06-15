@@ -31,6 +31,12 @@ def main() -> None:
     article.add_argument("--source", required=True)
     article.add_argument("--topics", default="", help="Comma-separated topics")
     article.add_argument("--published-at", dest="published_at", default=None)
+    article.add_argument(
+        "--bounty",
+        type=float,
+        default=None,
+        help="Extra credibility bonus on verified acceptance",
+    )
 
     args = parser.parse_args()
     base_url = os.environ.get("AGENTSWARM_PLATFORM_URL", "http://127.0.0.1:8000")
@@ -61,6 +67,8 @@ def main() -> None:
                 }
             },
         }
+        if args.bounty is not None:
+            body["payload"]["bounty"] = {"credibility_bonus": args.bounty}
 
     response = httpx.post(
         f"{base_url.rstrip('/')}/tasks",

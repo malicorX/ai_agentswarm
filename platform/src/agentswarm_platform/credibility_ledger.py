@@ -5,8 +5,10 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any
 
+from agentswarm_platform.bounty import parse_bounty_bonus
 from agentswarm_platform.credibility import (
     INITIAL_SCORE,
+    PARALLEL_VERIFIER_SCORE,
     agent_meets_stake_tier,
     compute_outcome_deltas,
     credibility_enabled,
@@ -450,7 +452,8 @@ def apply_task_outcome(
     *,
     parent_task_row: sqlite3.Row,
     verdict: str,
-    reviewer_agent_id: str,
+    reviewer_agent_id: str | None,
+    award_reviewer: bool = True,
 ) -> None:
     if not credibility_enabled():
         return
@@ -461,7 +464,10 @@ def apply_task_outcome(
     submitter_id = parent_task_row["claimed_by"]
     submitter_cap = parent_task_row["capability_required"]
     stake = float(parent_task_row["stake_amount"] or 0.0)
-    verifier_score = get_balance(conn, reviewer_agent_id, "reviewer", project_id)
+    if reviewer_agent_id:
+        verifier_score = get_balance(conn, reviewer_agent_id, "reviewer", project_id)
+    else:
+        verifier_score = PARALLEL_VERIFIER_SCORE
     deltas = compute_outcome_deltas(
         accepted=accepted,
         submitter_capability=submitter_cap,
@@ -499,6 +505,19 @@ def apply_task_outcome(
                 "project_id": project_id,
             },
         )
+        bounty_bonus = parse_bounty_bonus(payload)
+        if bounty_bonus > 0:
+            _apply_delta(
+                conn,
+                agent_id=submitter_id,
+                capability=submitter_cap,
+                project_id=project_id,
+                delta=bounty_bonus,
+                reason="mint.bounty",
+                ref_type="task",
+                ref_id=parent_task_row["task_id"],
+                details={"bonus": bounty_bonus, "project_id": project_id},
+            )
     elif not accepted:
         _apply_delta(
             conn,
@@ -512,17 +531,159 @@ def apply_task_outcome(
             details={"tier": tier, "burn": deltas.burn, "project_id": project_id},
         )
 
+    if award_reviewer and reviewer_agent_id:
+        _apply_delta(
+            conn,
+            agent_id=reviewer_agent_id,
+            capability="reviewer",
+            project_id=project_id,
+            delta=deltas.reviewer_delta,
+            reason="mint.verify",
+            ref_type="task",
+            ref_id=parent_task_row["task_id"],
+            details={"verdict": verdict, "project_id": project_id},
+        )
+
+
+def apply_good_attempt_reward(
+    conn: sqlite3.Connection,
+    *,
+    task_row: sqlite3.Row,
+    amount: float,
+) -> None:
+    if not credibility_enabled() or amount <= 0:
+        return
+    project_id = project_id_from_task_row(task_row)
+    submitter_id = task_row["claimed_by"]
+    capability = task_row["capability_required"]
+    stake = float(task_row["stake_amount"] or 0.0)
+    if stake > 0:
+        _apply_delta(
+            conn,
+            agent_id=submitter_id,
+            capability=capability,
+            project_id=project_id,
+            delta=stake,
+            reason="stake.return",
+            ref_type="task",
+            ref_id=task_row["task_id"],
+            details={"stake": stake, "project_id": project_id},
+        )
     _apply_delta(
         conn,
-        agent_id=reviewer_agent_id,
-        capability="reviewer",
+        agent_id=submitter_id,
+        capability=capability,
         project_id=project_id,
-        delta=deltas.reviewer_delta,
-        reason="mint.verify",
+        delta=amount,
+        reason="mint.good_attempt",
         ref_type="task",
-        ref_id=parent_task_row["task_id"],
-        details={"verdict": verdict, "project_id": project_id},
+        ref_id=task_row["task_id"],
+        details={"amount": amount, "project_id": project_id},
     )
+
+
+def apply_parallel_winner_outcome(
+    conn: sqlite3.Connection,
+    *,
+    task_row: sqlite3.Row,
+    verifier_score: float = PARALLEL_VERIFIER_SCORE,
+) -> None:
+    if not credibility_enabled():
+        return
+    project_id = project_id_from_task_row(task_row)
+    payload = json.loads(task_row["payload"])
+    tier = task_stake_tier(payload)
+    submitter_id = task_row["claimed_by"]
+    submitter_cap = task_row["capability_required"]
+    stake = float(task_row["stake_amount"] or 0.0)
+    deltas = compute_outcome_deltas(
+        accepted=True,
+        submitter_capability=submitter_cap,
+        task_tier=tier,
+        stake=stake,
+        verifier_score=verifier_score,
+    )
+    if stake > 0:
+        _apply_delta(
+            conn,
+            agent_id=submitter_id,
+            capability=submitter_cap,
+            project_id=project_id,
+            delta=stake,
+            reason="stake.return",
+            ref_type="task",
+            ref_id=task_row["task_id"],
+            details={"stake": stake, "project_id": project_id},
+        )
+    _apply_delta(
+        conn,
+        agent_id=submitter_id,
+        capability=submitter_cap,
+        project_id=project_id,
+        delta=deltas.mint,
+        reason="mint.accept",
+        ref_type="task",
+        ref_id=task_row["task_id"],
+        details={
+            "tier": tier,
+            "verifier_score": verifier_score,
+            "mint": deltas.mint,
+            "project_id": project_id,
+            "parallel": True,
+        },
+    )
+    bounty_bonus = parse_bounty_bonus(payload)
+    if bounty_bonus > 0:
+        _apply_delta(
+            conn,
+            agent_id=submitter_id,
+            capability=submitter_cap,
+            project_id=project_id,
+            delta=bounty_bonus,
+            reason="mint.bounty",
+            ref_type="task",
+            ref_id=task_row["task_id"],
+            details={"bonus": bounty_bonus, "project_id": project_id},
+        )
+
+
+def apply_parallel_group_credibility(
+    conn: sqlite3.Connection,
+    *,
+    group_id: str,
+    task_type: str,
+    winning_fingerprint: str | None,
+    disputed: bool,
+    good_attempt_mint: float,
+) -> None:
+    if not credibility_enabled():
+        return
+    tasks = conn.execute(
+        """
+        SELECT * FROM tasks
+        WHERE replication_group_id = ? AND submission_result IS NOT NULL
+        """,
+        (group_id,),
+    ).fetchall()
+    from agentswarm_platform.models import TaskStatus
+    from agentswarm_platform.replication import result_fingerprint
+
+    for task in tasks:
+        if task["status"] not in (
+            TaskStatus.VERIFIED.value,
+            TaskStatus.REJECTED.value,
+        ):
+            continue
+        result = json.loads(task["submission_result"])
+        fp = result_fingerprint(task_type, result)
+        if disputed:
+            if good_attempt_mint > 0:
+                apply_good_attempt_reward(conn, task_row=task, amount=good_attempt_mint)
+            continue
+        if winning_fingerprint and fp == winning_fingerprint:
+            apply_parallel_winner_outcome(conn, task_row=task)
+        elif good_attempt_mint > 0:
+            apply_good_attempt_reward(conn, task_row=task, amount=good_attempt_mint)
 
 
 def _apply_delta(

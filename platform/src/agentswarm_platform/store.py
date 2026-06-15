@@ -755,8 +755,8 @@ class Store:
                 """
                 INSERT INTO replication_groups (
                     group_id, task_type, capability_required, payload,
-                    slots, quorum, status, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    slots, quorum, status, created_at, parallel_kind, good_attempt_mint
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     group_id,
@@ -767,6 +767,8 @@ class Store:
                     config.quorum,
                     "pending",
                     created_at,
+                    config.kind,
+                    config.good_attempt_mint,
                 ),
             )
             for slot in range(config.slots):
@@ -818,6 +820,8 @@ class Store:
                     "task_type": task_type,
                     "slots": config.slots,
                     "quorum": config.quorum,
+                    "parallel_kind": config.kind,
+                    "good_attempt_mint": config.good_attempt_mint,
                 },
             )
         assert first_envelope is not None

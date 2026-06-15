@@ -309,6 +309,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python scripts/verify_mcp_adapter.py` |
 | **Acceptance** | Eight ADR-mapped tools registered; optional live `/health` smoke |
 
+### P5.6 — Tournaments & bounties
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Parallel attempts with loser consolation; extra credibility on valuable tasks |
+| **In scope** | `payload.tournament`, `payload.bounty`, credibility hooks, `verify_tournaments_bounties.py` |
+| **Verification** | `python scripts/verify_tournaments_bounties.py` |
+| **Acceptance** | Tournament quorum → winners mint accept, losers mint good_attempt; bounty adds mint on verify |
+
 ---
 
 ## Current focus
@@ -331,7 +340,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.3 External contributor trial (`verify_external_contributor.py`)
 ✅ P5.4 Credibility spec sign-off (`verify_credibility_staging.py`)
 ✅ P5.5 MCP adapter (`packages/mcp-adapter/`, `agentswarm-mcp`)
-→  P5.6 Tournaments & bounties
+✅ P5.6 Tournaments & bounties (`payload.tournament`, `payload.bounty`)
+→  P5.7 Agent versioning
 ```
 
 ---
