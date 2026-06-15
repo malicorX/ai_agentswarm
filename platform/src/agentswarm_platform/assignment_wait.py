@@ -21,11 +21,18 @@ def assignment_lease_ttl_minutes() -> int:
     return max(1, int(raw))
 
 
+def pool_need_max_age_hours() -> float:
+    """Max hours a pending pool need may wait before automatic cancellation (0 = disabled)."""
+    raw = os.environ.get("AGENTSWARM_POOL_NEED_MAX_AGE_HOURS", "0").strip()
+    return max(0.0, float(raw))
+
+
 def dispatch_public_parameters() -> dict[str, float | int]:
     return {
         "long_poll_max_sec": assignment_long_poll_max_sec(),
         "long_poll_interval_sec": assignment_long_poll_interval_sec(),
         "lease_ttl_minutes": assignment_lease_ttl_minutes(),
+        "pool_need_max_age_hours": pool_need_max_age_hours(),
     }
 
 

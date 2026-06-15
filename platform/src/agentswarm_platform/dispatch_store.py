@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from agentswarm_platform.assignment_signing import sign_assignment
+from agentswarm_platform.assignment_wait import pool_need_max_age_hours
 from agentswarm_platform.hardware_gates import agent_meets_reviewer_hardware
 from agentswarm_platform.presence_store import evict_stale_presence, presence_is_fresh
 
@@ -442,6 +443,41 @@ def reconcile_assigned_pool_needs_without_active_lease(
     return reconciled
 
 
+def expire_stale_pending_pool_needs(
+    conn: sqlite3.Connection,
+    *,
+    now: datetime | None = None,
+) -> list[str]:
+    """Cancel pending pool needs older than AGENTSWARM_POOL_NEED_MAX_AGE_HOURS."""
+    max_age_hours = pool_need_max_age_hours()
+    if max_age_hours <= 0:
+        return []
+    resolved_now = (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    cutoff = (resolved_now - timedelta(hours=max_age_hours)).isoformat()
+    rows = conn.execute(
+        """
+        SELECT need_id
+        FROM pool_needs
+        WHERE status = 'pending' AND created_at < ?
+        ORDER BY created_at ASC
+        """,
+        (cutoff,),
+    ).fetchall()
+    cancelled: list[str] = []
+    for row in rows:
+        need_id = str(row["need_id"])
+        conn.execute(
+            """
+            UPDATE pool_needs
+            SET status = 'cancelled', assigned_agent_id = NULL, lease_id = NULL
+            WHERE need_id = ? AND status = 'pending'
+            """,
+            (need_id,),
+        )
+        cancelled.append(need_id)
+    return cancelled
+
+
 def maintain_dispatch_pool(
     conn: sqlite3.Connection,
     *,
@@ -452,12 +488,14 @@ def maintain_dispatch_pool(
     stale = reclaim_leases_for_stale_presence(conn, now=now)
     reconciled_needs = reconcile_assigned_pool_needs_without_active_lease(conn)
     reconciled_tasks = reconcile_claimed_tasks_without_active_lease(conn)
+    cancelled_needs = expire_stale_pending_pool_needs(conn, now=now)
     evicted = evict_stale_presence(conn, now=now)
     return {
         "expired_need_ids": expired,
         "stale_need_ids": stale,
         "reconciled_need_ids": reconciled_needs,
         "reconciled_task_ids": reconciled_tasks,
+        "cancelled_need_ids": cancelled_needs,
         "evicted_presence": evicted,
     }
 

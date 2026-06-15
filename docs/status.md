@@ -164,6 +164,8 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P12.11** | Phase 12 close-out | Done → `close_phase12.sh`, tag `v0.13.0-phase12` |
 | **P13.0** | Scoped-only idle redispatch | Done → scoped idle redispatch + poll fallback |
 | **P13.11** | Phase 13 close-out | Done → `close_phase13.sh`, tag `v0.14.0-phase13` |
+| **P14.0** | Stale pending pool-need expiry | In progress → `expire_stale_pending_pool_needs()` |
+| **P14.11** | Phase 14 close-out | Pending → tag `v0.15.0-phase14` |
 
 **Phase 13 close-out:** git tag [`v0.14.0-phase13`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.14.0-phase13) (2026-06-15).
 

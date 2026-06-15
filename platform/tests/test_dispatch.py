@@ -610,6 +610,79 @@ def test_redispatch_skips_backlogged_needs_for_unrelated_capability(
     assert reclaimed["task_id"] == task_id
 
 
+def test_expire_stale_pending_pool_needs(
+    dispatch_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from agentswarm_platform import main as platform_main
+    from agentswarm_platform.dispatch_store import maintain_dispatch_pool
+
+    monkeypatch.setenv("AGENTSWARM_POOL_NEED_MAX_AGE_HOURS", "1")
+    with platform_main.store._conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO pool_needs (
+                need_id, role, capability_required, parent_task_id, task_id,
+                project_id, constraints_json, status, created_at
+            ) VALUES (
+                'need-stale', 'reviewer', 'reviewer', NULL, 'task-stale',
+                'default', '{}', 'pending', '2020-01-01T00:00:00+00:00'
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO pool_needs (
+                need_id, role, capability_required, parent_task_id, task_id,
+                project_id, constraints_json, status, created_at
+            ) VALUES (
+                'need-fresh', 'reviewer', 'reviewer', NULL, 'task-fresh',
+                'default', '{}', 'pending', '2099-01-01T00:00:00+00:00'
+            )
+            """
+        )
+        result = maintain_dispatch_pool(conn)
+        stale = conn.execute(
+            "SELECT status FROM pool_needs WHERE need_id = 'need-stale'"
+        ).fetchone()
+        fresh = conn.execute(
+            "SELECT status FROM pool_needs WHERE need_id = 'need-fresh'"
+        ).fetchone()
+
+    assert "need-stale" in result["cancelled_need_ids"]
+    assert stale["status"] == "cancelled"
+    assert fresh["status"] == "pending"
+
+
+def test_pool_need_max_age_disabled_by_default(
+    dispatch_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from agentswarm_platform import main as platform_main
+    from agentswarm_platform.dispatch_store import maintain_dispatch_pool
+
+    monkeypatch.delenv("AGENTSWARM_POOL_NEED_MAX_AGE_HOURS", raising=False)
+    with platform_main.store._conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO pool_needs (
+                need_id, role, capability_required, parent_task_id, task_id,
+                project_id, constraints_json, status, created_at
+            ) VALUES (
+                'need-old-disabled', 'reviewer', 'reviewer', NULL, 'task-old-disabled',
+                'default', '{}', 'pending', '2020-01-01T00:00:00+00:00'
+            )
+            """
+        )
+        result = maintain_dispatch_pool(conn)
+        row = conn.execute(
+            "SELECT status FROM pool_needs WHERE need_id = 'need-old-disabled'"
+        ).fetchone()
+
+    assert result["cancelled_need_ids"] == []
+    assert row["status"] == "pending"
+
+
 def test_pool_need_include_owners_restricts_dispatch(
     dispatch_client: TestClient,
 ) -> None:

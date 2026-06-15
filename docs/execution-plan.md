@@ -511,6 +511,35 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 ---
 
+## Phase 14 — Staging pool backlog hygiene
+
+**Goal:** Prevent abandoned pending `pool_needs` from accumulating on long-lived staging.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P14.0** | Stale pending pool-need expiry | 🔄 In progress | P13.11 |
+| **P14.11** | Phase 14 close-out | ⬜ Pending | P14.0 |
+
+### P14.0 — Stale pending pool-need expiry
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Cancel pending pool needs older than `AGENTSWARM_POOL_NEED_MAX_AGE_HOURS`; prune script for theebie |
+| **In scope** | `expire_stale_pending_pool_needs()`, `prune_stale_pool_needs.py`, `harden_staging_pool_need_ttl_theebie.sh` |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py -q` · `bash scripts/prune_staging_pool_backlog.sh` |
+| **Acceptance** | Staging pending pool-need count drops after prune; maintain cancels backdated needs in tests |
+
+### P14.11 — Phase 14 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag pool-backlog-hygiene milestone with TTL enforced on theebie |
+| **In scope** | `close_phase14.sh` / `.ps1`, tag `v0.15.0-phase14` |
+| **Verification** | `bash scripts/close_phase14.sh` |
+| **Acceptance** | Close-out bundle green; `pool_need_max_age_hours` exposed on `/platform/config` |
+
+---
+
 ## Phase 13 — Subjective verify hardening
 
 **Goal:** Isolated volunteer subjective demos on staging are not starved or hijacked by generic pool backlog.
