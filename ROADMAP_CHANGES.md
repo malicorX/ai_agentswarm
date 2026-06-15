@@ -529,7 +529,7 @@ Existing endpoints **remain**:
 2. ~~**Model allowlist** format~~ — **Resolved (ADR 0007):** shared `model_allowlist.json` v2 (`in-process`, `docker`, `ollama` localhost); `models` on `/platform/config`.
 3. **Minimum hardware bar** for reviewers (VRAM).
 4. **Coordinator** — single LLM call or multi-step planner.
-5. **Human appeal** path for subjective rejects.
+5. ~~**Human appeal** path for subjective rejects~~ — **Resolved (ADR 0008):** `POST /creative/goals/{id}/appeal` + maintainer `/appeal/resolve`.
 6. ~~**Credit pricing** table per task class~~ — **Resolved (P7.1):** `credit_pricing.py`, `GET /platform/config` → `credits.pricing`, optional `difficulty` on creative goals.
 7. **Forge** — GitHub-first vs forge-agnostic in v1.
 

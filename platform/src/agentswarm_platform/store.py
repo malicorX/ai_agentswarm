@@ -132,10 +132,13 @@ from agentswarm_platform.subjective_store import (
     clear_goal_deferred_pool_needs,
     ensure_subjective_schema,
     get_creative_goal,
+    get_appeal_for_goal,
     insert_creative_goal,
+    insert_goal_appeal,
     insert_subjective_review,
     list_reviews_for_goal,
     resolve_goal,
+    resolve_goal_appeal,
     set_goal_artifact,
     set_goal_deferred_pool_needs,
     weighted_review_score,
@@ -2822,8 +2825,126 @@ class Store:
             if goal is None:
                 return None
             reviews = list_reviews_for_goal(conn, goal_id)
+            appeal = get_appeal_for_goal(conn, goal_id)
         goal["reviews"] = reviews
+        if appeal is not None:
+            goal["appeal"] = appeal
         return goal
+
+    def file_creative_goal_appeal(
+        self,
+        goal_id: str,
+        *,
+        filed_by_agent_id: str,
+        message: str,
+    ) -> dict[str, Any]:
+        with self._conn() as conn:
+            goal = get_creative_goal(conn, goal_id)
+            if goal is None:
+                raise ValueError("goal not found")
+            if goal["status"] != "rejected":
+                raise ValueError("appeals are only allowed for rejected goals")
+            if goal["poster_agent_id"] != filed_by_agent_id:
+                raise ValueError("only the poster agent may file an appeal")
+            if get_appeal_for_goal(conn, goal_id) is not None:
+                raise ValueError("appeal already filed for this goal")
+            appeal_id = insert_goal_appeal(
+                conn,
+                goal_id=goal_id,
+                filed_by_agent_id=filed_by_agent_id,
+                message=message,
+            )
+            self._append_audit(
+                conn,
+                "creative_goal.appeal_filed",
+                filed_by_agent_id,
+                {"goal_id": goal_id, "appeal_id": appeal_id},
+            )
+            appeal = get_appeal_for_goal(conn, goal_id)
+        assert appeal is not None
+        return appeal
+
+    def resolve_creative_goal_appeal(
+        self,
+        goal_id: str,
+        *,
+        decision: str,
+        resolution_note: str | None = None,
+    ) -> dict[str, Any]:
+        decision_norm = decision.strip().lower()
+        if decision_norm not in ("uphold", "overturn"):
+            raise ValueError("decision must be uphold or overturn")
+        with self._conn() as conn:
+            goal = get_creative_goal(conn, goal_id)
+            if goal is None:
+                raise ValueError("goal not found")
+            if goal["status"] != "rejected":
+                raise ValueError("goal is not rejected")
+            appeal = get_appeal_for_goal(conn, goal_id)
+            if appeal is None or appeal["status"] != "pending":
+                raise ValueError("no pending appeal for goal")
+            reviews = list_reviews_for_goal(conn, goal_id)
+            aggregate = float(goal["aggregate_score"] or 0.0)
+            appeal_status = "upheld" if decision_norm == "uphold" else "overturned"
+            resolved = resolve_goal_appeal(
+                conn,
+                goal_id,
+                status=appeal_status,
+                resolution_note=resolution_note,
+            )
+            if decision_norm == "overturn":
+                resolve_goal(
+                    conn,
+                    goal_id,
+                    status="verified",
+                    aggregate_score=aggregate,
+                )
+                if credits_enabled():
+                    self._mint_subjective_reviewer_rewards(
+                        conn, goal_id, reviews, aggregate
+                    )
+                    refund = post_cost("creative.goal")
+                    mint_credits(
+                        conn,
+                        goal["poster_agent_id"],
+                        refund,
+                        reason="appeal_overturn_refund",
+                        ref_type="creative_goal",
+                        ref_id=goal_id,
+                    )
+                self._append_audit(
+                    conn,
+                    "creative_goal.appeal_overturned",
+                    None,
+                    {"goal_id": goal_id, "appeal_id": resolved["appeal_id"]},
+                )
+            else:
+                self._append_audit(
+                    conn,
+                    "creative_goal.appeal_upheld",
+                    None,
+                    {"goal_id": goal_id, "appeal_id": resolved["appeal_id"]},
+                )
+        return resolved
+
+    def _mint_subjective_reviewer_rewards(
+        self,
+        conn: sqlite3.Connection,
+        goal_id: str,
+        reviews: list[dict[str, Any]],
+        aggregate: float,
+    ) -> None:
+        reward = reviewer_reward_for("reviewer.subjective")
+        for review in reviews:
+            mint_credits(
+                conn,
+                review["reviewer_agent_id"],
+                reward,
+                reason="subjective_review",
+                ref_type="creative_goal",
+                ref_id=goal_id,
+                details={"aggregate_score": aggregate, "via": "appeal_overturn"},
+            )
 
     def _emit_pool_need_spec(
         self,
@@ -2959,17 +3080,7 @@ class Store:
         status = "verified" if passed else "rejected"
         resolve_goal(conn, goal_id, status=status, aggregate_score=aggregate)
         if credits_enabled() and passed:
-            reward = reviewer_reward_for("reviewer.subjective")
-            for review in reviews:
-                mint_credits(
-                    conn,
-                    review["reviewer_agent_id"],
-                    reward,
-                    reason="subjective_review",
-                    ref_type="creative_goal",
-                    ref_id=goal_id,
-                    details={"aggregate_score": aggregate},
-                )
+            self._mint_subjective_reviewer_rewards(conn, goal_id, reviews, aggregate)
         self._append_audit(
             conn,
             f"creative_goal.{status}",

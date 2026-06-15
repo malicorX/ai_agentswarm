@@ -294,6 +294,22 @@ class CreativeGoalResponse(BaseModel):
     status: str
 
 
+class CreativeGoalAppealRequest(BaseModel):
+    filed_by_agent_id: str
+    message: str = Field(min_length=10, max_length=4000)
+
+
+class CreativeGoalAppealResolveRequest(BaseModel):
+    decision: str
+    resolution_note: str | None = None
+
+
+class CreativeGoalAppealResponse(BaseModel):
+    appeal_id: str
+    goal_id: str
+    status: str
+
+
 class AgentCreditsResponse(BaseModel):
     agent_id: str
     balance: float

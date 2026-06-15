@@ -32,6 +32,9 @@ from agentswarm_platform.models import (
     CheckpointRequest,
     ClaimRequest,
     ClaimResponse,
+    CreativeGoalAppealRequest,
+    CreativeGoalAppealResolveRequest,
+    CreativeGoalAppealResponse,
     CreativeGoalRequest,
     CreativeGoalResponse,
     GitArtifactEnvelope,
@@ -467,6 +470,48 @@ def get_creative_goal(goal_id: str) -> dict:
     if goal is None:
         raise HTTPException(status_code=404, detail="goal not found")
     return goal
+
+
+@app.post("/creative/goals/{goal_id}/appeal", response_model=CreativeGoalAppealResponse)
+def file_creative_goal_appeal(
+    goal_id: str,
+    body: CreativeGoalAppealRequest,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> CreativeGoalAppealResponse:
+    try:
+        appeal = store.file_creative_goal_appeal(
+            goal_id,
+            filed_by_agent_id=body.filed_by_agent_id,
+            message=body.message,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CreativeGoalAppealResponse(
+        appeal_id=appeal["appeal_id"],
+        goal_id=appeal["goal_id"],
+        status=appeal["status"],
+    )
+
+
+@app.post("/creative/goals/{goal_id}/appeal/resolve", response_model=CreativeGoalAppealResponse)
+def resolve_creative_goal_appeal(
+    goal_id: str,
+    body: CreativeGoalAppealResolveRequest,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> CreativeGoalAppealResponse:
+    try:
+        appeal = store.resolve_creative_goal_appeal(
+            goal_id,
+            decision=body.decision,
+            resolution_note=body.resolution_note,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CreativeGoalAppealResponse(
+        appeal_id=appeal["appeal_id"],
+        goal_id=appeal["goal_id"],
+        status=appeal["status"],
+    )
 
 
 @app.get("/agents/{agent_id}/canary-stats")

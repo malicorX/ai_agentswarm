@@ -403,6 +403,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python -m pytest platform/tests/test_platform_model_allowlist.py agents/tests/test_model_allowlist.py -q` |
 | **Acceptance** | Client and platform JSON match; unknown `model_id` rejected when enforce flag set |
 
+### P7.3 — Human appeal for subjective rejects
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Poster can appeal rejected creative goals; maintainer upholds or overturns (ADR 0008) |
+| **In scope** | `creative_goal_appeals` table, appeal + resolve endpoints, credit refund on overturn |
+| **Verification** | `python -m pytest platform/tests/test_creative_appeal.py -q` |
+| **Acceptance** | Rejected goal → appeal pending → overturn sets verified + refunds poster |
+
 ---
 
 ## Current focus
@@ -438,6 +447,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P7.0 Assignment long-poll — `/assignments/wait`, ADR 0006
 ✅ P7.1 Credit pricing table — `credit_pricing.py`, `credits.pricing` on config
 ✅ P7.2 Volunteer model allowlist — ADR 0007, `models` on config
+✅ P7.3 Human appeal for subjective rejects — ADR 0008
 ```
 
 ---

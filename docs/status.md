@@ -140,6 +140,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P7.0** | Assignment long-poll | Done → `/assignments/wait`, ADR 0006 |
 | **P7.1** | Credit pricing per task class | Done → `credit_pricing.py`, `credits.pricing` on config |
 | **P7.2** | Volunteer model allowlist | Done → ADR 0007, `models` on `/platform/config` |
+| **P7.3** | Human appeal for subjective rejects | Done → ADR 0008, `/creative/goals/{id}/appeal` |
 
 **Phase 6 close-out:** git tag [`v0.7.0-phase6`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.7.0-phase6) (2026-06-15).
 

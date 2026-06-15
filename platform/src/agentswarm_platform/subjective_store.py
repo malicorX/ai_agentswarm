@@ -37,6 +37,17 @@ def ensure_subjective_schema(conn: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL,
             UNIQUE(goal_id, reviewer_agent_id)
         );
+
+        CREATE TABLE IF NOT EXISTS creative_goal_appeals (
+            appeal_id TEXT PRIMARY KEY,
+            goal_id TEXT NOT NULL UNIQUE,
+            filed_by_agent_id TEXT NOT NULL,
+            message TEXT NOT NULL,
+            status TEXT NOT NULL,
+            resolution_note TEXT,
+            filed_at TEXT NOT NULL,
+            resolved_at TEXT
+        );
         """
     )
     columns = {
@@ -247,3 +258,67 @@ def resolve_goal(
         """,
         (status, aggregate_score, utc_now_iso(), goal_id),
     )
+
+
+def get_appeal_for_goal(conn: sqlite3.Connection, goal_id: str) -> dict[str, Any] | None:
+    row = conn.execute(
+        "SELECT * FROM creative_goal_appeals WHERE goal_id = ?", (goal_id,)
+    ).fetchone()
+    if row is None:
+        return None
+    return {
+        "appeal_id": row["appeal_id"],
+        "goal_id": row["goal_id"],
+        "filed_by_agent_id": row["filed_by_agent_id"],
+        "message": row["message"],
+        "status": row["status"],
+        "resolution_note": row["resolution_note"],
+        "filed_at": row["filed_at"],
+        "resolved_at": row["resolved_at"],
+    }
+
+
+def insert_goal_appeal(
+    conn: sqlite3.Connection,
+    *,
+    goal_id: str,
+    filed_by_agent_id: str,
+    message: str,
+) -> str:
+    appeal_id = f"appeal-{uuid.uuid4().hex[:12]}"
+    conn.execute(
+        """
+        INSERT INTO creative_goal_appeals (
+            appeal_id, goal_id, filed_by_agent_id, message, status, filed_at
+        ) VALUES (?, ?, ?, ?, 'pending', ?)
+        """,
+        (appeal_id, goal_id, filed_by_agent_id, message, utc_now_iso()),
+    )
+    return appeal_id
+
+
+def resolve_goal_appeal(
+    conn: sqlite3.Connection,
+    goal_id: str,
+    *,
+    status: str,
+    resolution_note: str | None,
+) -> dict[str, Any]:
+    if status not in ("upheld", "overturned"):
+        raise ValueError("appeal status must be upheld or overturned")
+    row = conn.execute(
+        "SELECT * FROM creative_goal_appeals WHERE goal_id = ?", (goal_id,)
+    ).fetchone()
+    if row is None:
+        raise ValueError("no appeal for goal")
+    if row["status"] != "pending":
+        raise ValueError("appeal is not pending")
+    conn.execute(
+        """
+        UPDATE creative_goal_appeals
+        SET status = ?, resolution_note = ?, resolved_at = ?
+        WHERE goal_id = ?
+        """,
+        (status, resolution_note, utc_now_iso(), goal_id),
+    )
+    return get_appeal_for_goal(conn, goal_id) or {}
