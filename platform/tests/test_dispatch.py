@@ -442,6 +442,67 @@ def test_idle_presence_skips_generic_coordinator_backlog(
     assert pending is None
 
 
+def test_pending_poll_skips_generic_when_scoped_needs_waiting(
+    dispatch_client: TestClient,
+) -> None:
+    """Assignment poll must not claim generic backlog while scoped needs are pending."""
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    owner = "scoped-waiting-owner"
+    generic = dispatch_client.post(
+        "/pool/need",
+        json={
+            "role": "reviewer",
+            "capability_required": "reviewer",
+            "task_type": "reviewer.subjective",
+            "payload": {
+                "capsule": {
+                    "brief": "Generic backlog task",
+                    "rubric": [{"id": "quality", "weight": 1.0}],
+                }
+            },
+            "constraints": {"exclude_owners": ["poster-owner"]},
+        },
+    )
+    assert generic.status_code == 200
+    assert generic.json()["assigned"] is False
+
+    reviewer_id, _ = register_agent(dispatch_client, ["reviewer"], owner=owner)
+    dispatch_client.post(
+        f"/agents/{reviewer_id}/presence",
+        json={
+            "status": "idle",
+            "capabilities": ["reviewer"],
+            "model_id": "llm-mock-v1",
+            "vram_gb": 8.0,
+            "ttl_sec": 120,
+        },
+    )
+    scoped = dispatch_client.post(
+        "/pool/need",
+        json={
+            "role": "reviewer",
+            "capability_required": "reviewer",
+            "task_type": "reviewer.subjective",
+            "payload": {
+                "capsule": {
+                    "brief": "Scoped task",
+                    "rubric": [{"id": "quality", "weight": 1.0}],
+                }
+            },
+            "constraints": {"include_owners": [owner]},
+        },
+    )
+    assert scoped.status_code == 200
+    scoped_task_id = scoped.json()["task_id"]
+
+    pending = dispatch_client.get(
+        f"/agents/{reviewer_id}/assignments/pending"
+    ).json()
+    assert pending is not None
+    assert pending["task_id"] == scoped_task_id
+    assert pending["task_id"] != generic.json()["task_id"]
+
+
 def test_prepare_pool_need_redispatches_orphaned_claimed_task(
     dispatch_client: TestClient,
 ) -> None:

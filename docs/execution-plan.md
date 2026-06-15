@@ -506,6 +506,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P12.0 Auto redispatch after reclaim — agent-targeted redispatch, staging verify without manual `pool/need`
 ✅ P12.11 Phase 12 close-out — `close_phase12.sh`, tag `v0.13.0-phase12`
 ✅ P13.0 Scoped-only idle redispatch — fixes subjective demo backlog steal on staging
+✅ P13.11 Phase 13 close-out — `close_phase13.sh`, tag `v0.14.0-phase13`
 ```
 
 ---
@@ -517,7 +518,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
 | **P13.0** | Scoped-only idle redispatch | ✅ Done | P12.11 |
-| **P13.11** | Phase 13 close-out | ⬜ Pending | P13.0 |
+| **P13.11** | Phase 13 close-out | ✅ Done | P13.0 |
 
 ### P13.0 — Scoped-only idle redispatch
 

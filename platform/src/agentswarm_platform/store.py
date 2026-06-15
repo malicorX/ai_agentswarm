@@ -2791,9 +2791,12 @@ class Store:
             with self._conn() as conn:
                 assignment = get_pending_assignment_for_agent(conn, agent_id)
             if assignment is None:
-                self._redispatch_pending_pool_needs()
                 with self._conn() as conn:
-                    assignment = get_pending_assignment_for_agent(conn, agent_id)
+                    scoped_waiting = list_pending_need_ids_for_agent(conn, agent_id)
+                if not scoped_waiting:
+                    self._redispatch_pending_pool_needs()
+                    with self._conn() as conn:
+                        assignment = get_pending_assignment_for_agent(conn, agent_id)
         return assignment
 
     def _mark_agent_idle_if_present(self, agent_id: str) -> None:

@@ -53,7 +53,7 @@ def test_verify_lease_reclaim_staging_happy_path(monkeypatch) -> None:
     reg_b.json.return_value = {"agent_id": "agent-b"}
     need_ok = MagicMock()
     need_ok.raise_for_status = MagicMock()
-    need_ok.json.return_value = {"assigned": False, "task_id": "task-lease-1"}
+    need_ok.json.return_value = {"assigned": True, "task_id": "task-lease-1"}
     presence_ok = MagicMock()
     presence_ok.raise_for_status = MagicMock()
     pending_a = MagicMock()
@@ -76,8 +76,8 @@ def test_verify_lease_reclaim_staging_happy_path(monkeypatch) -> None:
     mock_client.post.side_effect = [
         reg_a,
         reg_b,
-        need_ok,
         presence_ok,
+        need_ok,
         presence_ok,
     ]
 
