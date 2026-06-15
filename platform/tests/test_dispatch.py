@@ -436,6 +436,83 @@ def test_prepare_pool_need_redispatches_orphaned_claimed_task(
     assert reclaimed["task_id"] == need["task_id"]
 
 
+def test_redispatch_skips_backlogged_needs_for_unrelated_capability(
+    dispatch_client: TestClient,
+) -> None:
+    """Idle reviewer redispatch must not be blocked by older coordinator backlog."""
+    from agentswarm_platform import main as platform_main
+
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    with platform_main.store._conn() as conn:
+        for index in range(40):
+            conn.execute(
+                """
+                INSERT INTO pool_needs (
+                    need_id, role, capability_required, parent_task_id, task_id,
+                    project_id, constraints_json, status, created_at
+                ) VALUES (?, 'coordinator', 'coordinator', ?, ?, 'default', '{}', 'pending', ?)
+                """,
+                (
+                    f"need-backlog-{index}",
+                    f"task-backlog-{index}",
+                    f"task-backlog-{index}",
+                    f"2020-01-01T00:{index:02d}:00+00:00",
+                ),
+            )
+
+    reviewer_a, _ = register_agent(dispatch_client, ["reviewer"], owner="reviewer-a")
+    reviewer_b, _ = register_agent(dispatch_client, ["reviewer"], owner="reviewer-b")
+    dispatch_client.post(
+        f"/agents/{reviewer_a}/presence",
+        json={
+            "status": "idle",
+            "capabilities": ["reviewer"],
+            "model_id": "llm-mock-v1",
+            "vram_gb": 8.0,
+            "ttl_sec": 5,
+        },
+    )
+    need = dispatch_client.post(
+        "/pool/need",
+        json={
+            "role": "reviewer",
+            "capability_required": "reviewer",
+            "task_type": "reviewer.subjective",
+            "payload": {
+                "capsule": {
+                    "brief": "Score this poem",
+                    "rubric": [{"id": "quality", "weight": 1.0}],
+                }
+            },
+            "constraints": {"include_owners": ["reviewer-a", "reviewer-b"]},
+        },
+    )
+    assert need.status_code == 200
+    body = need.json()
+    assert body["assigned"] is True
+    task_id = body["task_id"]
+
+    with platform_main.store._conn() as conn:
+        conn.execute(
+            "UPDATE agent_presence SET last_seen_at = ? WHERE agent_id = ?",
+            ("2020-01-01T00:00:00+00:00", reviewer_a),
+        )
+
+    dispatch_client.post(
+        f"/agents/{reviewer_b}/presence",
+        json={
+            "status": "idle",
+            "capabilities": ["reviewer"],
+            "model_id": "llm-mock-v1",
+            "vram_gb": 8.0,
+            "ttl_sec": 120,
+        },
+    )
+    reclaimed = dispatch_client.get(f"/agents/{reviewer_b}/assignments/pending").json()
+    assert reclaimed is not None
+    assert reclaimed["task_id"] == task_id
+
+
 def test_pool_need_include_owners_restricts_dispatch(
     dispatch_client: TestClient,
 ) -> None:

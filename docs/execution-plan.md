@@ -520,8 +520,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 | Field | Value |
 |-------|--------|
-| **Goal** | Heal orphaned claimed tasks / assigned needs before dispatch; staging verify passes without manual redispatch |
-| **In scope** | `prepare_pool_need_for_dispatch()`, simplify `verify_lease_reclaim_staging.py` |
+| **Goal** | Heal orphaned claimed tasks / assigned needs before dispatch; agent-targeted redispatch avoids coordinator backlog starvation |
+| **In scope** | `prepare_pool_need_for_dispatch()`, `list_pending_need_ids_for_agent()`, simplify `verify_lease_reclaim_staging.py` |
 | **Verification** | `python -m pytest platform/tests/test_dispatch.py platform/tests/test_verify_lease_reclaim_staging.py -q` · `python scripts/verify_lease_reclaim_staging.py https://theebie.de/agentswarm/api` |
 | **Acceptance** | Reviewer B receives reclaimed task via presence + wait alone |
 

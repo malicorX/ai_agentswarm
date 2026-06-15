@@ -104,6 +104,7 @@ from agentswarm_platform.dispatch_store import (
     get_pending_assignment_for_agent,
     get_pool_need,
     insert_pool_need,
+    list_pending_need_ids_for_agent,
     list_pending_pool_needs,
     mark_need_assigned,
     maintain_dispatch_pool,
@@ -2622,17 +2623,43 @@ class Store:
                 },
             )
         if status == "idle" and dispatch_enabled():
-            self._redispatch_pending_pool_needs()
+            self._redispatch_pending_pool_needs(for_agent_id=agent_id)
         return recorded
 
-    def _redispatch_pending_pool_needs(self, *, limit: int = 32) -> list[str]:
+    def _redispatch_pending_pool_needs(
+        self,
+        *,
+        limit: int = 32,
+        for_agent_id: str | None = None,
+    ) -> list[str]:
         """Assign pending pool needs when idle agents become available."""
         assigned: list[str] = []
+        priority_ids: list[str] = []
         with self._conn() as conn:
-            maintain_dispatch_pool(conn)
+            maintained = maintain_dispatch_pool(conn)
+            for key in ("stale_need_ids", "expired_need_ids", "reconciled_need_ids"):
+                values = maintained.get(key)
+                if isinstance(values, list):
+                    priority_ids.extend(str(need_id) for need_id in values)
+            if for_agent_id:
+                priority_ids.extend(
+                    list_pending_need_ids_for_agent(conn, for_agent_id, limit=limit)
+                )
             pending = list_pending_pool_needs(conn)
-        for need_row in pending[:limit]:
+        seen: set[str] = set()
+        for need_id in priority_ids:
+            if need_id in seen:
+                continue
+            seen.add(need_id)
+            if self._dispatch_need(need_id) is not None:
+                assigned.append(need_id)
+        for need_row in pending:
+            if len(assigned) >= limit and for_agent_id is None:
+                break
             need_id = str(need_row["need_id"])
+            if need_id in seen:
+                continue
+            seen.add(need_id)
             if self._dispatch_need(need_id) is not None:
                 assigned.append(need_id)
         return assigned
@@ -2759,7 +2786,7 @@ class Store:
         with self._conn() as conn:
             assignment = get_pending_assignment_for_agent(conn, agent_id)
         if assignment is None and dispatch_enabled():
-            self._redispatch_pending_pool_needs()
+            self._redispatch_pending_pool_needs(for_agent_id=agent_id)
             with self._conn() as conn:
                 assignment = get_pending_assignment_for_agent(conn, agent_id)
         return assignment
@@ -2772,7 +2799,7 @@ class Store:
             if row is not None:
                 set_presence_status(conn, agent_id, "idle")
         if dispatch_enabled():
-            self._redispatch_pending_pool_needs()
+            self._redispatch_pending_pool_needs(for_agent_id=agent_id)
 
     def get_agent_credits(self, agent_id: str) -> dict[str, Any] | None:
         agent = self.get_agent(agent_id)

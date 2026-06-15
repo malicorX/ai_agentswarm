@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from agentswarm_platform.assignment_signing import sign_assignment
+from agentswarm_platform.hardware_gates import agent_meets_reviewer_hardware
 from agentswarm_platform.presence_store import evict_stale_presence, presence_is_fresh
 
 
@@ -87,6 +88,61 @@ def list_pending_pool_needs(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute(
         "SELECT * FROM pool_needs WHERE status = 'pending' ORDER BY created_at ASC"
     ).fetchall()
+
+
+def list_pending_need_ids_for_agent(
+    conn: sqlite3.Connection,
+    agent_id: str,
+    *,
+    limit: int = 32,
+) -> list[str]:
+    """Pending needs an idle agent can take, oldest first."""
+    presence = conn.execute(
+        "SELECT * FROM agent_presence WHERE agent_id = ?", (agent_id,)
+    ).fetchone()
+    if presence is None or presence["status"] != "idle":
+        return []
+    agent = conn.execute(
+        "SELECT owner FROM agents WHERE agent_id = ?", (agent_id,)
+    ).fetchone()
+    if agent is None:
+        return []
+    owner = str(agent["owner"] or "")
+    capabilities = set(json.loads(presence["capabilities"]))
+    matched: list[str] = []
+    for need in list_pending_pool_needs(conn):
+        capability_required = str(need["capability_required"])
+        if capability_required not in capabilities:
+            continue
+        constraints = json.loads(need["constraints_json"])
+        include_owners = {str(item) for item in constraints.get("include_owners") or []}
+        if include_owners and owner not in include_owners:
+            continue
+        exclude_owners = {
+            str(item)
+            for item in constraints.get("exclude_owners")
+            or constraints.get("exclude_owner_ids")
+            or []
+        }
+        if owner in exclude_owners:
+            continue
+        exclude_agents = {
+            str(item)
+            for item in constraints.get("exclude_agent_ids")
+            or constraints.get("exclude_agents")
+            or []
+        }
+        if agent_id in exclude_agents:
+            continue
+        if capability_required == "reviewer" and not agent_meets_reviewer_hardware(
+            model_id=presence["model_id"],
+            vram_gb=presence["vram_gb"],
+        ):
+            continue
+        matched.append(str(need["need_id"]))
+        if len(matched) >= limit:
+            break
+    return matched
 
 
 def mark_need_assigned(
