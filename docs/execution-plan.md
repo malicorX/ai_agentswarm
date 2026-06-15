@@ -508,6 +508,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P13.0 Scoped-only idle redispatch — fixes subjective demo backlog steal on staging
 ✅ P13.11 Phase 13 close-out — `close_phase13.sh`, tag `v0.14.0-phase13`
 ✅ P14.0 Stale pending pool-need expiry — `expire_stale_pending_pool_needs()`, theebie prune (3214→26 pending)
+✅ P14.11 Phase 14 close-out — `close_phase14.sh`, tag `v0.15.0-phase14`
 ```
 
 ---
@@ -519,7 +520,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
 | **P14.0** | Stale pending pool-need expiry | ✅ Done | P13.11 |
-| **P14.11** | Phase 14 close-out | ⬜ Pending | P14.0 |
+| **P14.11** | Phase 14 close-out | ✅ Done | P14.0 |
 
 ### P14.0 — Stale pending pool-need expiry
 
