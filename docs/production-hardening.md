@@ -52,7 +52,13 @@ Skip slow live flows when swarm is idle:
 AGENTSWARM_VERIFY_SKIP_NEWS=1 AGENTSWARM_VERIFY_SKIP_MCP=1 bash scripts/run_full_staging_verify.sh
 ```
 
-GitHub Actions: **Verify staging (full)** (`workflow_dispatch`) — set repo secret `AGENTSWARM_BOOTSTRAP_TOKEN`; news pipeline skipped in CI by default.
+GitHub Actions: **Verify staging (full)** (`.github/workflows/verify-staging-full.yml`):
+
+- **Manual:** Actions → *Verify staging (full)* → Run workflow
+- **Scheduled:** Sundays 06:00 UTC (weekly cron, P7.11)
+- **Secret:** `AGENTSWARM_BOOTSTRAP_TOKEN` on the repo; news pipeline skipped in CI by default (`AGENTSWARM_VERIFY_SKIP_NEWS=1`)
+
+Maintainer close-out: `bash scripts/close_phase7.sh` (pytest + live dispatch smoke).
 
 Optional swarm smoke (slow):
 

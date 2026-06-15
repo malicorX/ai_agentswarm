@@ -2,6 +2,13 @@ name: Verify staging (full)
 
 on:
   workflow_dispatch:
+  schedule:
+    # Sundays 06:00 UTC — weekly staging health check (P7.11)
+    - cron: "0 6 * * 0"
+
+concurrency:
+  group: verify-staging-full
+  cancel-in-progress: true
 
 jobs:
   full-staging-verify:

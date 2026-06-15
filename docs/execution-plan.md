@@ -439,6 +439,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | Doc review; references model allowlist tiers |
 | **Acceptance** | Clear VRAM/RAM guidance for reviewer vs creative roles |
 
+### P7.11 — Phase 7 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Declare Phase 7 complete; keep staging healthy on a schedule |
+| **In scope** | Weekly `verify-staging-full.yml` cron, `scripts/close_phase7.sh` / `.ps1`, tag `v0.8.0-phase7`, README/status updates |
+| **Verification** | `bash scripts/close_phase7.sh` · `python -m pytest platform/tests agents/tests -q` |
+| **Acceptance** | Tag exists; scheduled workflow documented in [production-hardening.md](production-hardening.md) |
+
 ---
 
 ## Current focus
@@ -478,6 +487,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P7.4 Full staging verify bundle — `run_full_staging_verify.sh`, P7 checks in full mode
 ✅ P7.5 Ollama runtime executor — `ollama_executor.py`, localhost-only endpoint guard
 ✅ P7.6 Reviewer hardware / VRAM guidance — `docs/volunteer-hardware.md`
+✅ Phase 7 close-out — weekly staging verify cron, tag `v0.8.0-phase7`
 ```
 
 ---

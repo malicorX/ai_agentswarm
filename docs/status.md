@@ -144,6 +144,9 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P7.4** | Full staging verify bundle | Done → `run_full_staging_verify.sh`, P7 checks in full mode |
 | **P7.5** | Ollama runtime executor | Done → `ollama_executor.py`, `runtime=ollama` on volunteer client |
 | **P7.6** | Reviewer hardware / VRAM guidance | Done → [volunteer-hardware.md](volunteer-hardware.md) |
+| **P7.11** | Phase 7 close-out | Done → weekly `verify-staging-full.yml`, tag `v0.8.0-phase7` |
+
+**Phase 7 close-out:** git tag [`v0.8.0-phase7`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.8.0-phase7) (2026-06-15).
 
 **Phase 6 close-out:** git tag [`v0.7.0-phase6`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.7.0-phase6) (2026-06-15).
 
