@@ -41,6 +41,24 @@ def bootstrap_token() -> str:
     return os.environ.get("AGENTSWARM_BOOTSTRAP_TOKEN", "")
 
 
+def github_oauth_configured() -> bool:
+    return bool(
+        os.environ.get("GITHUB_OAUTH_CLIENT_ID")
+        and os.environ.get("GITHUB_OAUTH_CLIENT_SECRET")
+    )
+
+
+def public_parameters() -> dict[str, bool]:
+    """Read-only auth posture for /platform/config and staging verify."""
+    enforced = auth_enforced()
+    return {
+        "enforced": enforced,
+        "open_registration": not enforced,
+        "github_oauth_configured": github_oauth_configured(),
+        "bootstrap_token_configured": bool(bootstrap_token()),
+    }
+
+
 def dev_owner() -> OwnerAuth:
     return OwnerAuth(
         owner_id="owner_dev",

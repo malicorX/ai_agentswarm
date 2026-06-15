@@ -16,6 +16,18 @@ sys.path.insert(0, str(_ROOT / "platform" / "src"))
 from agentswarm_platform.crypto import generate_keypair, public_key_b64
 
 
+def _register_headers(config_body: dict[str, object]) -> dict[str, str]:
+    auth_block = config_body.get("auth")
+    if not isinstance(auth_block, dict) or not auth_block.get("enforced"):
+        return {}
+    bootstrap = os.environ.get("AGENTSWARM_BOOTSTRAP_TOKEN", "").strip()
+    if not bootstrap:
+        raise RuntimeError(
+            "registration auth is enforced; set AGENTSWARM_BOOTSTRAP_TOKEN for verify"
+        )
+    return {"X-Bootstrap-Token": bootstrap}
+
+
 def verify_production_platform(
     base_url: str,
     *,
@@ -39,10 +51,14 @@ def verify_production_platform(
 
         config = client.get(f"{clean}/platform/config")
         config.raise_for_status()
-        mode = config.json().get("assignment_mode")
+        config_body = config.json()
+        mode = config_body.get("assignment_mode")
         if mode not in ("pull", "dispatch"):
             raise RuntimeError(f"unexpected assignment_mode: {mode!r}")
         result["assignment_mode"] = str(mode)
+        auth_block = config_body.get("auth")
+        if isinstance(auth_block, dict):
+            result["auth_enforced"] = str(bool(auth_block.get("enforced")))
         if expect_dispatch is True and mode != "dispatch":
             raise RuntimeError(f"expected assignment_mode=dispatch, got {mode!r}")
         if expect_dispatch is False and mode != "pull":
@@ -58,6 +74,7 @@ def verify_production_platform(
                     "owner": agent_name,
                     "capabilities": ["reviewer"],
                 },
+                headers=_register_headers(config_body),
             )
             reg.raise_for_status()
             agent_id = reg.json().get("agent_id")

@@ -256,12 +256,14 @@ def health() -> dict[str, str]:
 
 @app.get("/platform/config")
 def platform_config() -> dict[str, object]:
+    from agentswarm_platform.auth import public_parameters as auth_parameters
     from agentswarm_platform.credibility import public_parameters
     from agentswarm_platform.agent_versioning import versioning_public_parameters
     from agentswarm_platform.version_probation import public_parameters as version_parameters
 
     return {
         "assignment_mode": assignment_mode(),
+        "auth": auth_parameters(),
         "credibility": public_parameters(),
         "versioning": {**versioning_public_parameters(), **version_parameters()},
     }

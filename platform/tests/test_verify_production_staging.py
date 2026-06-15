@@ -54,6 +54,15 @@ def test_verify_production_staging_quick_orchestration() -> None:
                     },
                 ),
                 type(
+                    "RegAuthMod",
+                    (),
+                    {
+                        "verify_registration_auth_staging": staticmethod(
+                            lambda url, **kwargs: {"anonymous_register": "allowed"}
+                        )
+                    },
+                ),
+                type(
                     "ExternalMod",
                     (),
                     {
@@ -75,4 +84,4 @@ def test_verify_production_staging_quick_orchestration() -> None:
     assert result["mode"] == "quick"
     assert result["platform"]["health"] == "ok"
     assert result["versioning"]["agent_id"] == "agent_v"
-    assert mock_pytest.call_count == 3
+    assert mock_pytest.call_count == 4

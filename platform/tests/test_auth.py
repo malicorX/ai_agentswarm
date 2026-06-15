@@ -28,6 +28,32 @@ def test_bootstrap_token_allows_task_create(auth_client: TestClient) -> None:
     assert response.status_code == 200
 
 
+def test_register_without_auth_returns_401(auth_client: TestClient) -> None:
+    from agentswarm_platform.crypto import generate_keypair, public_key_b64
+
+    pub, _priv = generate_keypair()
+    response = auth_client.post(
+        "/agents/register",
+        json={
+            "public_key": public_key_b64(pub),
+            "owner": "alice",
+            "capabilities": ["codewriter"],
+        },
+    )
+    assert response.status_code == 401
+
+
+def test_platform_config_includes_auth(auth_client: TestClient) -> None:
+    response = auth_client.get("/platform/config")
+    assert response.status_code == 200
+    auth = response.json().get("auth")
+    assert isinstance(auth, dict)
+    assert auth["enforced"] is True
+    assert auth["open_registration"] is False
+    assert "github_oauth_configured" in auth
+    assert "bootstrap_token_configured" in auth
+
+
 def test_owner_jwt_allows_register(auth_client: TestClient) -> None:
     import agentswarm_platform.main as main_module
 

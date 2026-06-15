@@ -84,6 +84,28 @@ def verify_production_staging(
         register_smoke=True,
     )
 
+    _run_pytest("platform/tests/test_auth.py")
+    results["unit_registration_auth"] = "passed"
+
+    reg_auth_mod = _load_script_module(
+        "verify_registration_auth", scripts / "verify_registration_auth.py"
+    )
+    expect_registration_auth: bool | None = None
+    if _env_flag("AGENTSWARM_EXPECT_REGISTRATION_AUTH", default=False):
+        expect_registration_auth = True
+    elif not quick:
+        expect_registration_auth = False
+    if expect_registration_auth is not None:
+        results["registration_auth"] = reg_auth_mod.verify_registration_auth_staging(
+            clean,
+            expect_enforced=expect_registration_auth,
+        )
+    else:
+        results["registration_auth"] = reg_auth_mod.verify_registration_auth_staging(
+            clean,
+            expect_enforced=False,
+        )
+
     external_mod = _load_script_module(
         "verify_external_contributor", scripts / "verify_external_contributor.py"
     )

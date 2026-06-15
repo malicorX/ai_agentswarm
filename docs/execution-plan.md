@@ -256,8 +256,9 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **P5.8** | **Production staging verify** | Post-deploy verification bundle for public API | deploy.md §7 |
 | **P5.9** | **Major-version probation** | Low-tier-only claims until N verified accepts after major bump | §14 |
 | **P5.10** | **Version downgrade rejection** | Block same-family version_signature downgrades on reconnect | §14 |
+| **P5.11** | **Registration auth hardening** | Expose auth posture; verify scripts support enforced registration | Phase 1 |
 
-**Not blocking:** GitHub Pages mirror for forks ([deploy.md](deploy.md) Option B). Operator auth tighten: [production-hardening.md](production-hardening.md).
+**Not blocking:** GitHub Pages mirror for forks ([deploy.md](deploy.md) Option B). Operator auth enable: [production-hardening.md](production-hardening.md).
 
 ### P5.0 — Production platform (highest leverage)
 
@@ -357,6 +358,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python -m pytest platform/tests/test_agent_versioning.py -q` |
 | **Acceptance** | Same-family downgrades return 400; opt-out via env; family change still allowed |
 
+### P5.11 — Registration auth hardening
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Surface registration auth posture and keep verify scripts working when auth is enforced |
+| **In scope** | `auth` block on `GET /platform/config`, bootstrap-aware verify scripts, `verify_registration_auth.py` |
+| **Verification** | `python scripts/verify_registration_auth.py` |
+| **Acceptance** | Config exposes `auth.enforced`; anonymous register returns 401 when enforced; deploy verify uses bootstrap |
+
 ---
 
 ## Current focus
@@ -384,7 +394,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.8 Production staging verify bundle (`verify_production_staging.py`)
 ✅ P5.9 Major-version probation (`version_probation.py`, low-tier-only during probation)
 ✅ P5.10 Version downgrade rejection (`AGENTSWARM_VERSION_REJECT_DOWNGRADES`)
-→  Beyond P5 — optional Pages; operator auth tighten (see production-hardening.md)
+✅ P5.11 Registration auth hardening (`auth` on `/platform/config`, `verify_registration_auth.py`)
+→  Beyond P5 — optional Pages; enable auth on VPS (see production-hardening.md)
 ```
 
 ---

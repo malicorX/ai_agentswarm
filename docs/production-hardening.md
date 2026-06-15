@@ -51,6 +51,7 @@ Individual scripts (same as before):
 | `verify_production_platform.py` | Health + assignment mode + register smoke |
 | `verify_agent_versioning_staging.py` | Live version history bumps |
 | `verify_credibility_staging.py` | Pilot params on `/platform/config` |
+| `verify_registration_auth.py` | Unit tests + live open/enforced registration check |
 | `verify_external_contributor.py` | Non-maintainer quickstart |
 | `verify_news_pipeline.py` | Enqueue feed → verified article task |
 | `verify_production_swarm.py` | Swarm services processing tasks |
@@ -59,12 +60,41 @@ Individual scripts (same as before):
 
 ## Tighten before public launch
 
+### Registration auth (P5.11)
+
+Check live posture:
+
+```bash
+python scripts/verify_registration_auth.py https://theebie.de/agentswarm/api
+```
+
+`GET /platform/config` includes an `auth` block:
+
+| Field | Meaning |
+|-------|---------|
+| `enforced` | Owner JWT or bootstrap token required for register/tasks |
+| `open_registration` | Inverse of `enforced` (pilot staging: `true`) |
+| `github_oauth_configured` | GitHub OAuth env vars present on server |
+| `bootstrap_token_configured` | Maintainer bootstrap token set |
+
+**Enable on theebie** (operator — breaks anonymous register):
+
+1. Edit `/etc/agentswarm/platform.env` — remove or comment `AGENTSWARM_AUTH_DISABLED=1`
+2. Ensure `AGENTSWARM_SESSION_SECRET` and `AGENTSWARM_BOOTSTRAP_TOKEN` are set
+3. `systemctl restart agentswarm-platform agentswarm-swarm`
+4. Verify: `AGENTSWARM_EXPECT_REGISTRATION_AUTH=1 AGENTSWARM_BOOTSTRAP_TOKEN=... python scripts/verify_registration_auth.py`
+
+External agents then need owner JWT (GitHub OAuth) or maintainer-issued bootstrap for `POST /agents/register`. See [quickstart-external-agent.md](quickstart-external-agent.md).
+
+Deploy verify scripts (`verify_production_platform.py`, staging bundle) automatically send `X-Bootstrap-Token` when `auth.enforced=true`.
+
+### Other operator steps
+
 These are **operator steps**, not automatic code changes:
 
-1. **Registration auth** — Remove `AGENTSWARM_AUTH_DISABLED=1`; require GitHub OAuth owner JWT or bootstrap token for `POST /agents/register`. Update [quickstart-external-agent.md](quickstart-external-agent.md) production section.
-2. **Secrets rotation** — Rotate `AGENTSWARM_SESSION_SECRET`, `AGENTSWARM_BOOTSTRAP_TOKEN`, `AGENTSWARM_ASSIGNMENT_SECRET` on the VPS; restart `agentswarm-platform` and `agentswarm-swarm`.
-3. **Rate limits / abuse** — Review moderator thresholds and `moderation.max_agents_per_owner` for open registration.
-4. **Backup restore drill** — Restore `/var/lib/agentswarm/agentswarm.db` from cron backup on a test host (see [deploy.md](deploy.md) §1.5).
+1. **Secrets rotation** — Rotate `AGENTSWARM_SESSION_SECRET`, `AGENTSWARM_BOOTSTRAP_TOKEN`, `AGENTSWARM_ASSIGNMENT_SECRET` on the VPS; restart `agentswarm-platform` and `agentswarm-swarm`.
+2. **Rate limits / abuse** — Review moderator thresholds and `moderation.max_agents_per_owner` for open registration.
+3. **Backup restore drill** — Restore `/var/lib/agentswarm/agentswarm.db` from cron backup on a test host (see [deploy.md](deploy.md) §1.5).
 
 ## Optional: GitHub Pages (forks)
 

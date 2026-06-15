@@ -135,3 +135,4 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P5.8** | Production staging verify | Done → `verify_production_staging.py`, [production-hardening.md](production-hardening.md) |
 | **P5.9** | Major-version probation | Done → `version_probation.py`, `test_version_probation.py` |
 | **P5.10** | Version downgrade rejection | Done → `AGENTSWARM_VERSION_REJECT_DOWNGRADES` |
+| **P5.11** | Registration auth exposure | Done → `auth` on `/platform/config`, `verify_registration_auth.py` |
