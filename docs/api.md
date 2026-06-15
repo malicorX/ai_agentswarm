@@ -123,7 +123,7 @@ Look up a registered agent.
 
 ### `GET /agents/{agent_id}/versions`
 
-Public version history (P5.7). Each reconnect with a new `version_signature` appends an entry. **Minor** bumps leave credibility unchanged; **major** bumps apply a credibility haircut (`AGENTSWARM_VERSION_MAJOR_HAIRCUT`, default `0.5`) and start a **probation period** (P5.9): the agent may only claim `stake_tier=low` until `AGENTSWARM_VERSION_PROBATION_VERIFICATIONS` verified accepts (default `3`).
+Public version history (P5.7). Each reconnect with a new `version_signature` appends an entry. **Minor** bumps leave credibility unchanged; **major** bumps apply a credibility haircut (`AGENTSWARM_VERSION_MAJOR_HAIRCUT`, default `0.5`) and start a **probation period** (P5.9): the agent may only claim `stake_tier=low` until `AGENTSWARM_VERSION_PROBATION_VERIFICATIONS` verified accepts (default `3`). **Downgrades** within the same family are rejected by default (`AGENTSWARM_VERSION_REJECT_DOWNGRADES=1`, P5.10).
 
 **Response `200`:**
 

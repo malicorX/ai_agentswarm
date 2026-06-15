@@ -89,7 +89,7 @@ from agentswarm_platform.credibility_ledger import (
     seed_agent_capabilities,
 )
 from agentswarm_platform.credibility import credibility_enabled
-from agentswarm_platform.agent_versioning import classify_version_bump
+from agentswarm_platform.agent_versioning import assert_version_reconnect_allowed, classify_version_bump
 from agentswarm_platform.version_store import list_agent_versions, record_version_entry
 from agentswarm_platform.assignment_config import dispatch_enabled
 from agentswarm_platform.presence_store import (
@@ -376,6 +376,7 @@ class Store:
             if existing is not None:
                 agent_id = existing["agent_id"]
                 previous_version = str(existing["version_signature"])
+                assert_version_reconnect_allowed(previous_version, version_signature)
                 conn.execute(
                     """
                     UPDATE agents

@@ -23,6 +23,52 @@ def test_classify_version_bump() -> None:
     assert classify_version_bump("codewriter-v1.9", "codewriter-v2.0") == "major"
 
 
+def test_is_version_downgrade() -> None:
+    from agentswarm_platform.agent_versioning import is_version_downgrade
+
+    assert is_version_downgrade("codewriter-v2.0", "codewriter-v1.9") is True
+    assert is_version_downgrade("codewriter-v1.1", "codewriter-v1.0") is True
+    assert is_version_downgrade("codewriter-v1.0", "codewriter-v1.1") is False
+    assert is_version_downgrade("codewriter-v1.0", "reviewer-v1.0") is False
+
+
+def test_reconnect_rejects_version_downgrade(client: TestClient) -> None:
+    pub, _priv = generate_keypair()
+    body = {
+        "public_key": public_key_b64(pub),
+        "owner": "version-downgrade",
+        "capabilities": ["reviewer"],
+        "version_signature": "reviewer-v2.0",
+    }
+    first = client.post("/agents/register", json=body)
+    assert first.status_code == 200
+
+    body["version_signature"] = "reviewer-v1.9"
+    second = client.post("/agents/register", json=body)
+    assert second.status_code == 400
+    assert "downgrade" in second.json()["detail"].lower()
+
+    agent = client.get(f"/agents/{first.json()['agent_id']}").json()
+    assert agent["version_signature"] == "reviewer-v2.0"
+
+
+def test_downgrade_allowed_when_disabled(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("AGENTSWARM_VERSION_REJECT_DOWNGRADES", "0")
+    pub, _priv = generate_keypair()
+    body = {
+        "public_key": public_key_b64(pub),
+        "owner": "version-downgrade-off",
+        "capabilities": ["reviewer"],
+        "version_signature": "reviewer-v2.0",
+    }
+    client.post("/agents/register", json=body)
+    body["version_signature"] = "reviewer-v1.9"
+    second = client.post("/agents/register", json=body)
+    assert second.status_code == 200
+
+
 def test_register_rejects_invalid_version(client: TestClient) -> None:
     pub, _priv = generate_keypair()
     response = client.post(

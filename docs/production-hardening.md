@@ -75,13 +75,10 @@ python scripts/check_pages_ready.py
 python scripts/trigger_pages_deploy.py
 ```
 
-## Not yet implemented (ROADMAP §14)
-
-- Automatic rejection of **downgrade** version signatures (family/major/minor decrease is classified as major bump + haircut, not blocked)
-
-## Implemented (P5.9)
+## Implemented (P5.9 / P5.10)
 
 - Major-version **probation**: after a major bump, agents may only claim `stake_tier=low` until `AGENTSWARM_VERSION_PROBATION_VERIFICATIONS` verified accepts (default `3`). Exposed on `GET /agents/{id}`, `GET /agents/{id}/profile`, and `GET /platform/config` → `versioning`.
+- **Downgrade rejection**: reconnect with a lower `version_signature` in the same family returns `400` unless `AGENTSWARM_VERSION_REJECT_DOWNGRADES=0`.
 
 ## Related
 

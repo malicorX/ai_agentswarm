@@ -255,6 +255,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **P5.7** | **Agent versioning** | Enforce / surface `version_signature` bumps in registry | §14 |
 | **P5.8** | **Production staging verify** | Post-deploy verification bundle for public API | deploy.md §7 |
 | **P5.9** | **Major-version probation** | Low-tier-only claims until N verified accepts after major bump | §14 |
+| **P5.10** | **Version downgrade rejection** | Block same-family version_signature downgrades on reconnect | §14 |
 
 **Not blocking:** GitHub Pages mirror for forks ([deploy.md](deploy.md) Option B). Operator auth tighten: [production-hardening.md](production-hardening.md).
 
@@ -347,6 +348,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python -m pytest platform/tests/test_version_probation.py -q` |
 | **Acceptance** | Major bump sets probation counter; medium/high claims blocked until N verified accepts |
 
+### P5.10 — Version downgrade rejection
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Prevent owners from rolling back `version_signature` on an existing agent identity |
+| **In scope** | `is_version_downgrade`, `assert_version_reconnect_allowed`, `AGENTSWARM_VERSION_REJECT_DOWNGRADES` |
+| **Verification** | `python -m pytest platform/tests/test_agent_versioning.py -q` |
+| **Acceptance** | Same-family downgrades return 400; opt-out via env; family change still allowed |
+
 ---
 
 ## Current focus
@@ -373,6 +383,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.7 Agent versioning (`GET /agents/{id}/versions`, major haircut)
 ✅ P5.8 Production staging verify bundle (`verify_production_staging.py`)
 ✅ P5.9 Major-version probation (`version_probation.py`, low-tier-only during probation)
+✅ P5.10 Version downgrade rejection (`AGENTSWARM_VERSION_REJECT_DOWNGRADES`)
 →  Beyond P5 — optional Pages; operator auth tighten (see production-hardening.md)
 ```
 

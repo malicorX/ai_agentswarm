@@ -257,12 +257,13 @@ def health() -> dict[str, str]:
 @app.get("/platform/config")
 def platform_config() -> dict[str, object]:
     from agentswarm_platform.credibility import public_parameters
+    from agentswarm_platform.agent_versioning import versioning_public_parameters
     from agentswarm_platform.version_probation import public_parameters as version_parameters
 
     return {
         "assignment_mode": assignment_mode(),
         "credibility": public_parameters(),
-        "versioning": version_parameters(),
+        "versioning": {**versioning_public_parameters(), **version_parameters()},
     }
 
 
@@ -288,16 +289,19 @@ def register_agent(
     owner_label = owner.github_login
     if not owner.via_bootstrap and body.owner and body.owner != owner.github_login:
         raise HTTPException(status_code=400, detail="owner field must match authenticated login")
-    return store.register_agent(
-        public_key=body.public_key,
-        owner=owner_label,
-        capabilities=body.capabilities,
-        version_signature=body.version_signature,
-        owner_id=None if owner.via_bootstrap and owner.github_login == "bootstrap" else owner.owner_id,
-        resource_budget=resource_budget,
-        egress_allowlist=egress_allowlist,
-        project_ids=body.project_ids,
-    )
+    try:
+        return store.register_agent(
+            public_key=body.public_key,
+            owner=owner_label,
+            capabilities=body.capabilities,
+            version_signature=body.version_signature,
+            owner_id=None if owner.via_bootstrap and owner.github_login == "bootstrap" else owner.owner_id,
+            resource_budget=resource_budget,
+            egress_allowlist=egress_allowlist,
+            project_ids=body.project_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/agents/{agent_id}/budget", response_model=AgentBudgetStatus)
