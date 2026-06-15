@@ -461,7 +461,7 @@ Run client: `python scripts/run_dispatch_client.py --docker --capabilities creat
 | Field | Value |
 |-------|--------|
 | **Deliverables** | `coordinator.decompose` assigned capsule; emits child `pool.need` events |
-| **Acceptance** | Goal “write a poem” → coder + 3 reviewers assigned automatically |
+| **Acceptance** | Goal “write a poem” → coder + 3 reviewers assigned automatically ✅ |
 
 ### P6.8 — Production client shell (.exe)
 

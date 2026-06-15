@@ -112,8 +112,15 @@ from agentswarm_platform.credits_ledger import (
     mint_credits,
     reviewer_reward,
 )
+from agentswarm_platform.coordinator_plan import (
+    build_default_creative_goal_plan,
+    materialize_deferred_payload,
+    resolve_pool_need_constraints,
+    validate_coordinator_plan,
+)
 from agentswarm_platform.subjective_store import (
     aggregate_quorum,
+    clear_goal_deferred_pool_needs,
     ensure_subjective_schema,
     get_creative_goal,
     insert_creative_goal,
@@ -121,6 +128,7 @@ from agentswarm_platform.subjective_store import (
     list_reviews_for_goal,
     resolve_goal,
     set_goal_artifact,
+    set_goal_deferred_pool_needs,
     weighted_review_score,
 )
 from agentswarm_platform.models import (
@@ -2412,39 +2420,51 @@ class Store:
         goal["reviews"] = reviews
         return goal
 
-    def _spawn_creative_worker_for_goal(self, goal_id: str) -> str:
-        with self._conn() as conn:
-            goal = get_creative_goal(conn, goal_id)
-        if goal is None:
-            raise ValueError("goal not found")
-        worker_payload = {
-            "goal_id": goal_id,
-            "capsule": {
-                "goal_id": goal_id,
-                "brief": goal["brief"],
-                "rubric": goal["rubric"],
-            },
-        }
-        worker_task = self.create_task(
-            "creative.text",
-            "creative",
-            worker_payload,
-            project_id=goal["project_id"],
+    def _emit_pool_need_spec(
+        self,
+        *,
+        spec: dict[str, Any],
+        parent_task_id: str,
+        project_id: str,
+        goal: dict[str, Any],
+        poster_owner: str,
+        worker_agent_id: str | None = None,
+        payload_override: dict[str, Any] | None = None,
+    ) -> str:
+        payload = payload_override if payload_override is not None else spec["payload"]
+        constraints = resolve_pool_need_constraints(
+            spec.get("constraints"),
+            goal=goal,
+            poster_owner=poster_owner,
+            worker_agent_id=worker_agent_id,
+        )
+        created = self.create_task(
+            spec["task_type"],
+            spec["capability_required"],
+            payload,
+            parent_task_id=parent_task_id,
+            project_id=project_id,
             assignment_only=True,
         )
         self.request_pool_need(
-            role="creative",
-            capability_required="creative",
-            parent_task_id=worker_task.task_id,
-            task_id=worker_task.task_id,
-            project_id=goal["project_id"],
-            task_type="creative.text",
-            payload=worker_payload,
-            constraints={},
+            role=spec["role"],
+            capability_required=spec["capability_required"],
+            parent_task_id=parent_task_id,
+            task_id=created.task_id,
+            project_id=project_id,
+            task_type=spec["task_type"],
+            payload=payload,
+            constraints=constraints,
         )
-        return worker_task.task_id
+        return created.task_id
 
-    def _schedule_subjective_reviewers(self, goal_id: str, *, parent_task_id: str) -> list[str]:
+    def _execute_coordinator_plan(
+        self,
+        *,
+        plan: dict[str, Any],
+        coordinator_task_id: str,
+    ) -> list[str]:
+        goal_id = plan["goal_id"]
         with self._conn() as conn:
             goal = get_creative_goal(conn, goal_id)
         if goal is None:
@@ -2452,48 +2472,72 @@ class Store:
         poster = self.get_agent(goal["poster_agent_id"])
         if poster is None:
             raise ValueError("poster agent missing")
+        enqueued: list[str] = []
+        for need in plan["pool_needs"]:
+            task_id = self._emit_pool_need_spec(
+                spec=need,
+                parent_task_id=coordinator_task_id,
+                project_id=goal["project_id"],
+                goal=goal,
+                poster_owner=poster["owner"],
+            )
+            enqueued.append(task_id)
+        deferred = plan.get("deferred_pool_needs") or []
+        if deferred:
+            with self._conn() as conn:
+                set_goal_deferred_pool_needs(conn, goal_id, deferred)
+        return enqueued
+
+    def _execute_deferred_pool_needs_for_goal(
+        self,
+        *,
+        goal_id: str,
+        after_task_type: str,
+        parent_task_id: str,
+        worker_agent_id: str | None,
+    ) -> list[str]:
         with self._conn() as conn:
-            worker_row = conn.execute(
-                "SELECT claimed_by FROM tasks WHERE task_id = ?", (parent_task_id,)
-            ).fetchone()
-        exclude_owners = [poster["owner"]]
-        exclude_agent_ids = [goal["poster_agent_id"]]
-        if worker_row is not None and worker_row["claimed_by"]:
-            exclude_agent_ids.append(worker_row["claimed_by"])
-        task_ids: list[str] = []
-        for _ in range(goal["min_reviewers"]):
-            review_payload = {
-                "goal_id": goal_id,
-                "capsule": {
-                    "goal_id": goal_id,
-                    "brief": goal["brief"],
-                    "artifact_text": goal["artifact_text"],
-                    "rubric": goal["rubric"],
-                },
-            }
-            created = self.create_task(
-                "reviewer.subjective",
-                "reviewer",
-                review_payload,
-                parent_task_id=parent_task_id,
-                project_id=goal["project_id"],
-                assignment_only=True,
-            )
-            self.request_pool_need(
-                role="reviewer",
-                capability_required="reviewer",
-                parent_task_id=parent_task_id,
-                task_id=created.task_id,
-                project_id=goal["project_id"],
-                task_type="reviewer.subjective",
-                payload=review_payload,
-                constraints={
-                    "exclude_owners": exclude_owners,
-                    "exclude_agent_ids": exclude_agent_ids,
-                },
-            )
-            task_ids.append(created.task_id)
-        return task_ids
+            goal = get_creative_goal(conn, goal_id)
+        if goal is None:
+            raise ValueError("goal not found")
+        deferred_entries = goal.get("deferred_pool_needs") or []
+        if not deferred_entries:
+            return []
+        poster = self.get_agent(goal["poster_agent_id"])
+        if poster is None:
+            raise ValueError("poster agent missing")
+        enqueued: list[str] = []
+        remaining: list[dict[str, Any]] = []
+        for entry in deferred_entries:
+            if entry.get("after_task_type") != after_task_type:
+                remaining.append(entry)
+                continue
+            spec = entry["spec"]
+            count = int(spec.get("count", 1))
+            payload_template = spec["payload_template"]
+            for _ in range(count):
+                payload = materialize_deferred_payload(payload_template, goal=goal)
+                task_id = self._emit_pool_need_spec(
+                    spec={
+                        "role": spec["role"],
+                        "capability_required": spec["capability_required"],
+                        "task_type": spec["task_type"],
+                        "constraints": spec.get("constraints"),
+                    },
+                    parent_task_id=parent_task_id,
+                    project_id=goal["project_id"],
+                    goal=goal,
+                    poster_owner=poster["owner"],
+                    worker_agent_id=worker_agent_id,
+                    payload_override=payload,
+                )
+                enqueued.append(task_id)
+        with self._conn() as conn:
+            if remaining:
+                set_goal_deferred_pool_needs(conn, goal_id, remaining)
+            else:
+                clear_goal_deferred_pool_needs(conn, goal_id)
+        return enqueued
 
     def _maybe_finalize_subjective_quorum(self, conn: sqlite3.Connection, goal_id: str) -> None:
         goal = get_creative_goal(conn, goal_id)
@@ -2584,10 +2628,20 @@ class Store:
             )
             claiming_agent_id = row["claimed_by"]
         self._mark_agent_idle_if_present(claiming_agent_id)
-        worker_task_id = self._spawn_creative_worker_for_goal(goal_id)
+        with self._conn() as conn:
+            goal = get_creative_goal(conn, goal_id)
+        if goal is None:
+            raise ValueError("goal not found")
+        if "pool_needs" not in result:
+            result = build_default_creative_goal_plan(goal)
+        plan = validate_coordinator_plan(result, goal_id=goal_id)
+        enqueued = self._execute_coordinator_plan(
+            plan=plan,
+            coordinator_task_id=row["task_id"],
+        )
         return SubmitResponse(
             submission_id=submission_id,
-            enqueued_task_ids=[worker_task_id],
+            enqueued_task_ids=enqueued,
         )
 
     def complete_creative_text_submit(
@@ -2647,8 +2701,11 @@ class Store:
             parent_task_id = row["task_id"]
             claiming_agent_id = row["claimed_by"]
         self._mark_agent_idle_if_present(claiming_agent_id)
-        reviewer_task_ids = self._schedule_subjective_reviewers(
-            goal_id, parent_task_id=parent_task_id
+        reviewer_task_ids = self._execute_deferred_pool_needs_for_goal(
+            goal_id=goal_id,
+            after_task_type="creative.text",
+            parent_task_id=parent_task_id,
+            worker_agent_id=claiming_agent_id,
         )
         return SubmitResponse(
             submission_id=submission_id,

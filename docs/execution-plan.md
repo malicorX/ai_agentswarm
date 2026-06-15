@@ -294,7 +294,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P6.4  Credits ledger (`GET /agents/{id}/credits`, burn on goal post, mint on verify)
 ✅ P6.5  Dev dispatch client (`agents/.../dispatch_client.py`, `scripts/run_dispatch_client.py`)
 ✅ P6.6  Docker worker image (`docker/worker/Dockerfile`, `--docker` on dispatch client)
-→  P6.7  Coordinator decomposition
+✅ P6.7  Coordinator decomposition (`pool_needs` + deferred reviewer needs from coordinator plan)
+→  P6.8  Production client shell (.exe)
 ```
 
 ---

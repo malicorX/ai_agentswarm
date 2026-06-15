@@ -2,14 +2,22 @@ from __future__ import annotations
 
 from typing import Any
 
+from agentswarm_platform.coordinator_plan import build_default_creative_goal_plan
+
 
 def execute_capsule(assignment: dict[str, Any]) -> dict[str, Any]:
     """Run an assigned capsule in-process (mock LLM until local runtime is wired)."""
     task_type = assignment.get("task_type", "")
     capsule = assignment.get("capsule") or {}
     if task_type == "coordinator.decompose":
-        goal_id = capsule.get("goal_id")
-        return {"goal_id": goal_id, "acknowledged": True}
+        return build_default_creative_goal_plan(
+            {
+                "goal_id": capsule.get("goal_id"),
+                "brief": capsule.get("brief", ""),
+                "rubric": capsule.get("rubric") or [{"id": "quality", "weight": 1.0}],
+                "min_reviewers": int(capsule.get("min_reviewers", 3)),
+            }
+        )
     if task_type == "creative.text":
         brief = capsule.get("brief", "creative work")
         return {

@@ -23,7 +23,8 @@ def ensure_subjective_schema(conn: sqlite3.Connection) -> None:
             artifact_text TEXT,
             aggregate_score REAL,
             created_at TEXT NOT NULL,
-            resolved_at TEXT
+            resolved_at TEXT,
+            deferred_pool_needs_json TEXT
         );
 
         CREATE TABLE IF NOT EXISTS subjective_reviews (
@@ -38,6 +39,13 @@ def ensure_subjective_schema(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(creative_goals)").fetchall()
+    }
+    if "deferred_pool_needs_json" not in columns:
+        conn.execute(
+            "ALTER TABLE creative_goals ADD COLUMN deferred_pool_needs_json TEXT"
+        )
 
 
 def insert_creative_goal(
@@ -91,7 +99,39 @@ def get_creative_goal(conn: sqlite3.Connection, goal_id: str) -> dict[str, Any] 
         "aggregate_score": row["aggregate_score"],
         "created_at": row["created_at"],
         "resolved_at": row["resolved_at"],
+        "deferred_pool_needs": (
+            json.loads(row["deferred_pool_needs_json"])
+            if "deferred_pool_needs_json" in row.keys()
+            and row["deferred_pool_needs_json"]
+            else []
+        ),
     }
+
+
+def set_goal_deferred_pool_needs(
+    conn: sqlite3.Connection,
+    goal_id: str,
+    deferred_pool_needs: list[dict[str, Any]],
+) -> None:
+    conn.execute(
+        """
+        UPDATE creative_goals
+        SET deferred_pool_needs_json = ?
+        WHERE goal_id = ?
+        """,
+        (json.dumps(deferred_pool_needs), goal_id),
+    )
+
+
+def clear_goal_deferred_pool_needs(conn: sqlite3.Connection, goal_id: str) -> None:
+    conn.execute(
+        """
+        UPDATE creative_goals
+        SET deferred_pool_needs_json = NULL
+        WHERE goal_id = ?
+        """,
+        (goal_id,),
+    )
 
 
 def set_goal_artifact(conn: sqlite3.Connection, goal_id: str, artifact_text: str) -> None:
