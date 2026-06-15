@@ -267,12 +267,14 @@ def platform_config() -> dict[str, object]:
     from agentswarm_platform.version_probation import public_parameters as version_parameters
 
     from agentswarm_platform.credit_pricing import public_parameters as credits_parameters
+    from agentswarm_platform.model_allowlist import public_parameters as models_parameters
 
     payload: dict[str, object] = {
         "assignment_mode": assignment_mode(),
         "auth": auth_parameters(),
         "credibility": public_parameters(),
         "credits": credits_parameters(),
+        "models": models_parameters(),
         "versioning": {**versioning_public_parameters(), **version_parameters()},
     }
     if dispatch_enabled():

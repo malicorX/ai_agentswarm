@@ -394,6 +394,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python -m pytest platform/tests/test_credit_pricing.py -q` |
 | **Acceptance** | Goal post burns `post_cost * difficulty`; reviewer mint uses class table; defaults match prior behavior |
 
+### P7.2 — Volunteer model allowlist
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Curated LLM allowlist published by platform and enforced in volunteer client (ADR 0007) |
+| **In scope** | `model_allowlist.py` + JSON on platform, `models` on config, presence guard, client cross-check |
+| **Verification** | `python -m pytest platform/tests/test_platform_model_allowlist.py agents/tests/test_model_allowlist.py -q` |
+| **Acceptance** | Client and platform JSON match; unknown `model_id` rejected when enforce flag set |
+
 ---
 
 ## Current focus
@@ -428,6 +437,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ Phase 6 close-out — `verify_dispatch_staging.py`, tag `v0.7.0-phase6`
 ✅ P7.0 Assignment long-poll — `/assignments/wait`, ADR 0006
 ✅ P7.1 Credit pricing table — `credit_pricing.py`, `credits.pricing` on config
+✅ P7.2 Volunteer model allowlist — ADR 0007, `models` on config
 ```
 
 ---

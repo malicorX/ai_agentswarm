@@ -114,6 +114,9 @@ def test_platform_config_exposes_credit_pricing(dispatch_client: TestClient) -> 
     credits = response.json().get("credits")
     assert isinstance(credits, dict)
     assert credits["pricing"]["creative.goal"]["post_cost"] == 50.0
+    models = response.json().get("models")
+    assert isinstance(models, dict)
+    assert models["version"] == "2"
 
 
 def test_subjective_quorum_pass_and_reviewer_mint(dispatch_client: TestClient) -> None:

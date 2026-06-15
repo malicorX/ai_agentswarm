@@ -107,6 +107,11 @@ def test_verify_dispatch_staging_success() -> None:
             "initial": 100.0,
             "pricing": {"creative.goal": {"post_cost": 50.0, "reviewer_reward": 15.0}},
         },
+        "models": {
+            "version": "2",
+            "enforced": False,
+            "allowlist": [{"id": "llm-mock-v1"}],
+        },
     }
     config_resp.raise_for_status = MagicMock()
     register_resp = MagicMock()

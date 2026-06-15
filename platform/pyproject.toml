@@ -26,7 +26,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-agentswarm_platform = ["templates/governance/*.json"]
+agentswarm_platform = ["templates/governance/*.json", "data/model_allowlist.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

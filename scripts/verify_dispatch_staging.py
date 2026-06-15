@@ -62,6 +62,12 @@ def verify_dispatch_staging(base_url: str, *, timeout: float = 30.0) -> dict[str
         pricing = credits_block.get("pricing")
         if not isinstance(pricing, dict) or "creative.goal" not in pricing:
             raise RuntimeError("platform config missing credits.pricing.creative.goal")
+        models_block = config_body.get("models")
+        if not isinstance(models_block, dict):
+            raise RuntimeError("platform config missing models block")
+        allowlist = models_block.get("allowlist")
+        if not isinstance(allowlist, list) or not allowlist:
+            raise RuntimeError("platform config missing models.allowlist")
 
         headers = _register_headers(config_body)
         pub, _priv = generate_keypair()

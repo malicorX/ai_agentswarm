@@ -8,6 +8,7 @@ from agentswarm_agents.volunteer_client import (
     VolunteerClient,
     VolunteerConfig,
     assert_dispatch_mode,
+    assert_platform_model_allowlist,
     resolve_executor,
 )
 
@@ -19,6 +20,17 @@ def test_assert_dispatch_mode_requires_dispatch(monkeypatch: pytest.MonkeyPatch)
     with patch("agentswarm_agents.volunteer_client.httpx.get", return_value=mock_response):
         with pytest.raises(RuntimeError, match="dispatch"):
             assert_dispatch_mode("http://127.0.0.1:8000")
+
+
+def test_assert_platform_model_allowlist_rejects_unknown() -> None:
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "models": {"allowlist": [{"id": "llm-mock-v1"}]},
+    }
+    mock_response.raise_for_status = MagicMock()
+    with patch("agentswarm_agents.volunteer_client.httpx.get", return_value=mock_response):
+        with pytest.raises(RuntimeError, match="platform allowlist"):
+            assert_platform_model_allowlist("http://127.0.0.1:8000", "other-model")
 
 
 def test_resolve_executor_in_process(monkeypatch: pytest.MonkeyPatch) -> None:

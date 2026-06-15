@@ -30,3 +30,11 @@ def test_get_model_entry_docker_runtime() -> None:
     entry = get_model_entry("llm-docker-worker-v1")
     assert entry is not None
     assert entry["runtime"] == "docker"
+
+
+def test_allowlist_documents_ollama_localhost() -> None:
+    entry = get_model_entry("ollama/llama3.2")
+    assert entry is not None
+    assert entry["runtime"] == "ollama"
+    assert entry.get("local_only") is True
+    assert str(entry.get("endpoint", "")).startswith("http://127.0.0.1")

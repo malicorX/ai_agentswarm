@@ -120,6 +120,7 @@ from agentswarm_platform.credits_ledger import (
     mint_credits,
 )
 from agentswarm_platform.credit_pricing import post_cost, reviewer_reward_for
+from agentswarm_platform.model_allowlist import validate_model_id as validate_presence_model_id
 from agentswarm_platform.coordinator_plan import (
     build_default_creative_goal_plan,
     materialize_deferred_payload,
@@ -2582,6 +2583,7 @@ class Store:
             raise ValueError("unknown agent")
         if status not in ("idle", "busy"):
             raise ValueError("status must be idle or busy")
+        validate_presence_model_id(model_id)
         with self._conn() as conn:
             recorded = upsert_presence(
                 conn,

@@ -139,6 +139,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P6.11** | Phase 6 close-out | Done → `verify_dispatch_staging.py`, tag `v0.7.0-phase6` |
 | **P7.0** | Assignment long-poll | Done → `/assignments/wait`, ADR 0006 |
 | **P7.1** | Credit pricing per task class | Done → `credit_pricing.py`, `credits.pricing` on config |
+| **P7.2** | Volunteer model allowlist | Done → ADR 0007, `models` on `/platform/config` |
 
 **Phase 6 close-out:** git tag [`v0.7.0-phase6`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.7.0-phase6) (2026-06-15).
 

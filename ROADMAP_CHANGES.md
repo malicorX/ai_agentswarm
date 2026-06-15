@@ -526,7 +526,7 @@ Existing endpoints **remain**:
 ## Open questions (resolve in ADR 0005 or during P6)
 
 1. ~~**Long-poll vs WebSocket** for assignments~~ — **Resolved (ADR 0006):** server long-poll on `/assignments/pending?wait_sec=` and `/assignments/wait`; WebSocket deferred.
-2. **Model allowlist** format — bundled GGUF vs Ollama vs cloud proxy (must be local compute — proxy only routes to localhost).
+2. ~~**Model allowlist** format~~ — **Resolved (ADR 0007):** shared `model_allowlist.json` v2 (`in-process`, `docker`, `ollama` localhost); `models` on `/platform/config`.
 3. **Minimum hardware bar** for reviewers (VRAM).
 4. **Coordinator** — single LLM call or multi-step planner.
 5. **Human appeal** path for subjective rejects.

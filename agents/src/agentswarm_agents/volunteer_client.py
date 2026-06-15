@@ -90,7 +90,30 @@ def resolve_executor(config: VolunteerConfig, agent_id: str) -> CapsuleExecutor:
                 "selected model requires Docker Desktop; build the worker image first"
             )
         return docker_capsule_executor(agent_id, image=config.worker_image)
+    if runtime == "ollama":
+        raise RuntimeError(
+            "Ollama runtime is listed on the allowlist but not implemented in this build; "
+            "use llm-mock-v1 or llm-docker-worker-v1"
+        )
     return execute_capsule
+
+
+def assert_platform_model_allowlist(base_url: str, model_id: str) -> None:
+    """Ensure the client model_id is published on the platform allowlist."""
+    response = httpx.get(f"{base_url.rstrip('/')}/platform/config", timeout=15.0)
+    response.raise_for_status()
+    models = response.json().get("models")
+    if not isinstance(models, dict):
+        return
+    allowlist = models.get("allowlist")
+    if not isinstance(allowlist, list) or not allowlist:
+        return
+    allowed = {str(item["id"]) for item in allowlist if isinstance(item, dict) and item.get("id")}
+    if model_id not in allowed:
+        known = ", ".join(sorted(allowed))
+        raise RuntimeError(
+            f"model_id {model_id!r} is not on the platform allowlist ({known})"
+        )
 
 
 def assert_dispatch_mode(base_url: str) -> None:
@@ -135,6 +158,7 @@ class VolunteerClient:
         self._set_state(VolunteerState.CONNECTING, "checking platform mode")
         assert_dispatch_mode(self.config.base_url)
         validate_model_id(self.config.model_id)
+        assert_platform_model_allowlist(self.config.base_url, self.config.model_id)
         self._set_state(VolunteerState.CONNECTING, "registering agent")
         client = connect_dispatch_agent(self.config)
         self._executor = resolve_executor(self.config, client.agent_id)
