@@ -60,7 +60,7 @@ GitHub Actions: **Verify staging (full)** (`.github/workflows/verify-staging-ful
 
 - **Manual:** Actions → *Verify staging (full)* → Run workflow
 - **Scheduled:** Sundays 06:00 UTC (weekly cron, P7.11)
-- **Secrets:** `AGENTSWARM_BOOTSTRAP_TOKEN` and `AGENTSWARM_ASSIGNMENT_SECRET` on the repo; news uses **enqueue-only** smoke (`AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY=1`); MCP adapter smoke runs via `verify_mcp_adapter.py` (tool list + staging `/health`); subjective demo runs with `min_reviewers=1` and **skips SSH prep** (`AGENTSWARM_VERIFY_SKIP_PREP=1` — CI cannot restart theebie via SSH) (P9.2)
+- **Secrets:** `AGENTSWARM_BOOTSTRAP_TOKEN` and `AGENTSWARM_ASSIGNMENT_SECRET` on the repo; news uses **enqueue-only** smoke (`AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY=1`); MCP adapter smoke runs via `verify_mcp_adapter.py` (tool list + staging `/health`); subjective demo is **skipped in GHA** (`AGENTSWARM_VERIFY_SKIP_SUBJECTIVE_DEMO=1`) — run locally via `bash scripts/close_phase18.sh` or `python scripts/verify_volunteer_subjective_staging.py` with SSH prep (P9.2)
 
 Maintainer close-out: `bash scripts/close_phase9.sh` (pytest + dispatch + hardware gates + subjective verify). Phase 8: `close_phase8.sh`.
 
