@@ -497,7 +497,27 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P9.1 Reviewer VRAM hardware gates — `vram_gb` on presence, dispatcher filter
 ✅ P9.2 Weekly subjective demo in CI — `verify_volunteer_subjective_staging.py`
 ✅ Phase 9 close-out — `close_phase9.sh`, tag `v0.10.0-phase9`
+✅ P10.0 Expired assignment lease reclaim — `reclaim_expired_assignment_leases()`
 ```
+
+---
+
+## Phase 10 — Assignment lease recovery
+
+**Goal:** Reclaim work stuck on expired assignment leases so pool needs redispatch to healthy volunteers.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P10.0** | Expired lease reclaim | ✅ Done | P9.0 |
+
+### P10.0 — Expired lease reclaim
+
+| Field | Value |
+|-------|--------|
+| **Goal** | When an assignment lease expires, return the pool need to `pending`, reset the claimed task, and mark the agent idle for redispatch |
+| **In scope** | `reclaim_expired_assignment_leases()` in `dispatch_store.py`; hook on presence, pending fetch, redispatch; `lease_ttl_minutes` on `/platform/config` |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py -q` |
+| **Acceptance** | Expired lease no longer blocks assignment; another idle reviewer receives the need on next heartbeat |
 
 ---
 

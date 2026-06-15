@@ -97,6 +97,7 @@ from agentswarm_platform.presence_store import (
     set_presence_status,
     upsert_presence,
 )
+from agentswarm_platform.assignment_wait import assignment_lease_ttl_minutes
 from agentswarm_platform.dispatch_store import (
     create_assignment_lease,
     ensure_dispatch_schema,
@@ -106,6 +107,7 @@ from agentswarm_platform.dispatch_store import (
     list_pending_pool_needs,
     mark_need_assigned,
     new_claim_token,
+    reclaim_expired_assignment_leases,
 )
 from agentswarm_platform.dispatcher import dispatch_pool_need as pick_dispatch_agent
 from agentswarm_platform.git_store import (
@@ -2626,6 +2628,7 @@ class Store:
         """Assign pending pool needs when idle agents become available."""
         assigned: list[str] = []
         with self._conn() as conn:
+            reclaim_expired_assignment_leases(conn)
             pending = list_pending_pool_needs(conn)
         for need_row in pending[:limit]:
             need_id = str(need_row["need_id"])
@@ -2734,6 +2737,7 @@ class Store:
                 agent_id=agent_id,
                 task_id=task_id,
                 claim_token=claim_token,
+                ttl_minutes=assignment_lease_ttl_minutes(),
             )
             mark_need_assigned(conn, need_id=need_id, agent_id=agent_id, lease_id=lease["lease_id"])
             set_presence_status(conn, agent_id, "busy")

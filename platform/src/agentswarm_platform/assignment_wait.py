@@ -16,10 +16,16 @@ def assignment_long_poll_interval_sec() -> float:
     return float(os.environ.get("AGENTSWARM_ASSIGNMENT_LONG_POLL_INTERVAL_SEC", "0.25"))
 
 
-def dispatch_public_parameters() -> dict[str, float]:
+def assignment_lease_ttl_minutes() -> int:
+    raw = os.environ.get("AGENTSWARM_ASSIGNMENT_LEASE_TTL_MINUTES", "60").strip()
+    return max(1, int(raw))
+
+
+def dispatch_public_parameters() -> dict[str, float | int]:
     return {
         "long_poll_max_sec": assignment_long_poll_max_sec(),
         "long_poll_interval_sec": assignment_long_poll_interval_sec(),
+        "lease_ttl_minutes": assignment_lease_ttl_minutes(),
     }
 
 

@@ -153,9 +153,71 @@ def create_assignment_lease(
     }
 
 
+def reclaim_expired_assignment_leases(
+    conn: sqlite3.Connection,
+    *,
+    now: datetime | None = None,
+) -> list[str]:
+    """Expire overdue active leases; reset pool needs and claimed tasks for redispatch."""
+    resolved_now = (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    now_iso = resolved_now.isoformat()
+    rows = conn.execute(
+        """
+        SELECT lease_id, need_id, agent_id, task_id
+        FROM assignment_leases
+        WHERE status = 'active' AND expires_at < ?
+        ORDER BY expires_at ASC
+        """,
+        (now_iso,),
+    ).fetchall()
+    reclaimed_need_ids: list[str] = []
+    for row in rows:
+        task = conn.execute(
+            "SELECT status, claimed_by FROM tasks WHERE task_id = ?",
+            (row["task_id"],),
+        ).fetchone()
+        if task is not None and task["status"] == "claimed" and task["claimed_by"] == row["agent_id"]:
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = 'created', claimed_by = NULL, claim_token = NULL, claim_deadline = NULL
+                WHERE task_id = ? AND status = 'claimed' AND claimed_by = ?
+                """,
+                (row["task_id"], row["agent_id"]),
+            )
+        conn.execute(
+            "UPDATE assignment_leases SET status = 'expired' WHERE lease_id = ?",
+            (row["lease_id"],),
+        )
+        need = conn.execute(
+            "SELECT status, lease_id FROM pool_needs WHERE need_id = ?",
+            (row["need_id"],),
+        ).fetchone()
+        if need is not None and need["status"] == "assigned" and need["lease_id"] == row["lease_id"]:
+            conn.execute(
+                """
+                UPDATE pool_needs
+                SET status = 'pending', assigned_agent_id = NULL, lease_id = NULL
+                WHERE need_id = ?
+                """,
+                (row["need_id"],),
+            )
+            reclaimed_need_ids.append(str(row["need_id"]))
+        conn.execute(
+            """
+            UPDATE agent_presence
+            SET status = 'idle', last_seen_at = ?
+            WHERE agent_id = ? AND status = 'busy'
+            """,
+            (now_iso, row["agent_id"]),
+        )
+    return reclaimed_need_ids
+
+
 def get_pending_assignment_for_agent(
     conn: sqlite3.Connection, agent_id: str
 ) -> dict[str, Any] | None:
+    reclaim_expired_assignment_leases(conn)
     row = conn.execute(
         """
         SELECT l.*, t.task_type, t.capability_required, t.payload, t.project_id
@@ -168,11 +230,6 @@ def get_pending_assignment_for_agent(
         (agent_id,),
     ).fetchone()
     if row is None:
-        return None
-    expires = datetime.fromisoformat(row["expires_at"])
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
-    if expires < datetime.now(timezone.utc):
         return None
     payload = json.loads(row["payload"]) if row["payload"] else {}
     capsule = payload.get("capsule", payload)

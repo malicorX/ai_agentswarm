@@ -209,3 +209,36 @@ def test_pool_need_redispatches_second_pending_need(dispatch_client: TestClient)
     assert second_pending is not None
     assigned_task_ids = {first_pending["task_id"], second_pending["task_id"]}
     assert assigned_task_ids == {need_one["task_id"], need_two["task_id"]}
+
+
+def test_expired_lease_reclaimed_on_idle_presence(
+    dispatch_client: TestClient,
+) -> None:
+    from agentswarm_platform import main as platform_main
+
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    reviewer_a, _ = register_agent(dispatch_client, ["reviewer"], owner="reviewer-a")
+    dispatch_client.post(
+        f"/agents/{reviewer_a}/presence",
+        json={"status": "idle", "capabilities": ["reviewer"], "ttl_sec": 120},
+    )
+    need = _post_reviewer_need(dispatch_client)
+    assert need["assigned"] is True
+    assigned = dispatch_client.get(f"/agents/{reviewer_a}/assignments/pending").json()
+    assert assigned is not None
+
+    with platform_main.store._conn() as conn:
+        conn.execute(
+            "UPDATE assignment_leases SET expires_at = ? WHERE status = 'active'",
+            ("2020-01-01T00:00:00+00:00",),
+        )
+
+    reviewer_b, _ = register_agent(dispatch_client, ["reviewer"], owner="reviewer-b")
+    dispatch_client.post(
+        f"/agents/{reviewer_b}/presence",
+        json={"status": "idle", "capabilities": ["reviewer"], "ttl_sec": 120},
+    )
+    reclaimed = dispatch_client.get(f"/agents/{reviewer_b}/assignments/pending").json()
+    assert reclaimed is not None
+    assert reclaimed["task_id"] == need["task_id"]
+    assert dispatch_client.get(f"/agents/{reviewer_a}/assignments/pending").json() is None
