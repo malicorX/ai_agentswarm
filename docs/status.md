@@ -158,6 +158,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P10.1** | Stale presence reclaim + subjective prep | Done → `maintain_dispatch_pool()`, prep scripts |
 | **P10.2** | Isolated subjective verify | Done → `dispatch_include_owners`, `isolate_dispatch` |
 | **P10.11** | Phase 10 close-out | Done → `close_phase10.sh`, tag `v0.11.0-phase10` |
+| **P11.0** | Live lease reclaim verify | Done → `verify_lease_reclaim_staging.py`, pool reconcile |
 
 **Phase 10 close-out:** git tag [`v0.11.0-phase10`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.11.0-phase10) (2026-06-13).
 

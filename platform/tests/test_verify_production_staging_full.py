@@ -106,6 +106,15 @@ def test_verify_production_staging_full_orchestration() -> None:
                     {"verify_creative_appeal_staging": staticmethod(capture_appeal)},
                 ),
                 type(
+                    "LeaseReclaimMod",
+                    (),
+                    {
+                        "verify_lease_reclaim_staging": staticmethod(
+                            lambda url, **kwargs: {"stale_reclaim": "ok"}
+                        )
+                    },
+                ),
+                type(
                     "SubjectiveMod",
                     (),
                     {
@@ -136,6 +145,7 @@ def test_verify_production_staging_full_orchestration() -> None:
     assert result["mode"] == "full"
     assert result["unit_p7"] == "passed"
     assert result["creative_appeal"]["get_missing_goal"] == "404"
+    assert result["lease_reclaim"]["stale_reclaim"] == "ok"
     assert result["volunteer_subjective"]["goal_status"] == "verified"
     assert result["news_pipeline"] == "skipped"
     assert result["mcp_adapter"] == "passed"

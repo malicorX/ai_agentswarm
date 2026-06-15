@@ -189,6 +189,15 @@ def verify_production_staging(
             )
             results["creative_appeal"] = appeal_mod.verify_creative_appeal_staging(clean)
 
+            if _env_flag("AGENTSWARM_EXPECT_LEASE_RECLAIM", default=False) or not _env_flag(
+                "AGENTSWARM_VERIFY_SKIP_LEASE_RECLAIM", default=False
+            ):
+                lease_mod = _load_script_module(
+                    "verify_lease_reclaim_staging",
+                    scripts / "verify_lease_reclaim_staging.py",
+                )
+                results["lease_reclaim"] = lease_mod.verify_lease_reclaim_staging(clean)
+
             if not _env_flag("AGENTSWARM_VERIFY_SKIP_SUBJECTIVE_DEMO", default=False):
                 if os.environ.get("AGENTSWARM_ASSIGNMENT_SECRET", "").strip():
                     subjective_mod = _load_script_module(

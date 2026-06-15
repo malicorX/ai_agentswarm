@@ -33,6 +33,10 @@ $env:AGENTSWARM_EXPECT_HARDWARE_GATES = "1"
 python scripts/verify_hardware_gates_staging.py $ApiUrl
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+$env:AGENTSWARM_EXPECT_LEASE_RECLAIM = "1"
+python scripts/verify_lease_reclaim_staging.py $ApiUrl
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 $env:AGENTSWARM_VERIFY_SUBJECTIVE_MIN_REVIEWERS = "1"
 if ($env:AGENTSWARM_VERIFY_SKIP_PREP -ne "1") {
     powershell -File scripts/prep_staging_subjective_verify.ps1

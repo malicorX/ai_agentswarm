@@ -501,7 +501,27 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P10.1 Stale presence reclaim + subjective prep — `maintain_dispatch_pool()`, `prep_staging_subjective_verify.sh`
 ✅ P10.2 Isolated subjective verify — `dispatch_include_owners`, `isolate_dispatch` demo mode
 ✅ P10.11 Phase 10 close-out — `close_phase10.sh`, tag `v0.11.0-phase10`
+✅ P11.0 Live lease reclaim verify — `verify_lease_reclaim_staging.py`
 ```
+
+---
+
+## Phase 11 — Lease reclaim observability
+
+**Goal:** Prove assignment lease recovery works on live staging, not only in unit tests.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P11.0** | Live lease reclaim verify | ✅ Done | P10.11 |
+
+### P11.0 — Live lease reclaim verify
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Staging smoke test: stale presence reclaims a lease and redispatches to another volunteer |
+| **In scope** | `verify_lease_reclaim_staging.py`, dispatch pool reconciliation (`reconcile_*`), `isolate_dispatch` via `include_owners`, wired into close-phase bundle |
+| **Verification** | `python -m pytest platform/tests/test_verify_lease_reclaim_staging.py -q` · `python scripts/verify_lease_reclaim_staging.py https://theebie.de/agentswarm/api` |
+| **Acceptance** | Reviewer B receives task after reviewer A's presence TTL expires |
 
 ---
 

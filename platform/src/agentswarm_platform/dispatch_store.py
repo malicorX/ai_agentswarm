@@ -165,38 +165,35 @@ def _reclaim_assignment_lease_row(
         "SELECT status, claimed_by FROM tasks WHERE task_id = ?",
         (row["task_id"],),
     ).fetchone()
-    if (
-        task is not None
-        and task["status"] == "claimed"
-        and task["claimed_by"] == row["agent_id"]
-    ):
+    if task is not None and task["status"] == "claimed":
         conn.execute(
             """
             UPDATE tasks
             SET status = 'created', claimed_by = NULL, claim_token = NULL, claim_deadline = NULL
-            WHERE task_id = ? AND status = 'claimed' AND claimed_by = ?
+            WHERE task_id = ? AND status = 'claimed'
             """,
-            (row["task_id"], row["agent_id"]),
+            (row["task_id"],),
         )
     conn.execute(
         "UPDATE assignment_leases SET status = 'expired' WHERE lease_id = ?",
         (row["lease_id"],),
     )
     need = conn.execute(
-        "SELECT status, lease_id FROM pool_needs WHERE need_id = ?",
+        "SELECT status, lease_id, assigned_agent_id FROM pool_needs WHERE need_id = ?",
         (row["need_id"],),
     ).fetchone()
     reclaimed_need_id: str | None = None
-    if need is not None and need["status"] == "assigned" and need["lease_id"] == row["lease_id"]:
-        conn.execute(
-            """
-            UPDATE pool_needs
-            SET status = 'pending', assigned_agent_id = NULL, lease_id = NULL
-            WHERE need_id = ?
-            """,
-            (row["need_id"],),
-        )
-        reclaimed_need_id = str(row["need_id"])
+    if need is not None and need["status"] == "assigned":
+        if need["lease_id"] == row["lease_id"] or need["assigned_agent_id"] == row["agent_id"]:
+            conn.execute(
+                """
+                UPDATE pool_needs
+                SET status = 'pending', assigned_agent_id = NULL, lease_id = NULL
+                WHERE need_id = ?
+                """,
+                (row["need_id"],),
+            )
+            reclaimed_need_id = str(row["need_id"])
     conn.execute("DELETE FROM agent_presence WHERE agent_id = ?", (row["agent_id"],))
     return reclaimed_need_id
 
@@ -263,6 +260,95 @@ def reclaim_leases_for_stale_presence(
     return reclaimed_need_ids
 
 
+def reconcile_claimed_tasks_without_active_lease(
+    conn: sqlite3.Connection,
+) -> list[str]:
+    """Reset assignment-only tasks stuck in claimed without an active lease."""
+    rows = conn.execute(
+        """
+        SELECT task_id
+        FROM tasks
+        WHERE status = 'claimed'
+          AND assignment_only = 1
+          AND NOT EXISTS (
+              SELECT 1 FROM assignment_leases
+              WHERE task_id = tasks.task_id AND status = 'active'
+          )
+        """
+    ).fetchall()
+    reconciled: list[str] = []
+    for row in rows:
+        task_id = str(row["task_id"])
+        conn.execute(
+            """
+            UPDATE tasks
+            SET status = 'created', claimed_by = NULL, claim_token = NULL, claim_deadline = NULL
+            WHERE task_id = ? AND status = 'claimed'
+            """,
+            (task_id,),
+        )
+        conn.execute(
+            """
+            UPDATE pool_needs
+            SET status = 'pending', assigned_agent_id = NULL, lease_id = NULL
+            WHERE task_id = ? AND status = 'assigned'
+            """,
+            (task_id,),
+        )
+        reconciled.append(task_id)
+    return reconciled
+
+
+def reconcile_assigned_pool_needs_without_active_lease(
+    conn: sqlite3.Connection,
+) -> list[str]:
+    """Return assigned needs to pending when their lease is missing or no longer active."""
+    rows = conn.execute(
+        """
+        SELECT need_id, lease_id, task_id, assigned_agent_id
+        FROM pool_needs
+        WHERE status = 'assigned'
+        """
+    ).fetchall()
+    reconciled: list[str] = []
+    for row in rows:
+        lease_id = row["lease_id"]
+        active = None
+        if lease_id:
+            active = conn.execute(
+                """
+                SELECT 1 FROM assignment_leases
+                WHERE lease_id = ? AND status = 'active'
+                """,
+                (lease_id,),
+            ).fetchone()
+        if active is not None:
+            continue
+        conn.execute(
+            """
+            UPDATE pool_needs
+            SET status = 'pending', assigned_agent_id = NULL, lease_id = NULL
+            WHERE need_id = ?
+            """,
+            (row["need_id"],),
+        )
+        task = conn.execute(
+            "SELECT status, claimed_by FROM tasks WHERE task_id = ?",
+            (row["task_id"],),
+        ).fetchone()
+        if task is not None and task["status"] == "claimed":
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = 'created', claimed_by = NULL, claim_token = NULL, claim_deadline = NULL
+                WHERE task_id = ? AND status = 'claimed'
+                """,
+                (row["task_id"],),
+            )
+        reconciled.append(str(row["need_id"]))
+    return reconciled
+
+
 def maintain_dispatch_pool(
     conn: sqlite3.Connection,
     *,
@@ -271,10 +357,14 @@ def maintain_dispatch_pool(
     """Expire leases, reclaim stale agents, and evict dead presence rows."""
     expired = reclaim_expired_assignment_leases(conn, now=now)
     stale = reclaim_leases_for_stale_presence(conn, now=now)
+    reconciled_needs = reconcile_assigned_pool_needs_without_active_lease(conn)
+    reconciled_tasks = reconcile_claimed_tasks_without_active_lease(conn)
     evicted = evict_stale_presence(conn, now=now)
     return {
         "expired_need_ids": expired,
         "stale_need_ids": stale,
+        "reconciled_need_ids": reconciled_needs,
+        "reconciled_task_ids": reconciled_tasks,
         "evicted_presence": evicted,
     }
 

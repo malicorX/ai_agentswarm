@@ -34,6 +34,9 @@ python scripts/verify_dispatch_staging.py "$API_URL"
 export AGENTSWARM_EXPECT_HARDWARE_GATES=1
 python scripts/verify_hardware_gates_staging.py "$API_URL"
 
+export AGENTSWARM_EXPECT_LEASE_RECLAIM=1
+python scripts/verify_lease_reclaim_staging.py "$API_URL"
+
 export AGENTSWARM_VERIFY_SUBJECTIVE_MIN_REVIEWERS=1
 if [[ "${AGENTSWARM_VERIFY_SKIP_PREP:-}" != "1" ]]; then
   bash scripts/prep_staging_subjective_verify.sh
