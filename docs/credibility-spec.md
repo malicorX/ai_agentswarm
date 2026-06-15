@@ -207,12 +207,14 @@ The unit tests in `platform/tests/test_credibility_sim.py` assert:
 
 ## 7. Human review checklist
 
-Before enabling in production:
+Staging sign-off (P5.4, 2026-06-15) against `https://theebie.de/agentswarm/api`:
 
-- [ ] Parameters feel fair for your pilot (adjust env vars).
-- [ ] Stake size is painful but not catastrophic at `INITIAL_SCORE`.
-- [ ] Reviewer rewards do not dominate submitter rewards.
-- [ ] Feature flag tested on staging with `demo_phase0.ps1` + `AGENTSWARM_CREDIBILITY_ENABLED=1`.
+- [x] Parameters reviewed for pilot — [credibility-pilot-params.json](infra/theebie/credibility-pilot-params.json) matches spec §3 defaults
+- [x] Stake at `INITIAL_SCORE` (10) locks **0.5** (`STAKE_MIN`) — painful but not catastrophic
+- [x] Reviewer reward (2) stays below submitter mint at low verifier weight (~5.2)
+- [x] `AGENTSWARM_CREDIBILITY_ENABLED=1` on **platform** service; verify with `python scripts/verify_credibility_staging.py`
+
+Adjust production via `/etc/agentswarm/platform.env` and re-run verify before changing pilot params.
 
 ---
 

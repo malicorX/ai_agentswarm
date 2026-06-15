@@ -116,3 +116,35 @@ def compute_outcome_deltas(
 
 def new_ledger_entry_id() -> str:
     return f"cred_{uuid.uuid4().hex[:12]}"
+
+
+def public_parameters() -> dict[str, float | bool]:
+    """Read-only credibility parameters for /platform/config and staging verify."""
+    from agentswarm_platform.credibility_transfer import CROSS_PROJECT_HAIRCUT
+    from agentswarm_platform.owner_anchoring import (
+        CANARY_PENALTY,
+        FLAG_HIGH_PENALTY,
+        QUARANTINE_PENALTY,
+        _penalty_max,
+    )
+
+    return {
+        "enabled": credibility_enabled(),
+        "initial_score": INITIAL_SCORE,
+        "base_mint": BASE_MINT,
+        "base_burn": BASE_BURN,
+        "reviewer_mint": REVIEWER_MINT,
+        "stake_rate": STAKE_RATE,
+        "stake_min": STAKE_MIN,
+        "stake_max": STAKE_MAX,
+        "verifier_weight_cap": VERIFIER_WEIGHT_CAP,
+        "tier_medium_min": TIER_MEDIUM_MIN,
+        "tier_high_min": TIER_HIGH_MIN,
+        "decay_half_life_days": DECAY_HALF_LIFE_DAYS,
+        "decay_min_days": DECAY_MIN_DAYS,
+        "cross_project_haircut": CROSS_PROJECT_HAIRCUT,
+        "owner_penalty_quarantine": QUARANTINE_PENALTY,
+        "owner_penalty_canary": CANARY_PENALTY,
+        "owner_penalty_flag_high": FLAG_HIGH_PENALTY,
+        "owner_penalty_max": _penalty_max(),
+    }

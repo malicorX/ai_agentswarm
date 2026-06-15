@@ -1,0 +1,21 @@
+{
+  "comment": "P5.4 pilot sign-off — spec defaults on staging; adjust via platform.env if reviewed.",
+  "enabled": true,
+  "initial_score": 10.0,
+  "base_mint": 5.0,
+  "base_burn": 3.0,
+  "reviewer_mint": 2.0,
+  "stake_rate": 0.05,
+  "stake_min": 0.5,
+  "stake_max": 10.0,
+  "verifier_weight_cap": 3.0,
+  "tier_medium_min": 25.0,
+  "tier_high_min": 50.0,
+  "decay_half_life_days": 180.0,
+  "decay_min_days": 1.0,
+  "cross_project_haircut": 0.5,
+  "owner_penalty_quarantine": 5.0,
+  "owner_penalty_canary": 2.0,
+  "owner_penalty_flag_high": 3.0,
+  "owner_penalty_max": 10.0
+}

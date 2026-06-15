@@ -28,6 +28,17 @@ else
   echo "Env file exists: $ENV_FILE"
 fi
 
+ensure_env_kv() {
+  local key="$1"
+  local value="$2"
+  if ! grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+    echo "${key}=${value}" >>"$ENV_FILE"
+    echo "Appended ${key} to $ENV_FILE"
+  fi
+}
+
+ensure_env_kv "AGENTSWARM_CREDIBILITY_ENABLED" "1"
+
 if ! grep -qF "$MARKER" "$CADDY_FILE"; then
   cp "$CADDY_FILE" "${CADDY_FILE}.bak.$(date +%s)"
   awk -v marker="$MARKER" '

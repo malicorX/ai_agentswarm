@@ -291,6 +291,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python scripts/verify_external_contributor.py` against `https://theebie.de/agentswarm/api` |
 | **Acceptance** | Isolated identity dir → register → same `agent_id` on reconnect → poll OK → optional enqueue + `codewriter --once` → task `submitted` or `verified` |
 
+### P5.4 — Credibility spec sign-off
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Human-reviewed credibility parameters enabled on staging |
+| **In scope** | `GET /platform/config` credibility block, `credibility-pilot-params.json`, `verify_credibility_staging.py` |
+| **Verification** | `python scripts/verify_credibility_staging.py` |
+| **Acceptance** | Platform `credibility.enabled=true`, params match pilot file, new agent seeds at `initial_score`, simulation tests pass |
+
 ---
 
 ## Current focus
@@ -311,7 +320,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.1 Live swarm on production (`agentswarm-swarm`, `deploy_swarm_theebie.sh`)
 ✅ P5.2 News hub product pipeline (`enqueue_news_feed.py`, content agents)
 ✅ P5.3 External contributor trial (`verify_external_contributor.py`)
-→  P5.4 Credibility spec sign-off
+✅ P5.4 Credibility spec sign-off (`verify_credibility_staging.py`)
+→  P5.5 MCP adapter (optional)
 ```
 
 ---
