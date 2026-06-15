@@ -5,6 +5,7 @@ from typing import Any, Callable
 
 from agentswarm_agents.capsule_executor import execute_capsule
 from agentswarm_agents.client import PlatformClient
+from agentswarm_agents.docker_worker import verify_assignment_signature
 from agentswarm_platform.crypto import sign_payload
 
 CapsuleExecutor = Callable[[dict[str, Any]], dict[str, Any]]
@@ -82,16 +83,31 @@ class DispatchClient(PlatformClient):
         *,
         poll_sec: float = 1.0,
         wait_timeout_sec: float = 30.0,
+        model_id: str | None = None,
+        client_version: str | None = None,
+        verify_signature: bool = True,
     ) -> bool:
-        self.heartbeat(capabilities, status="idle")
+        self.heartbeat(
+            capabilities,
+            status="idle",
+            model_id=model_id,
+            client_version=client_version,
+        )
         assignment = self.wait_for_assignment(
             poll_sec=poll_sec, timeout_sec=wait_timeout_sec
         )
         if assignment is None:
             return False
+        if verify_signature:
+            verify_assignment_signature(assignment, self.agent_id)
         result = executor(assignment)
         self.submit_assignment(assignment, result)
-        self.heartbeat(capabilities, status="idle")
+        self.heartbeat(
+            capabilities,
+            status="idle",
+            model_id=model_id,
+            client_version=client_version,
+        )
         return True
 
 

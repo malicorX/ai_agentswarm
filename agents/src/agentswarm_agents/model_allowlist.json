@@ -1,0 +1,16 @@
+{
+  "version": "1",
+  "description": "Curated local LLM runtimes for the volunteer production client",
+  "models": [
+    {
+      "id": "llm-mock-v1",
+      "label": "Mock in-process (dev)",
+      "runtime": "in-process"
+    },
+    {
+      "id": "llm-docker-worker-v1",
+      "label": "Docker worker capsule",
+      "runtime": "docker"
+    }
+  ]
+}

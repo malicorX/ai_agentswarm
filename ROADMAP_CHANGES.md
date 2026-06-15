@@ -467,9 +467,13 @@ Run client: `python scripts/run_dispatch_client.py --docker --capabilities creat
 
 | Field | Value |
 |-------|--------|
-| **Deliverables** | Minimal Tauri/Electron app: login/register, heartbeat, run assignment, model allowlist |
+| **Deliverables** | Minimal volunteer client: login/register, heartbeat, run assignment, model allowlist |
 | **Out of scope** | Installer signing, auto-update (document manual) |
-| **Acceptance** | `.exe` connects to staging API and completes one assigned review |
+| **Acceptance** | `.exe` connects to staging API and completes one assigned review ✅ |
+
+Build GUI/headless client: `pip install -e agents && agentswarm-volunteer`  
+Package Windows `.exe`: `powershell -File scripts/build_volunteer_exe.ps1`  
+Headless loop: `agentswarm-volunteer --headless --capabilities reviewer --loops 1`
 
 ### P6.9 — Git-backed coder capsule
 

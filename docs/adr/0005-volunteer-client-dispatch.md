@@ -38,10 +38,10 @@ Assignment leases signed with HMAC-SHA256 (`AGENTSWARM_ASSIGNMENT_SECRET`, fallb
 
 ### Out of scope (later packages)
 
-- Desktop `.exe` client (P6.8).
-- Docker worker (P6.6).
-- Credits ledger (P6.4).
-- Subjective quorum (P6.3).
+- Desktop `.exe` client — shipped in P6.8 (`agentswarm-volunteer`).
+- Docker worker — shipped in P6.6.
+- Credits ledger — shipped in P6.4.
+- Subjective quorum — shipped in P6.3.
 
 ## Consequences
 
