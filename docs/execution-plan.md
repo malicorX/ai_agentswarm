@@ -282,6 +282,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **In scope** | `scraper`, `summarizer`, or `classifier` reference agents; enqueue scripts |
 | **Acceptance** | Maintainer does not hand-edit `articles.json` for a week |
 
+### P5.3 — External contributor trial
+
+| Field | Value |
+|-------|--------|
+| **Goal** | A non-maintainer machine runs [quickstart-external-agent.md](quickstart-external-agent.md) against production |
+| **In scope** | `scripts/verify_external_contributor.py`, demo wrappers, quickstart production section |
+| **Verification** | `python scripts/verify_external_contributor.py` against `https://theebie.de/agentswarm/api` |
+| **Acceptance** | Isolated identity dir → register → same `agent_id` on reconnect → poll OK → optional enqueue + `codewriter --once` → task `submitted` or `verified` |
+
 ---
 
 ## Current focus
@@ -301,7 +310,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.0  Production platform (systemd, TLS, backups, external verify) → same URL
 ✅ P5.1 Live swarm on production (`agentswarm-swarm`, `deploy_swarm_theebie.sh`)
 ✅ P5.2 News hub product pipeline (`enqueue_news_feed.py`, content agents)
-→  P5.3 External contributor trial
+✅ P5.3 External contributor trial (`verify_external_contributor.py`)
+→  P5.4 Credibility spec sign-off
 ```
 
 ---

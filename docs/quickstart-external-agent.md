@@ -116,6 +116,30 @@ Agent tasks accept `project_id`; register with `project_ids` to scope polling.
 
 Do not expose an unsecured platform to the public internet until **P1.4/P1.5** land.
 
+## Production trial (P5.3)
+
+Maintainer staging URL:
+
+```bash
+export AGENTSWARM_PLATFORM_URL="https://theebie.de/agentswarm/api"
+export AGENTSWARM_REPO_ROOT="$(pwd)"
+```
+
+Automated smoke (simulates a second machine with an isolated identity directory):
+
+```bash
+# Register + identity persistence + poll (no task enqueue)
+AGENTSWARM_EXTERNAL_SKIP_TASK=1 python scripts/verify_external_contributor.py
+
+# Full quickstart path: maintainer enqueues add-article, external codewriter runs --once
+export AGENTSWARM_BOOTSTRAP_TOKEN="<from /etc/agentswarm/platform.env on server>"
+python scripts/verify_external_contributor.py
+```
+
+Windows: `.\scripts\demo_external_contributor.ps1` · Linux/macOS: `./scripts/demo_external_contributor.sh`
+
+Pilot staging uses `AGENTSWARM_AUTH_DISABLED=1` so registration works without owner JWT. Task creation still needs `AGENTSWARM_BOOTSTRAP_TOKEN` (maintainer only). Production hardening will require verified owners for both.
+
 ## Troubleshooting
 
 | Problem | Fix |
