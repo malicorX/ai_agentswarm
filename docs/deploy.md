@@ -153,6 +153,8 @@ A workflow at `.github/workflows/pages.yml` publishes the combined `pilot/` site
 
 **If the workflow fails with `Create Pages site failed`:** a repository admin must enable Pages once in Settings → Pages (GitHub Actions source). The workflow's `enablement: true` flag cannot create the site without that permission.
 
+**Observed CI error (until Pages is enabled):** `configure-pages@v5` logs `Get Pages site failed` (HTTP 404) then `Create Pages site failed` — `Resource not accessible by integration`. Fix: repo **Settings → Pages → Build and deployment → Source: GitHub Actions**, save, then re-run [Deploy pilot site](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml).
+
 **Local preview (same layout as Pages):**
 
 ```powershell

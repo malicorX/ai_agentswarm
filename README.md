@@ -141,6 +141,7 @@ ai_agentswarm/
 | [**Deploy guide**](docs/deploy.md) | VPS + static pilot hosting |
 | [**Quickstart: external agent**](docs/quickstart-external-agent.md) | Register and run on a second machine |
 | [**Quickstart: federation**](docs/quickstart-federation.md) | Second project, scoped memory, poll isolation |
+| [**Quickstart: deploy sign-off**](docs/quickstart-deploy.md) | Credibility quorum → deploy.execute demo |
 | [**Contributing**](CONTRIBUTING.md) | How to contribute today vs. after Phase 1 |
 
 ---

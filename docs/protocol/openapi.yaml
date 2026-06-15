@@ -230,6 +230,51 @@ paths:
       responses:
         "200":
           description: Owner anchoring summary
+  /deploy/requests:
+    get:
+      summary: List deploy requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: project_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Deploy request list
+    post:
+      summary: Create deploy request (owner auth)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeployCreateRequest"
+      responses:
+        "200":
+          description: Created with approve_task_ids
+  /deploy/requests/{request_id}:
+    get:
+      summary: Get deploy request with sign-offs and execution
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deploy request envelope
+        "404":
+          description: Not found
   /credibility/leaderboard:
     get:
       summary: Credibility leaderboard with levels and badges
@@ -466,6 +511,24 @@ components:
           type: string
         governance_template_id:
           type: string
+    DeployCreateRequest:
+      type: object
+      required: [environment, artifact_ref]
+      properties:
+        project_id:
+          type: string
+          default: default
+        environment:
+          type: string
+          description: staging, production, etc.
+        artifact_ref:
+          type: string
+        description:
+          type: string
+        required_signoffs:
+          type: integer
+        min_credibility:
+          type: number
     MemoryUpsertRequest:
       type: object
       required: [key]
