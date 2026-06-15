@@ -500,6 +500,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P10.0 Expired assignment lease reclaim — `reclaim_expired_assignment_leases()`
 ✅ P10.1 Stale presence reclaim + subjective prep — `maintain_dispatch_pool()`, `prep_staging_subjective_verify.sh`
 ✅ P10.2 Isolated subjective verify — `dispatch_include_owners`, `isolate_dispatch` demo mode
+✅ P10.11 Phase 10 close-out — `close_phase10.sh`, tag `v0.11.0-phase10`
 ```
 
 ---
@@ -513,6 +514,16 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **P10.0** | Expired lease reclaim | ✅ Done | P9.0 |
 | **P10.1** | Stale presence reclaim + subjective prep | ✅ Done | P10.0 |
 | **P10.2** | Isolated subjective verify (`include_owners`) | ✅ Done | P10.1 |
+| **P10.11** | Phase 10 close-out | ✅ Done | P10.2 |
+
+### P10.11 — Phase 10 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag assignment-lease-recovery milestone after reclaim paths and isolated subjective verify on theebie |
+| **In scope** | `close_phase10.sh` / `.ps1`, status/README updates, tag `v0.11.0-phase10` |
+| **Verification** | `bash scripts/close_phase10.sh` · `python -m pytest platform/tests agents/tests -q` |
+| **Acceptance** | Dispatch + hardware gates + isolated subjective verify exit 0 on theebie |
 
 ### P10.2 — Isolated subjective verify
 
