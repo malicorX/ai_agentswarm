@@ -2653,9 +2653,9 @@ class Store:
             seen.add(need_id)
             if self._dispatch_need(need_id) is not None:
                 assigned.append(need_id)
-        for need_row in pending:
-            if len(assigned) >= limit and for_agent_id is None:
-                break
+        if for_agent_id is not None:
+            return assigned
+        for need_row in pending[:limit]:
             need_id = str(need_row["need_id"])
             if need_id in seen:
                 continue

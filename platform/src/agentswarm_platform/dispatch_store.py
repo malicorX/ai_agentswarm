@@ -109,7 +109,8 @@ def list_pending_need_ids_for_agent(
         return []
     owner = str(agent["owner"] or "")
     capabilities = set(json.loads(presence["capabilities"]))
-    matched: list[str] = []
+    specific: list[str] = []
+    generic: list[str] = []
     for need in list_pending_pool_needs(conn):
         capability_required = str(need["capability_required"])
         if capability_required not in capabilities:
@@ -139,10 +140,14 @@ def list_pending_need_ids_for_agent(
             vram_gb=presence["vram_gb"],
         ):
             continue
-        matched.append(str(need["need_id"]))
-        if len(matched) >= limit:
+        need_id = str(need["need_id"])
+        if include_owners:
+            specific.append(need_id)
+        else:
+            generic.append(need_id)
+        if len(specific) + len(generic) >= limit:
             break
-    return matched
+    return (specific + generic)[:limit]
 
 
 def mark_need_assigned(

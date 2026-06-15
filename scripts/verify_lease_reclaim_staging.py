@@ -132,11 +132,6 @@ def verify_lease_reclaim_staging(
         result["agent_b"] = agent_b
 
         presence_a = _presence_payload(config_body, ttl_sec=presence_ttl_sec)
-        client.post(
-            f"{clean}/agents/{agent_a}/presence",
-            json=presence_a,
-        ).raise_for_status()
-
         need = client.post(
             f"{clean}/pool/need",
             json={
@@ -155,12 +150,18 @@ def verify_lease_reclaim_staging(
         )
         need.raise_for_status()
         need_body = need.json()
-        if not need_body.get("assigned"):
-            raise RuntimeError("expected pool need to assign to reviewer A")
         task_id = str(need_body["task_id"])
         result["task_id"] = task_id
 
-        pending_a = client.get(f"{clean}/agents/{agent_a}/assignments/pending").json()
+        client.post(
+            f"{clean}/agents/{agent_a}/presence",
+            json=presence_a,
+        ).raise_for_status()
+
+        pending_a = client.get(
+            f"{clean}/agents/{agent_a}/assignments/pending",
+            params={"wait_sec": assignment_wait_sec},
+        ).json()
         if pending_a is None or str(pending_a.get("task_id")) != task_id:
             raise RuntimeError("reviewer A did not receive the assignment")
 
