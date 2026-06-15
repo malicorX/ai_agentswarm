@@ -90,6 +90,32 @@ def test_insufficient_credits_rejected(
     assert "insufficient credits" in goal.json()["detail"]
 
 
+def test_goal_burn_scales_with_difficulty(dispatch_client: TestClient) -> None:
+    poster_id, _ = register_agent(dispatch_client, ["codewriter"], owner="poster-difficulty")
+    dispatch_client.get(f"/agents/{poster_id}/credits")
+    goal = dispatch_client.post(
+        "/creative/goals",
+        json={
+            "poster_agent_id": poster_id,
+            "brief": "Harder poem",
+            "rubric": RUBRIC,
+            "min_reviewers": 1,
+            "difficulty": 2.0,
+        },
+    )
+    assert goal.status_code == 200
+    after = dispatch_client.get(f"/agents/{poster_id}/credits")
+    assert after.json()["balance"] == 0.0
+
+
+def test_platform_config_exposes_credit_pricing(dispatch_client: TestClient) -> None:
+    response = dispatch_client.get("/platform/config")
+    assert response.status_code == 200
+    credits = response.json().get("credits")
+    assert isinstance(credits, dict)
+    assert credits["pricing"]["creative.goal"]["post_cost"] == 50.0
+
+
 def test_subjective_quorum_pass_and_reviewer_mint(dispatch_client: TestClient) -> None:
     poster_id, _ = register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
     coordinator_id, coord_priv = register_agent(

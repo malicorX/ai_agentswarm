@@ -530,7 +530,7 @@ Existing endpoints **remain**:
 3. **Minimum hardware bar** for reviewers (VRAM).
 4. **Coordinator** — single LLM call or multi-step planner.
 5. **Human appeal** path for subjective rejects.
-6. **Credit pricing** table per task class.
+6. ~~**Credit pricing** table per task class~~ — **Resolved (P7.1):** `credit_pricing.py`, `GET /platform/config` → `credits.pricing`, optional `difficulty` on creative goals.
 7. **Forge** — GitHub-first vs forge-agnostic in v1.
 
 ---

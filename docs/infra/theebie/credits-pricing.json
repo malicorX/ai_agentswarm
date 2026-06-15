@@ -1,0 +1,9 @@
+{
+  "comment": "Optional override for AGENTSWARM_CREDITS_PRICING_JSON on theebie staging",
+  "creative.goal": { "post_cost": 50, "reviewer_reward": 15 },
+  "reviewer.subjective": { "reviewer_reward": 15 },
+  "creative.text": { "verify_mint": 10 },
+  "coordinator.decompose": { "verify_mint": 5 },
+  "codewriter.patch": { "post_cost": 20 },
+  "git.patch": { "post_cost": 30 }
+}

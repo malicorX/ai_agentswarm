@@ -21,12 +21,16 @@ def initial_credits() -> float:
     return float(os.environ.get("AGENTSWARM_CREDITS_INITIAL", "100"))
 
 
-def goal_post_cost() -> float:
-    return float(os.environ.get("AGENTSWARM_CREDITS_GOAL_COST", "50"))
+def goal_post_cost(*, difficulty: float = 1.0) -> float:
+    from agentswarm_platform.credit_pricing import post_cost
+
+    return post_cost("creative.goal", difficulty=difficulty)
 
 
 def reviewer_reward() -> float:
-    return float(os.environ.get("AGENTSWARM_CREDITS_REVIEWER_REWARD", "15"))
+    from agentswarm_platform.credit_pricing import reviewer_reward_for
+
+    return reviewer_reward_for("reviewer.subjective")
 
 
 def ensure_credits_schema(conn: sqlite3.Connection) -> None:

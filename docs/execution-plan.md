@@ -385,6 +385,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python -m pytest platform/tests/test_assignment_long_poll.py -q` |
 | **Acceptance** | Clients wait in one HTTP request; config exposes `dispatch.long_poll_max_sec`; pull mode unchanged |
 
+### P7.1 — Credit pricing per task class
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tunable credit burn/mint table per task class (ROADMAP_CHANGES economics) |
+| **In scope** | `credit_pricing.py`, `credits.pricing` on `/platform/config`, `difficulty` on creative goals, env/JSON overrides |
+| **Verification** | `python -m pytest platform/tests/test_credit_pricing.py -q` |
+| **Acceptance** | Goal post burns `post_cost * difficulty`; reviewer mint uses class table; defaults match prior behavior |
+
 ---
 
 ## Current focus
@@ -418,6 +427,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ Staging registration auth enforced — [production-hardening.md](production-hardening.md)
 ✅ Phase 6 close-out — `verify_dispatch_staging.py`, tag `v0.7.0-phase6`
 ✅ P7.0 Assignment long-poll — `/assignments/wait`, ADR 0006
+✅ P7.1 Credit pricing table — `credit_pricing.py`, `credits.pricing` on config
 ```
 
 ---

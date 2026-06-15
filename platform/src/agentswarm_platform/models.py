@@ -285,6 +285,7 @@ class CreativeGoalRequest(BaseModel):
     project_id: str = "default"
     min_reviewers: int = 3
     pass_threshold: float = 6.0
+    difficulty: float = Field(default=1.0, ge=0.1, le=10.0)
 
 
 class CreativeGoalResponse(BaseModel):

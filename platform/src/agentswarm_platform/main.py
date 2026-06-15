@@ -266,10 +266,13 @@ def platform_config() -> dict[str, object]:
     from agentswarm_platform.agent_versioning import versioning_public_parameters
     from agentswarm_platform.version_probation import public_parameters as version_parameters
 
+    from agentswarm_platform.credit_pricing import public_parameters as credits_parameters
+
     payload: dict[str, object] = {
         "assignment_mode": assignment_mode(),
         "auth": auth_parameters(),
         "credibility": public_parameters(),
+        "credits": credits_parameters(),
         "versioning": {**versioning_public_parameters(), **version_parameters()},
     }
     if dispatch_enabled():
@@ -449,6 +452,7 @@ def create_creative_goal(
             project_id=body.project_id,
             min_reviewers=body.min_reviewers,
             pass_threshold=body.pass_threshold,
+            difficulty=body.difficulty,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

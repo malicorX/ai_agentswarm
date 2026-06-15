@@ -102,6 +102,11 @@ def test_verify_dispatch_staging_success() -> None:
         "assignment_mode": "dispatch",
         "auth": {"enforced": False},
         "dispatch": {"long_poll_max_sec": 60.0, "long_poll_interval_sec": 0.25},
+        "credits": {
+            "enabled": True,
+            "initial": 100.0,
+            "pricing": {"creative.goal": {"post_cost": 50.0, "reviewer_reward": 15.0}},
+        },
     }
     config_resp.raise_for_status = MagicMock()
     register_resp = MagicMock()

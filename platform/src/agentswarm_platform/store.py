@@ -117,10 +117,9 @@ from agentswarm_platform.credits_ledger import (
     credits_enabled,
     ensure_credits_schema,
     get_credits_balance,
-    goal_post_cost,
     mint_credits,
-    reviewer_reward,
 )
+from agentswarm_platform.credit_pricing import post_cost, reviewer_reward_for
 from agentswarm_platform.coordinator_plan import (
     build_default_creative_goal_plan,
     materialize_deferred_payload,
@@ -2751,6 +2750,7 @@ class Store:
         project_id: str | None = None,
         min_reviewers: int = 3,
         pass_threshold: float = 6.0,
+        difficulty: float = 1.0,
     ) -> dict[str, Any]:
         if not dispatch_enabled():
             raise ValueError("creative goals require AGENTSWARM_ASSIGNMENT_MODE=dispatch")
@@ -2773,10 +2773,11 @@ class Store:
                 pass_threshold=pass_threshold,
             )
             if credits_enabled():
+                cost = post_cost("creative.goal", difficulty=difficulty)
                 burn_credits(
                     conn,
                     poster_agent_id,
-                    goal_post_cost(),
+                    cost,
                     reason="goal_post",
                     ref_type="creative_goal",
                     ref_id=goal_id,
@@ -2956,7 +2957,7 @@ class Store:
         status = "verified" if passed else "rejected"
         resolve_goal(conn, goal_id, status=status, aggregate_score=aggregate)
         if credits_enabled() and passed:
-            reward = reviewer_reward()
+            reward = reviewer_reward_for("reviewer.subjective")
             for review in reviews:
                 mint_credits(
                     conn,

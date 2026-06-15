@@ -56,6 +56,12 @@ def verify_dispatch_staging(base_url: str, *, timeout: float = 30.0) -> dict[str
         dispatch_block = config_body.get("dispatch")
         if not isinstance(dispatch_block, dict) or "long_poll_max_sec" not in dispatch_block:
             raise RuntimeError("platform config missing dispatch.long_poll_max_sec")
+        credits_block = config_body.get("credits")
+        if not isinstance(credits_block, dict):
+            raise RuntimeError("platform config missing credits block")
+        pricing = credits_block.get("pricing")
+        if not isinstance(pricing, dict) or "creative.goal" not in pricing:
+            raise RuntimeError("platform config missing credits.pricing.creative.goal")
 
         headers = _register_headers(config_body)
         pub, _priv = generate_keypair()
