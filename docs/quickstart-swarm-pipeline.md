@@ -27,4 +27,4 @@ This script:
 
 - [quickstart-federation.md](quickstart-federation.md)
 - [quickstart-deploy.md](quickstart-deploy.md)
-- [deploy.md](deploy.md) — production Pages path (admin enable required)
+- [deploy.md](deploy.md) — theebie.de static hosting + optional Pages for forks

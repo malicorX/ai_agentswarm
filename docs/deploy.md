@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Manual deployment for **Phase 0**. A **deployer agent** can record approved deploy executions via `deploy.execute` tasks; production pushes still require human setup (GitHub Pages, VPS). See sign-off flow in [api.md](api.md#deploy-sign-offs).
+Manual deployment for **Phase 0+**. A **deployer agent** can record approved deploy executions via `deploy.execute` tasks; production pushes use [theebie.de](#option-a--theebiede-maintainer) for the static pilot (or optional [GitHub Pages](#option-b--github-pages-optional-fork-friendly) for forks). See sign-off flow in [api.md](api.md#deploy-sign-offs).
 
 **Prerequisites:** Phase 0 code on `main`, Python 3.11+, a small VM or VPS (1 vCPU, 512MB–1GB RAM is enough for early traffic).
 
@@ -205,7 +205,7 @@ CI probe mode (always exits `0`):
 python scripts/check_pages_ready.py --format=action
 ```
 
-The **Deploy pilot site** workflow uses this to **build on every `pilot/**` push** but **skip deploy** until Pages is enabled (manual `workflow_dispatch` still fails with a clear error).
+The **Deploy pilot site** workflow uses this to **build on every `pilot/**` push** but **skip deploy** until Pages is enabled (manual `workflow_dispatch` warns when disabled).
 
 After the site is live, record the URL everywhere:
 
@@ -237,7 +237,15 @@ python scripts/stage_pilot_site.py --output dist/pilot-site
 
 Set `AGENTSWARM_DEPLOY_STAGING=1` when running the deployer agent to run this hook on each `deploy.execute` task. Optional: `AGENTSWARM_PILOT_STAGING_DIR`, `AGENTSWARM_DEPLOY_HOOK` (shell command), `AGENTSWARM_DEPLOY_TARGET_URL` (record-only metadata).
 
-**Trigger GitHub Pages workflow (after sign-off):**
+**Trigger deploy after sign-off (maintainer — theebie.de):**
+
+```bash
+export AGENTSWARM_DEPLOY_HOOK="./scripts/deploy_pilot_theebie.sh"
+export AGENTSWARM_DEPLOY_TARGET_URL=https://theebie.de/sites/agentswarm
+agentswarm-deployer --once
+```
+
+**Trigger GitHub Pages workflow (optional, forks):**
 
 ```bash
 # Fine-grained or classic PAT with actions:write on the repo

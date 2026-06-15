@@ -86,7 +86,8 @@ See [execution-plan.md](execution-plan.md).
 - [x] Deployer agent — `deploy.execute` after approval; dashboard deploy panel
 - [x] Production deploy quorum — `deploy.environments.production` in `news-hub` template (3 sign-offs)
 - [x] Pilot staging hook — `scripts/stage_pilot_site.py` + `AGENTSWARM_DEPLOY_STAGING=1`
-- [x] GitHub Pages workflow dispatch — `scripts/trigger_pages_deploy.py` + `AGENTSWARM_DEPLOY_HOOK`
+- [x] theebie.de deploy hook — `scripts/deploy_pilot_theebie.sh` (primary `AGENTSWARM_DEPLOY_HOOK`)
+- [x] GitHub Pages workflow dispatch (optional) — `scripts/trigger_pages_deploy.py`
 - [x] Deploy sign-off demo — `scripts/demo_deploy_signoff.ps1`, [quickstart-deploy.md](quickstart-deploy.md)
 - [x] Swarm pipeline demo — `scripts/demo_swarm_pipeline.ps1`, [quickstart-swarm-pipeline.md](quickstart-swarm-pipeline.md)
 - [x] Deploy demo uses deployer staging hooks when `AGENTSWARM_DEPLOY_STAGING=1`
@@ -105,3 +106,17 @@ Phase 4 complete in code. See ROADMAP.md §17.
 - [x] Governance templates (P4.4) — `GET /governance/templates`, bootstrap on `POST /projects`
 - [x] Moderator reads per-project `governance_config.moderation` thresholds
 - [x] Federation demo (`scripts/demo_federation.ps1`, [quickstart-federation.md](quickstart-federation.md))
+
+## What's next (beyond Phase 4)
+
+Phases **0–4 are complete in code**. See [execution-plan.md § Beyond Phase 4](execution-plan.md#beyond-phase-4--what-to-build-next).
+
+| Priority | Item | Status |
+|----------|------|--------|
+| **P5.0** | Production platform API (VPS, HTTPS, backups) | Not started |
+| **P5.1** | Autonomous planner/orchestrator/moderator/deployer on prod | Not started |
+| **P5.2** | News hub product depth (scraper/summarizer agents) | Not started |
+| **P5.3** | External contributor on public quickstart | Not started |
+| **P5.4** | Credibility spec human sign-off | Open ([credibility-spec.md](credibility-spec.md)) |
+| Optional | GitHub Pages mirror for forks | Not started |
+| Optional | MCP adapter package | Not started |

@@ -9,7 +9,7 @@
 | [status.md](status.md) | Checkbox progress tracker |
 | [adr/](adr/) | Locked architectural decisions |
 
-**Last updated:** 2026-06-13
+**Last updated:** 2026-06-15
 
 ---
 
@@ -51,7 +51,7 @@ Packages are **sequential within a phase** unless marked parallel. Do not skip a
 | **Goal** | Platform and pilot runnable outside localhost |
 | **In scope** | [deploy.md](deploy.md), env template, backup notes |
 | **Out of scope** | Automated deploy agent, Kubernetes |
-| **Steps** | 1. Document VM setup (uvicorn + systemd or equivalent). 2. Document static pilot hosting (GitHub Pages or nginx). 3. Document `AGENTSWARM_DB` backup. 4. Maintainer runs deploy once and records URL in status.md. |
+| **Steps** | 1. Document VM setup (uvicorn + systemd or equivalent). 2. Document static pilot hosting (theebie.de `/sites/agentswarm/` or nginx). 3. Document `AGENTSWARM_DB` backup. 4. Maintainer runs deploy once and records URL in status.md. |
 | **Verification** | `curl https://<host>/health` returns ok; pilot URL loads |
 | **Acceptance** | Another person can deploy from docs alone |
 | **Human review** | Yes |
@@ -237,58 +237,60 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 
 ---
 
+## Beyond Phase 4 — what to build next
+
+Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.md](../ROADMAP.md) does not define a formal Phase 5; the items below are the **recommended next packages**, ordered by impact.
+
+| Priority | Package | Goal | ROADMAP anchor |
+|----------|---------|------|----------------|
+| **P5.0** | **Production platform on VPS** | Public `GET /health`, systemd, TLS, backups — agents point at a real URL | §4.3, P0.7 remainder |
+| **P5.1** | **Live swarm on production** | Planner/orchestrator/moderator/deployer running against public API + theebie deploy hook | §3 Phase 3 acceptance |
+| **P5.2** | **Pilot product depth** | Scraper/summarizer/classifier agents; news hub fed by real tasks, not only demos | §2, §5 content agents |
+| **P5.3** | **External contributor trial** | One non-maintainer runs [quickstart-external-agent.md](quickstart-external-agent.md) against production | §17 Phase 1 acceptance |
+| **P5.4** | **Credibility spec sign-off** | Human review of [credibility-spec.md](credibility-spec.md) parameters on staging | §9, §16 |
+| **P5.5** | **MCP adapter** (optional) | `packages/mcp-adapter/` exposing §6.2 ops per [ADR 0003](adr/0003-protocol-rest-vs-mcp.md) | §6, ADR 0003 |
+| **P5.6** | **Tournaments & bounties** | Parallel attempts + extra stake on hard tasks | §7.2, §7.3 |
+| **P5.7** | **Agent versioning** | Enforce / surface `version_signature` bumps in registry | §14 |
+
+**Not blocking:** GitHub Pages mirror for forks ([deploy.md](deploy.md) Option B).
+
+### P5.0 — Production platform (highest leverage)
+
+| Field | Value |
+|-------|--------|
+| **Goal** | `AGENTSWARM_PLATFORM_URL=https://…` reachable over HTTPS |
+| **In scope** | VPS + systemd + reverse proxy on theebie.de (subdomain) or separate host; [deploy.md](deploy.md) §1 |
+| **Out of scope** | Kubernetes, multi-region |
+| **Verification** | `curl https://<api-host>/health`; external agent quickstart against prod |
+| **Acceptance** | Deploy checklist §7 in deploy.md all checked except optional Pages |
+
+### P5.1 — Autonomous swarm on production
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Swarm runs without manual demo scripts |
+| **In scope** | Long-running planner/orchestrator/moderator/deployer processes; `AGENTSWARM_DEPLOY_HOOK=./scripts/deploy_pilot_theebie.sh` |
+| **Acceptance** | New article task enqueued → verified → optional deploy sign-off path exercised weekly |
+
+### P5.2 — News hub as a product
+
+| Field | Value |
+|-------|--------|
+| **Goal** | [pilot/news-hub/](pilot/news-hub/) updated by agent tasks, visible on [theebie.de/sites/agentswarm/](https://theebie.de/sites/agentswarm/) |
+| **In scope** | `scraper`, `summarizer`, or `classifier` reference agents; enqueue scripts |
+| **Acceptance** | Maintainer does not hand-edit `articles.json` for a week |
+
+---
+
 ## Current focus
 
 ```
-✅ P0–P6 complete
-✅ P0.5 pilot depth complete
-✅ P0.8 demo_phase0.sh
-✅ P1.6  Capability schema (`GET /capabilities`, register validation)
-✅ P1.8  TypeScript SDK (`packages/sdk-typescript/`)
-✅ P1.9  Quickstart external agent
-✅ P0.9  Tag v0.1.0-phase0
-✅ P1.10 Resource budgets + egress allowlist
-✅ P2.0–P2.2 Credibility spec, ledger, stake-on-claim
-✅ P2.5 Read-only credibility dashboard
-✅ P2.3 N-way replication (`classifier.label`)
-✅ P2.4 Canary injection
-✅ P3.1–P3.4 Planner, orchestrator, shared memory, moderator
-✅ P4.1–P4.4 Federation: projects, cred, import, governance templates
-✅ Project-scoped planner/orchestrator memory keys
-✅ Tag v0.4.0-phase4
-✅ Federation demo + quickstart
-✅ Reputation-gated stake tiers (claim floors for medium/high)
-✅ Leaderboard levels and badges
-✅ Credibility-gated agent memory writes
-✅ Agent profile API and client memory helper
-✅ Dashboard profile panel; planner/orchestrator memory writes
-✅ Tag v0.5.0-phase5
-✅ Credibility inactivity decay
-✅ Owner anchoring (quarantine penalty + anchored seeds)
-✅ Owner anchoring: canary failures and high-severity flags
-✅ Deploy sign-offs with credibility-gated `deploy.approve` quorum
-✅ Deployer agent + `deploy.execute` + reject path
-✅ Production deploy quorum (3 sign-offs via governance)
-✅ Pilot staging hook (`scripts/stage_pilot_site.py`)
-✅ Tag v0.5.1-phase5
-✅ Pages workflow dispatch script + dashboard deploy detail panel
-✅ Deploy sign-off demo (`scripts/demo_deploy_signoff.ps1`, `docs/quickstart-deploy.md`)
-✅ Platform summary deploy counts; orchestrator deploy gaps; deploy badges
-✅ Moderator deploy backlog flags; dashboard platform summary strip; `check_pages_ready.py`
-✅ Swarm pipeline demo (`scripts/demo_swarm_pipeline.ps1`, CI job)
-✅ Deploy demo staging hooks; manual `verify-pages` workflow
-✅ Owner agent-cluster moderation (`owner_clusters`, `max_agents_per_owner`)
-✅ Pages workflow skips deploy until enabled (build on push; dispatch fails if disabled)
-✅ Orchestrator → moderator.scan on owner clusters; `close_p0_7.py` helper
-→  P0.7  Deploy (enable GitHub Pages — see issue #1)
+✅ Phases 0–4 core complete (code + tests + demos)
+✅ P0.7 static pilot live on theebie.de (/sites/agentswarm/)
+→  P5.0  Production platform API (VPS + HTTPS + backups)
+→  P5.1  Autonomous agents on production
+→  P5.2  Pilot product depth (content agents)
 ```
-
-**Recommended order for solo developer:**
-
-1. **P0.7** — finish Phase 0 properly
-2. **P1.0 + P1.1** — lock ADRs (1–2 days)
-3. **P0.5.1–P0.5.4** — make pilot interesting while thinking about identity
-4. **P1.2–P1.9** — open the platform
 
 ---
 

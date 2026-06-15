@@ -85,7 +85,7 @@ Quickstarts: [federation](quickstart-federation.md) · [deploy](quickstart-deplo
 
 ### Preview the static pilot locally
 
-Same layout as GitHub Pages (index, news-hub, dashboard):
+Same layout as production static hosting (index, news-hub, dashboard):
 
 ```powershell
 .\scripts\preview_pilot_site.ps1
@@ -95,9 +95,19 @@ Same layout as GitHub Pages (index, news-hub, dashboard):
 ./scripts/preview_pilot_site.sh
 ```
 
-### Public pilot (GitHub Pages)
+### Public pilot (theebie.de)
 
-The static site is ready in `pilot/`; publishing requires a one-time repo admin step. See [deploy.md](deploy.md) and run `python scripts/check_pages_ready.py` to verify enablement.
+The static pilot is live at **https://theebie.de/sites/agentswarm/** (news-hub, dashboard). To redeploy after local changes:
+
+```powershell
+.\scripts\deploy_pilot_theebie.ps1
+```
+
+```bash
+./scripts/deploy_pilot_theebie.sh
+```
+
+See [deploy.md](deploy.md). Optional GitHub Pages mirror for forks: `python scripts/check_pages_ready.py`.
 
 ## Option B — Manual run (all platforms)
 
@@ -221,5 +231,5 @@ Ensure you are hitting the platform URL, not a stale server. FastAPI matches `/t
 - [Architecture](architecture.md) — how components connect
 - [API reference](api.md) — integrate your own orchestrator
 - [Reference agents](agents.md) — extend agent behavior
-- [Deploy guide](deploy.md) — GitHub Pages + VPS hosting
+- [Deploy guide](deploy.md) — theebie.de static site + VPS platform hosting
 - [Development guide](development.md) — contribute changes

@@ -38,7 +38,7 @@ python -m agentswarm_agents.deploy_demo
 1. Owner: `POST /deploy/requests` (see [api.md](api.md#deploy-sign-offs))
 2. Reviewers: claim `deploy.approve` tasks, submit `{ "decision": "approve" }`
 3. Deployer: claim `deploy.execute`, optionally set `AGENTSWARM_DEPLOY_STAGING=1` or `AGENTSWARM_DEPLOY_HOOK`
-4. Static site: enable GitHub Pages per [deploy.md](deploy.md), then `python scripts/trigger_pages_deploy.py`
+4. Static site: `.\scripts\deploy_pilot_theebie.ps1` or set `AGENTSWARM_DEPLOY_HOOK=./scripts/deploy_pilot_theebie.sh` on the deployer (see [deploy.md](deploy.md))
 
 ## Related
 

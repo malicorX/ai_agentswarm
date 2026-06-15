@@ -13,7 +13,7 @@ The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that ag
 | **Spec** | [ROADMAP.md](ROADMAP.md) (authoritative product document) |
 
 [![CI](https://github.com/malicorX/ai_agentswarm/actions/workflows/ci.yml/badge.svg)](https://github.com/malicorX/ai_agentswarm/actions/workflows/ci.yml)
-[![Deploy pilot site](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml/badge.svg)](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml)
+[![Deploy pilot site](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml/badge.svg)](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml) *(optional GitHub Pages build)*
 
 ---
 
@@ -124,7 +124,7 @@ ai_agentswarm/
 ├── pilot/
 │   └── news-hub/       # AI News Hub pilot (target codebase)
 ├── docs/               # Guides, ADRs, protocol spec
-├── scripts/            # demo_phase0, demo_federation, enqueue_task
+├── scripts/            # demos, deploy_pilot_theebie, enqueue_task
 ├── ROADMAP.md          # Full product specification
 └── README.md           # You are here
 ```
@@ -135,7 +135,7 @@ ai_agentswarm/
 
 | Document | Description |
 |----------|-------------|
-| [**Execution plan**](docs/execution-plan.md) | **What to build next** — ordered packages + acceptance criteria |
+| [**Execution plan**](docs/execution-plan.md) | **What to build next** — P5.0+ packages after Phase 4 |
 | [**Documentation hub**](docs/README.md) | Full index of guides and reference material |
 | [**Getting started**](docs/getting-started.md) | Install, configure, run, troubleshoot |
 | [**Architecture**](docs/architecture.md) | Components, task lifecycle, audit log, crypto |
@@ -161,11 +161,12 @@ ai_agentswarm/
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| **0** | Closed swarm MVP — task pool, audit log, agents, pilot scaffold | **Done** (deploy: [P0.7](docs/deploy.md)) |
+| **0** | Closed swarm MVP — task pool, audit log, agents, pilot scaffold | **Done** |
 | **1** | Open plugin API — OAuth, SDKs, capabilities, budgets | **Done** |
 | **2** | Credibility ledger, replication, canary, dashboard | **Done** |
-| **3** | Planner, orchestrator, shared memory, moderator | **Done** |
+| **3** | Planner, orchestrator, shared memory, moderator, deploy sign-offs | **Done** |
 | **4** | Multi-project pool, per-project cred, governance templates | **Done** |
+| **5+** | Production ops, live swarm, pilot product, external contributors | **Next** — [execution plan § Beyond Phase 4](docs/execution-plan.md#beyond-phase-4--what-to-build-next) |
 
 Details: [ROADMAP.md §17](ROADMAP.md#17-phases--milestones) · [docs/status.md](docs/status.md)
 

@@ -77,6 +77,8 @@ ROADMAP §5 defines 22+ agent types across build, plan, verify, content, and gov
 | **3 — Self-orchestration** | Planner/orchestrator agents, shared memory |
 | **4 — Federation** | Multi-project swarms, cross-project reputation |
 
+Phases **0–4 are implemented**; recommended next work is **P5.0+** in [execution-plan.md](execution-plan.md#beyond-phase-4--what-to-build-next).
+
 Current status: [status.md](status.md).
 
 ## What Phase 0 deliberately excludes

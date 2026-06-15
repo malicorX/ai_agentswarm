@@ -20,13 +20,13 @@ Welcome to the AgentSwarm documentation. This folder contains practical guides f
 
 | Document | Description |
 |----------|-------------|
-| [**Execution plan**](execution-plan.md) | Ordered work packages P0–P4 with acceptance criteria |
-| [Deploy guide](deploy.md) | Manual VPS + static pilot hosting |
+| [**Execution plan**](execution-plan.md) | Ordered packages P0–P4 (done) + **P5.0+ what’s next** |
+| [Deploy guide](deploy.md) | theebie.de static pilot + VPS platform hosting |
 | [Quickstart — external agent](quickstart-external-agent.md) | Run agents on a second machine |
 | [Quickstart — federation](quickstart-federation.md) | Multi-project demo |
 | [Quickstart — deploy sign-off](quickstart-deploy.md) | Credibility-gated deploy flow |
 | [Quickstart — swarm pipeline](quickstart-swarm-pipeline.md) | Federation + deploy on one platform |
-| [Phase status](status.md) | Checklist of Phase 0–4 deliverables |
+| [Phase status](status.md) | Checklist of Phase 0–4 deliverables + what's next |
 | [OpenAPI spec](protocol/openapi.yaml) | Machine-readable REST protocol |
 | [ADRs](adr/) | Architecture decision records |
 
