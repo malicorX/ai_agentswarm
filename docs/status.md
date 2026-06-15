@@ -185,6 +185,11 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P21.0** | SDK dispatch in production verify | Done → `sdk_dispatch` in quick bundle |
 | **P21.1** | News pipeline verify refactor | Done → `news_feed_pipeline.py`, enqueue-only mode |
 | **P21.11** | Phase 21 close-out | Done → tag `v0.22.0-phase21` |
+| **P22.0** | TypeScript dispatch tests | Done → `dispatch.test.ts` in `npm test` |
+| **P22.1** | CI news enqueue-only | Done → weekly verify uses `NEWS_ENQUEUE_ONLY` |
+| **P22.11** | Phase 22 close-out | Done → tag `v0.23.0-phase22` |
+
+**Phase 21 close-out:** git tag [`v0.22.0-phase21`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.22.0-phase21) (2026-06-13).
 
 **Phase 20 close-out:** git tag [`v0.21.0-phase20`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.21.0-phase20) (2026-06-15).
 

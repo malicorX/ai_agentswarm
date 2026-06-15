@@ -677,6 +677,45 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 ---
 
+## Phase 22 — TypeScript dispatch tests + CI news enqueue
+
+**Goal:** TypeScript SDK dispatch helpers are tested in CI; weekly staging runs news enqueue smoke without full pipeline wait.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P22.0** | TypeScript `dispatch.test.ts` | ✅ Done | P21.11 |
+| **P22.1** | CI news enqueue-only | ✅ Done | P22.0 |
+| **P22.11** | Phase 22 close-out | ✅ Done | P22.1 |
+
+### P22.0 — TypeScript dispatch tests
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Node SDK dispatch helpers have unit coverage in `npm test` |
+| **In scope** | `dispatch.test.ts`: assignment mode, signature verify, submit error detail |
+| **Verification** | `cd packages/sdk-typescript && npm test` |
+| **Acceptance** | CI `sdk-typescript` job runs dispatch tests |
+
+### P22.1 — CI news enqueue-only
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Weekly full staging verify enqueues feeds without 240s swarm wait |
+| **In scope** | `verify-staging-full.yml`, `production-hardening.md`, unit test for bundle wiring |
+| **Verification** | `python -m pytest platform/tests/test_verify_production_staging_news.py -q` |
+| **Acceptance** | Workflow sets `AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY=1` instead of `SKIP_NEWS` |
+
+### P22.11 — Phase 22 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag TS dispatch + CI news milestone |
+| **In scope** | `close_phase22.sh` / `.ps1`, tag `v0.23.0-phase22` |
+| **Verification** | `bash scripts/close_phase22.sh` |
+| **Acceptance** | pytest + `npm test` + staging quick green |
+
+---
+
 ## Phase 17 — Subjective verify reliability
 
 **Goal:** Reduce staging subjective demo flakes from lease reclaim during assignment execution.

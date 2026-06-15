@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test dist/crypto.test.js"
+    "test": "npm run build && node --test dist/crypto.test.js dist/dispatch.test.js"
   },
   "dependencies": {
     "@noble/ed25519": "^2.2.3"

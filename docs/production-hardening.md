@@ -51,14 +51,16 @@ pwsh scripts/run_full_staging_verify.ps1
 Skip slow live flows when swarm is idle:
 
 ```bash
-AGENTSWARM_VERIFY_SKIP_NEWS=1 AGENTSWARM_VERIFY_SKIP_MCP=1 bash scripts/run_full_staging_verify.sh
+AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY=1 AGENTSWARM_VERIFY_SKIP_MCP=1 bash scripts/run_full_staging_verify.sh
 ```
+
+Enqueue-only verifies feed task creation without waiting for the swarm to verify an article (~4 minutes saved).
 
 GitHub Actions: **Verify staging (full)** (`.github/workflows/verify-staging-full.yml`):
 
 - **Manual:** Actions → *Verify staging (full)* → Run workflow
 - **Scheduled:** Sundays 06:00 UTC (weekly cron, P7.11)
-- **Secrets:** `AGENTSWARM_BOOTSTRAP_TOKEN` and `AGENTSWARM_ASSIGNMENT_SECRET` on the repo; news/MCP skipped in CI by default (`AGENTSWARM_VERIFY_SKIP_NEWS=1`, `AGENTSWARM_VERIFY_SKIP_MCP=1`); subjective demo runs with `min_reviewers=1` (P9.2)
+- **Secrets:** `AGENTSWARM_BOOTSTRAP_TOKEN` and `AGENTSWARM_ASSIGNMENT_SECRET` on the repo; news uses **enqueue-only** smoke (`AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY=1`); MCP skipped (`AGENTSWARM_VERIFY_SKIP_MCP=1`); subjective demo runs with `min_reviewers=1` (P9.2)
 
 Maintainer close-out: `bash scripts/close_phase9.sh` (pytest + dispatch + hardware gates + subjective verify). Phase 8: `close_phase8.sh`.
 
