@@ -166,6 +166,8 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P13.11** | Phase 13 close-out | Done → `close_phase13.sh`, tag `v0.14.0-phase13` |
 | **P14.0** | Stale pending pool-need expiry | Done → `expire_stale_pending_pool_needs()`, prune scripts |
 | **P14.11** | Phase 14 close-out | Done → `close_phase14.sh`, tag `v0.15.0-phase14` |
+| **P15.0** | Shell script LF normalization | Done → CRLF fix on `scripts/**/*.sh` |
+| **P15.11** | Phase 15 close-out | Pending → tag `v0.16.0-phase15` |
 
 **Phase 14 close-out:** git tag [`v0.15.0-phase14`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.15.0-phase14) (2026-06-13).
 

@@ -509,7 +509,37 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P13.11 Phase 13 close-out — `close_phase13.sh`, tag `v0.14.0-phase13`
 ✅ P14.0 Stale pending pool-need expiry — `expire_stale_pending_pool_needs()`, theebie prune (3214→26 pending)
 ✅ P14.11 Phase 14 close-out — `close_phase14.sh`, tag `v0.15.0-phase14`
+✅ P15.0 Shell script LF normalization — CRLF fix on `scripts/**/*.sh`
 ```
+
+---
+
+## Phase 15 — Dev tooling hygiene
+
+**Goal:** Shell scripts and cross-platform verify bundles work reliably on Windows Git Bash and Linux CI.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P15.0** | Shell script LF normalization | ✅ Done | P14.11 |
+| **P15.11** | Phase 15 close-out | ⬜ Pending | P15.0 |
+
+### P15.0 — Shell script LF normalization
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Fix `set: pipefail: invalid option` on Windows Git Bash from CRLF line endings |
+| **In scope** | Normalize `scripts/**/*.sh` to LF; `.gitattributes` `*.sh text eol=lf` |
+| **Verification** | `bash -n scripts/close_phase14.sh` · `bash -n scripts/prune_staging_pool_backlog.sh` |
+| **Acceptance** | All shell scripts pass `bash -n`; no CRLF in tracked `*.sh` |
+
+### P15.11 — Phase 15 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag tooling-hygiene milestone |
+| **In scope** | `close_phase15.sh` / `.ps1`, tag `v0.16.0-phase15` |
+| **Verification** | `bash scripts/close_phase15.sh` |
+| **Acceptance** | Close-out bundle green on Windows and Linux |
 
 ---
 
