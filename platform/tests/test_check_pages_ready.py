@@ -62,3 +62,27 @@ def test_main_validates_expected_url(monkeypatch: pytest.MonkeyPatch) -> None:
         return_value=(200, {"html_url": "https://example.github.io/other"}),
     ):
         assert mod.main() == 3
+
+
+def test_action_format_exits_zero_when_disabled(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mod = _load_module()
+    monkeypatch.setattr(mod.sys, "argv", ["check_pages_ready.py", "--format=action"])
+    monkeypatch.setattr(mod, "probe_pages", lambda repo=None, token=None: (False, None))
+
+    assert mod.main() == 0
+    out = capsys.readouterr()
+    assert "enabled=false" in out.out
+
+
+def test_probe_pages_enabled() -> None:
+    mod = _load_module()
+    with patch.object(
+        mod,
+        "_fetch_pages_api",
+        return_value=(200, {"html_url": "https://malicorx.github.io/ai_agentswarm"}),
+    ):
+        enabled, url = mod.probe_pages("owner/repo")
+    assert enabled is True
+    assert url == "https://malicorx.github.io/ai_agentswarm"

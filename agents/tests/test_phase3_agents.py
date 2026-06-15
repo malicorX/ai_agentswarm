@@ -46,3 +46,16 @@ def test_detect_pending_deploy_gaps() -> None:
     assert "pending_deploy_signoffs" in types
     assert "pending_deploy_execute" in types
     assert enqueue == []
+
+
+def test_detect_owner_cluster_gaps() -> None:
+    summary = {
+        "tasks": {"created": 0},
+        "canary_failures_top": [],
+        "memory_keys": [],
+        "owner_clusters": [{"owner": "dev", "agent_count": 5}],
+    }
+    gaps, enqueue = detect_gaps(summary, None, memory_key="news-backlog")
+    assert gaps[0]["type"] == "owner_agent_clusters"
+    assert gaps[0]["clusters"][0]["agent_count"] == 5
+    assert enqueue == []

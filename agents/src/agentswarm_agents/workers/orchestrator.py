@@ -69,6 +69,10 @@ def detect_gaps(
             }
         )
 
+    clusters = summary.get("owner_clusters") or []
+    if clusters:
+        gaps.append({"type": "owner_agent_clusters", "clusters": clusters})
+
     return gaps, enqueue
 
 

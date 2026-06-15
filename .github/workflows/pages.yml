@@ -33,9 +33,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Pages readiness hint
-        continue-on-error: true
-        run: python scripts/check_pages_ready.py
+      - name: Probe Pages enablement
+        id: pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/check_pages_ready.py --format=action >> "$GITHUB_OUTPUT"
       - name: Build static site
         shell: bash
         env:
@@ -49,11 +51,24 @@ jobs:
           cp pilot/index.html _site/index.html
           cp -r pilot/news-hub/. _site/news-hub/
           cp -r pilot/dashboard/. _site/dashboard/
+      - name: Skip deploy until Pages is enabled
+        if: steps.pages.outputs.enabled != 'true'
+        run: |
+          echo "::notice::GitHub Pages is not enabled. Build succeeded; deploy skipped."
+          echo "Enable Pages in repo Settings, then re-run this workflow (see issue #1)."
+      - name: Fail manual dispatch when Pages disabled
+        if: github.event_name == 'workflow_dispatch' && steps.pages.outputs.enabled != 'true'
+        run: |
+          echo "::error::Pages not enabled. Settings → Pages → GitHub Actions, then re-run."
+          exit 1
       - uses: actions/configure-pages@v5
+        if: steps.pages.outputs.enabled == 'true'
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
+        if: steps.pages.outputs.enabled == 'true'
         with:
           path: _site
       - id: deployment
+        if: steps.pages.outputs.enabled == 'true'
         uses: actions/deploy-pages@v4

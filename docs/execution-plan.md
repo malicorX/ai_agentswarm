@@ -278,6 +278,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Swarm pipeline demo (`scripts/demo_swarm_pipeline.ps1`, CI job)
 ✅ Deploy demo staging hooks; manual `verify-pages` workflow
 ✅ Owner agent-cluster moderation (`owner_clusters`, `max_agents_per_owner`)
+✅ Pages workflow skips deploy until enabled (build on push; dispatch fails if disabled)
 →  P0.7  Deploy (enable GitHub Pages — see issue #1)
 ```
 

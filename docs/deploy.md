@@ -161,6 +161,14 @@ python scripts/check_pages_ready.py
 
 Exits `0` when the GitHub API reports a Pages site; prints admin steps on `404`.
 
+CI probe mode (always exits `0`):
+
+```bash
+python scripts/check_pages_ready.py --format=action
+```
+
+The **Deploy pilot site** workflow uses this to **build on every `pilot/**` push** but **skip deploy** until Pages is enabled (manual `workflow_dispatch` still fails with a clear error).
+
 After the site is live, record the URL everywhere:
 
 ```bash

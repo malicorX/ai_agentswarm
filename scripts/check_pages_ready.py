@@ -60,6 +60,38 @@ def _fetch_via_gh(repo: str) -> tuple[int, dict | None]:
         return 200, None
 
 
+def probe_pages(repo: str | None = None, token: str | None = None) -> tuple[bool, str | None]:
+    slug = _repo_slug(repo)
+    resolved_token = token
+    if resolved_token is None:
+        resolved_token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    status, body = _fetch_pages_api(slug, resolved_token)
+    if status == 404 and not resolved_token:
+        gh_status, gh_body = _fetch_via_gh(slug)
+        if gh_status == 200:
+            status, body = gh_status, gh_body
+    if status != 200 or not body:
+        return False, None
+    html_url = str(body.get("html_url") or "").rstrip("/") or None
+    return True, html_url
+
+
+def print_admin_steps(repo: str, *, stream: object = sys.stderr) -> None:
+    print(f"GitHub Pages is not enabled for {repo}.", file=stream)
+    print(file=stream)
+    print("Admin steps:", file=stream)
+    print(f"  1. Open https://github.com/{repo}/settings/pages", file=stream)
+    print("  2. Build and deployment → Source: GitHub Actions", file=stream)
+    print(
+        f"  3. Re-run https://github.com/{repo}/actions/workflows/pages.yml",
+        file=stream,
+    )
+    print(
+        "  4. After deploy: python scripts/record_pages_url.py <live-url>",
+        file=stream,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -70,37 +102,29 @@ def main() -> int:
         "--expected-url",
         help="Fail unless Pages html_url matches (suffix match allowed)",
     )
+    parser.add_argument(
+        "--format",
+        choices=("human", "action"),
+        default="human",
+        help="action: print enabled=true/false for GITHUB_OUTPUT (always exit 0)",
+    )
     args = parser.parse_args()
 
     repo = _repo_slug(args.repo)
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    status, body = _fetch_pages_api(repo, token)
-    if status == 404 and not token:
-        gh_status, gh_body = _fetch_via_gh(repo)
-        if gh_status == 200:
-            status, body = gh_status, gh_body
+    enabled, html_url = probe_pages(repo)
 
-    if status == 404:
-        print(f"GitHub Pages is not enabled for {repo}.", file=sys.stderr)
-        print(file=sys.stderr)
-        print("Admin steps:", file=sys.stderr)
-        print(f"  1. Open https://github.com/{repo}/settings/pages", file=sys.stderr)
-        print("  2. Build and deployment → Source: GitHub Actions", file=sys.stderr)
-        print(
-            f"  3. Re-run https://github.com/{repo}/actions/workflows/pages.yml",
-            file=sys.stderr,
-        )
-        print(
-            "  4. After deploy: python scripts/record_pages_url.py <live-url>",
-            file=sys.stderr,
-        )
+    if args.format == "action":
+        print(f"enabled={'true' if enabled else 'false'}")
+        if not enabled:
+            print_admin_steps(repo, stream=sys.stderr)
+        elif html_url:
+            print(f"url={html_url}")
+        return 0
+
+    if not enabled:
+        print_admin_steps(repo)
         return 1
 
-    if status != 200 or not body:
-        print(f"Unexpected GitHub API response ({status}) for {repo}.", file=sys.stderr)
-        return 2
-
-    html_url = str(body.get("html_url") or "").rstrip("/")
     print(f"Pages enabled: {html_url or '(url pending)'}")
 
     if args.expected_url:
