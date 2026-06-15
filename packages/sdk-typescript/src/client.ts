@@ -25,7 +25,7 @@ export type TaskEnvelope = {
 export class AgentClient {
   readonly baseUrl: string;
   readonly agentId: string;
-  private readonly privateKey: Uint8Array;
+  readonly privateKey: Uint8Array;
   private readonly ownerAuth: OwnerAuth;
 
   constructor(
@@ -170,6 +170,14 @@ export class AgentClient {
       throw new Error(`create task failed: ${response.status}`);
     }
     return (await response.json()) as TaskEnvelope;
+  }
+
+  async getPlatformConfig(): Promise<Record<string, unknown>> {
+    const response = await fetch(`${this.baseUrl}/platform/config`);
+    if (!response.ok) {
+      throw new Error(`platform config failed: ${response.status}`);
+    }
+    return (await response.json()) as Record<string, unknown>;
   }
 
   static importPrivateKey(b64: string): Uint8Array {

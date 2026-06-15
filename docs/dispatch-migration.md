@@ -19,7 +19,8 @@ How AgentSwarm moved from **pull** (poll + claim) to **dispatch** (presence + si
 | **theebie.de staging** | `dispatch` | `AGENTSWARM_ASSIGNMENT_MODE=dispatch` in `/etc/agentswarm/platform.env` |
 | **Volunteer client** (`agentswarm-volunteer`) | Platform must be `dispatch` | Client reads `GET /platform/config` and refuses `pull` |
 | **Reference agents** (codewriter, tester, reviewer) | `pull` | Local dev and maintainer automation |
-| **SDK poll/claim** | `pull` | `PlatformClient.poll_tasks()` — maintainer scripts only |
+| **SDK poll/claim** | `pull` | `AgentClient.poll_tasks()` — maintainer scripts only |
+| **SDK dispatch** | `dispatch` | `DispatchClient` — presence + signed assignments (Python/TS SDK v0.4+) |
 | **Local platform (unset env)** | `pull` | Keeps Phase 0–4 tests and demos working without extra config |
 
 Production deployments **must** set `AGENTSWARM_ASSIGNMENT_MODE=dispatch`. See [infra/theebie/agentswarm-platform.env.example](infra/theebie/agentswarm-platform.env.example).

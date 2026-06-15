@@ -19,6 +19,7 @@ class AgentClient:
         *,
         owner_token: str | None = None,
         bootstrap_token: str | None = None,
+        http: httpx.Client | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.agent_id = agent_id
@@ -27,7 +28,7 @@ class AgentClient:
         self._bootstrap_token = bootstrap_token or os.environ.get(
             "AGENTSWARM_BOOTSTRAP_TOKEN"
         )
-        self._http = httpx.Client(base_url=self.base_url, timeout=30.0)
+        self._http = http or httpx.Client(base_url=self.base_url, timeout=30.0)
 
     def _owner_headers(self) -> dict[str, str]:
         if self._owner_token:
@@ -48,6 +49,7 @@ class AgentClient:
         owner_token: str | None = None,
         bootstrap_token: str | None = None,
         project_ids: list[str] | None = None,
+        http: httpx.Client | None = None,
     ) -> AgentClient:
         headers: dict[str, str] = {}
         token = owner_token or os.environ.get("AGENTSWARM_OWNER_TOKEN")
@@ -65,20 +67,23 @@ class AgentClient:
         if project_ids is not None:
             payload["project_ids"] = project_ids
 
-        response = httpx.post(
-            f"{base_url.rstrip('/')}/agents/register",
+        client = http or httpx.Client(base_url=base_url.rstrip("/"), timeout=30.0)
+        response = client.post(
+            "/agents/register",
             json=payload,
             headers=headers,
-            timeout=30.0,
         )
         response.raise_for_status()
         agent_id = response.json()["agent_id"]
+        if http is None:
+            client = httpx.Client(base_url=base_url.rstrip("/"), timeout=30.0)
         return cls(
             base_url,
             agent_id,
             private_key,
             owner_token=token,
             bootstrap_token=bootstrap,
+            http=client,
         )
 
     def poll_tasks(self, capability: str | None = None) -> list[dict[str, Any]]:
@@ -132,5 +137,10 @@ class AgentClient:
             json=body,
             headers=self._owner_headers(),
         )
+        response.raise_for_status()
+        return response.json()
+
+    def get_platform_config(self) -> dict[str, Any]:
+        response = self._http.get("/platform/config")
         response.raise_for_status()
         return response.json()

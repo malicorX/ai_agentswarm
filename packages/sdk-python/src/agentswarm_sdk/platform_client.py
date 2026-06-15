@@ -15,13 +15,14 @@ class PlatformClient:
         *,
         owner_token: str | None = None,
         bootstrap_token: str | None = None,
+        http: httpx.Client | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self._owner_token = owner_token or os.environ.get("AGENTSWARM_OWNER_TOKEN")
         self._bootstrap_token = bootstrap_token or os.environ.get(
             "AGENTSWARM_BOOTSTRAP_TOKEN"
         )
-        self._http = httpx.Client(base_url=self.base_url, timeout=30.0)
+        self._http = http or httpx.Client(base_url=self.base_url, timeout=30.0)
 
     def _owner_headers(self) -> dict[str, str]:
         if self._owner_token:
@@ -180,6 +181,40 @@ class PlatformClient:
         if project_id:
             params["project_id"] = project_id
         response = self._http.get("/deploy/requests", params=params)
+        response.raise_for_status()
+        return response.json()
+
+    def create_pool_need(
+        self,
+        *,
+        role: str,
+        capability_required: str,
+        task_type: str,
+        payload: dict[str, Any],
+        constraints: dict[str, Any] | None = None,
+        parent_task_id: str | None = None,
+        task_id: str | None = None,
+        project_id: str | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "role": role,
+            "capability_required": capability_required,
+            "task_type": task_type,
+            "payload": payload,
+        }
+        if constraints is not None:
+            body["constraints"] = constraints
+        if parent_task_id is not None:
+            body["parent_task_id"] = parent_task_id
+        if task_id is not None:
+            body["task_id"] = task_id
+        if project_id is not None:
+            body["project_id"] = project_id
+        response = self._http.post(
+            "/pool/need",
+            json=body,
+            headers=self._owner_headers(),
+        )
         response.raise_for_status()
         return response.json()
 

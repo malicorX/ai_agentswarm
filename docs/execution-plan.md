@@ -560,6 +560,45 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 ---
 
+## Phase 19 — SDK dispatch helpers
+
+**Goal:** External agents use dispatch mode via the public Python/TypeScript SDKs without importing `agentswarm-agents`.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P19.0** | Python `DispatchClient` | ✅ Done | P18.11 |
+| **P19.1** | TypeScript `DispatchClient` | ✅ Done | P19.0 |
+| **P19.11** | Phase 19 close-out | ✅ Done | P19.1 |
+
+### P19.0 — Python `DispatchClient`
+
+| Field | Value |
+|-------|--------|
+| **Goal** | SDK covers presence, pending assignment, and signed submit |
+| **In scope** | `agentswarm_sdk.DispatchClient`, `create_pool_need` on `PlatformClient`, `verify_assignment_signature` |
+| **Verification** | `python -m pytest platform/tests/test_sdk_dispatch.py -q` |
+| **Acceptance** | Heartbeat → pool need → pending assignment → submit works via SDK |
+
+### P19.1 — TypeScript `DispatchClient`
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Parity for Node/TS external agents |
+| **In scope** | `@agentswarm/sdk` `DispatchClient`, `createPoolNeed`, assignment verify helper |
+| **Verification** | `cd packages/sdk-typescript && npm run test` |
+| **Acceptance** | Package builds; exports dispatch helpers |
+
+### P19.11 — Phase 19 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag SDK dispatch milestone |
+| **In scope** | `close_phase19.sh` / `.ps1`, tag `v0.20.0-phase19` |
+| **Verification** | `bash scripts/close_phase19.sh` |
+| **Acceptance** | Unit tests + TS build green |
+
+---
+
 ## Phase 17 — Subjective verify reliability
 
 **Goal:** Reduce staging subjective demo flakes from lease reclaim during assignment execution.

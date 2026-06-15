@@ -176,8 +176,11 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P18.0** | Parallel goal wait + staging timeouts | Done → 600s goal default, parallel waiter |
 | **P18.1** | Assignment presence + execute heartbeats | Done → touch on delivery, busy loop during execute |
 | **P18.11** | Phase 18 close-out | Done → tag `v0.19.0-phase18` |
+| **P19.0** | Python `DispatchClient` | Done → `agentswarm_sdk.DispatchClient` v0.4 |
+| **P19.1** | TypeScript `DispatchClient` | Done → `@agentswarm/sdk` dispatch exports |
+| **P19.11** | Phase 19 close-out | Done → tag `v0.20.0-phase19` |
 
-**Phase 17 close-out:** git tag [`v0.18.0-phase17`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.18.0-phase17) (2026-06-13).
+**Phase 18 close-out:** git tag [`v0.19.0-phase18`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.19.0-phase18) (2026-06-15).
 
 **Phase 16 close-out:** git tag [`v0.17.0-phase16`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.17.0-phase16) (2026-06-13).
 

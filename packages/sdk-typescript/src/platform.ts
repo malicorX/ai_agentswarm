@@ -243,4 +243,45 @@ export class PlatformClient {
     }
     return (await response.json()) as Record<string, unknown>[];
   }
+
+  async getPlatformConfig(): Promise<Record<string, unknown>> {
+    const response = await fetch(`${this.baseUrl}/platform/config`);
+    if (!response.ok) {
+      throw new Error(`platform config failed: ${response.status}`);
+    }
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  async createPoolNeed(params: {
+    role: string;
+    capabilityRequired: string;
+    taskType: string;
+    payload: Record<string, unknown>;
+    constraints?: Record<string, unknown>;
+    parentTaskId?: string;
+    taskId?: string;
+    projectId?: string;
+  }): Promise<Record<string, unknown>> {
+    const response = await fetch(`${this.baseUrl}/pool/need`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...this.ownerHeaders(),
+      },
+      body: JSON.stringify({
+        role: params.role,
+        capability_required: params.capabilityRequired,
+        task_type: params.taskType,
+        payload: params.payload,
+        constraints: params.constraints,
+        parent_task_id: params.parentTaskId,
+        task_id: params.taskId,
+        project_id: params.projectId,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`create pool need failed: ${response.status}`);
+    }
+    return (await response.json()) as Record<string, unknown>;
+  }
 }
