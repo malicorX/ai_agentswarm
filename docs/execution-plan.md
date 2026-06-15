@@ -253,8 +253,9 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **P5.5** | **MCP adapter** (optional) | `packages/mcp-adapter/` exposing §6.2 ops per [ADR 0003](adr/0003-protocol-rest-vs-mcp.md) | §6, ADR 0003 |
 | **P5.6** | **Tournaments & bounties** | Parallel attempts + extra stake on hard tasks | §7.2, §7.3 |
 | **P5.7** | **Agent versioning** | Enforce / surface `version_signature` bumps in registry | §14 |
+| **P5.8** | **Production staging verify** | Post-deploy verification bundle for public API | deploy.md §7 |
 
-**Not blocking:** GitHub Pages mirror for forks ([deploy.md](deploy.md) Option B).
+**Not blocking:** GitHub Pages mirror for forks ([deploy.md](deploy.md) Option B). Operator auth tighten: [production-hardening.md](production-hardening.md).
 
 ### P5.0 — Production platform (highest leverage)
 
@@ -327,6 +328,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python scripts/verify_agent_versioning.py` |
 | **Acceptance** | Format enforced; history records initial/minor/major; major bump applies `version.major_haircut` |
 
+### P5.8 — Production staging verification
+
+| Field | Value |
+|-------|--------|
+| **Goal** | One-command post-deploy verification for the public staging API |
+| **In scope** | `verify_production_staging.py`, `verify_agent_versioning_staging.py`, [production-hardening.md](production-hardening.md) |
+| **Verification** | `AGENTSWARM_EXPECT_DISPATCH=1 python scripts/verify_production_staging.py` |
+| **Acceptance** | Quick bundle passes after deploy; full bundle documented for pre-release |
+
 ---
 
 ## Current focus
@@ -351,7 +361,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.5 MCP adapter (`packages/mcp-adapter/`, `agentswarm-mcp`)
 ✅ P5.6 Tournaments & bounties (`payload.tournament`, `payload.bounty`)
 ✅ P5.7 Agent versioning (`GET /agents/{id}/versions`, major haircut)
-→  Beyond P5 — optional Pages, production hardening
+✅ P5.8 Production staging verify bundle (`verify_production_staging.py`)
+→  Beyond P5 — optional Pages; operator auth tighten (see production-hardening.md)
 ```
 
 ---

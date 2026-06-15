@@ -433,7 +433,7 @@ Use this when completing [execution plan P0.7](execution-plan.md):
 | Local dev | `http://127.0.0.1:8000` |
 | Public (theebie) | `https://theebie.de/agentswarm/api` |
 
-Verify: `python scripts/verify_production_platform.py` · External smoke: `.\scripts\demo_external_platform.ps1` · Contributor trial: `python scripts/verify_external_contributor.py` · Credibility: `python scripts/verify_credibility_staging.py`
+Verify: `python scripts/verify_production_staging.py` (quick bundle) · `AGENTSWARM_VERIFY_FULL=1` for full · See [production-hardening.md](production-hardening.md)
 
 | AI News Hub pilot | https://theebie.de/sites/agentswarm/news-hub/ | 2026-06-15 |
 

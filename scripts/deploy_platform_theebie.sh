@@ -43,7 +43,8 @@ echo "Deployed platform API to $HOST:$REMOTE_ROOT"
 echo "Public URL: ${API_URL}/health"
 
 if [[ "${AGENTSWARM_VERIFY_STAGING_API:-1}" == "1" ]]; then
-  AGENTSWARM_STAGING_API_URL="$API_URL" AGENTSWARM_EXPECT_DISPATCH=1 python scripts/verify_production_platform.py "$API_URL"
+  AGENTSWARM_STAGING_API_URL="$API_URL" AGENTSWARM_EXPECT_DISPATCH=1 AGENTSWARM_VERIFY_QUICK=1 \
+    python scripts/verify_production_staging.py "$API_URL"
 fi
 
 if [[ "${AGENTSWARM_RECORD_STAGING_API_URL:-}" == "1" ]]; then
