@@ -55,6 +55,7 @@ class TaskCreateRequest(BaseModel):
     parent_task_id: str | None = None
     parent_submission_id: str | None = None
     project_id: str | None = None
+    assignment_only: bool = False
 
 
 class ProjectCreateRequest(BaseModel):
@@ -197,6 +198,56 @@ class AuditEvent(BaseModel):
     details: dict[str, Any]
     prev_hash: str
     entry_hash: str
+
+
+class AgentPresenceRequest(BaseModel):
+    status: str = "idle"
+    capabilities: list[str]
+    model_id: str | None = None
+    load: float = 0.0
+    client_version: str | None = None
+    ttl_sec: int = 60
+
+
+class AgentPresenceResponse(BaseModel):
+    agent_id: str
+    status: str
+    capabilities: list[str]
+    model_id: str | None = None
+    load: float
+    client_version: str | None = None
+    ttl_sec: int
+    last_seen_at: str
+
+
+class PoolNeedRequest(BaseModel):
+    role: str
+    capability_required: str
+    parent_task_id: str | None = None
+    task_id: str | None = None
+    project_id: str = "default"
+    task_type: str | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+    constraints: dict[str, Any] = Field(default_factory=dict)
+
+
+class PoolNeedResponse(BaseModel):
+    need_id: str
+    task_id: str
+    assigned: bool
+    assignment: dict[str, Any] | None = None
+
+
+class AssignmentEnvelope(BaseModel):
+    lease_id: str
+    task_id: str
+    task_type: str
+    capability_required: str
+    project_id: str
+    claim_token: str
+    expires_at: str
+    assignment_signature: str
+    capsule: dict[str, Any] = Field(default_factory=dict)
 
 
 def utc_now_iso() -> str:

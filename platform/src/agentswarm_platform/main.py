@@ -22,8 +22,11 @@ from agentswarm_platform.capabilities import (
 from agentswarm_platform.deps import bind_store
 from agentswarm_platform.models import (
     AgentBudgetStatus,
+    AgentPresenceRequest,
+    AgentPresenceResponse,
     AgentRegisterRequest,
     AgentRegisterResponse,
+    AssignmentEnvelope,
     AuditEvent,
     CheckpointRequest,
     ClaimRequest,
@@ -34,6 +37,8 @@ from agentswarm_platform.models import (
     DeployRequestEnvelope,
     GovernanceTemplateEnvelope,
     GovernanceTemplateSummary,
+    PoolNeedRequest,
+    PoolNeedResponse,
     ProjectCreateRequest,
     ProjectEnvelope,
     SubmitRequest,
@@ -45,6 +50,7 @@ from agentswarm_platform.models import (
 )
 from agentswarm_platform.platform_models import MemoryUpsertRequest, PlatformSummary
 from agentswarm_platform.oauth import router as auth_router
+from agentswarm_platform.assignment_config import assignment_mode
 from agentswarm_platform.store import Store
 
 DB_PATH = Path(os.environ.get("AGENTSWARM_DB", "platform/data/agentswarm.db"))
@@ -215,6 +221,11 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/platform/config")
+def platform_config() -> dict[str, str]:
+    return {"assignment_mode": assignment_mode()}
+
+
 @app.post("/agents/register", response_model=AgentRegisterResponse)
 def register_agent(
     body: AgentRegisterRequest,
@@ -277,6 +288,62 @@ def get_agent_profile(
     if profile is None:
         raise HTTPException(status_code=404, detail="agent not found")
     return profile
+
+
+@app.post("/agents/{agent_id}/presence", response_model=AgentPresenceResponse)
+def record_agent_presence(agent_id: str, body: AgentPresenceRequest) -> AgentPresenceResponse:
+    try:
+        recorded = store.record_agent_presence(
+            agent_id,
+            status=body.status,
+            capabilities=body.capabilities,
+            model_id=body.model_id,
+            load=body.load,
+            client_version=body.client_version,
+            ttl_sec=body.ttl_sec,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return AgentPresenceResponse(**recorded)
+
+
+@app.get("/agents/{agent_id}/assignments/pending", response_model=AssignmentEnvelope | None)
+def get_pending_assignment(agent_id: str) -> AssignmentEnvelope | None:
+    assignment = store.get_pending_assignment(agent_id)
+    if assignment is None:
+        return None
+    return AssignmentEnvelope(
+        lease_id=assignment["lease_id"],
+        task_id=assignment["task_id"],
+        task_type=assignment["task_type"],
+        capability_required=assignment["capability_required"],
+        project_id=assignment["project_id"],
+        claim_token=assignment["claim_token"],
+        expires_at=assignment["expires_at"],
+        assignment_signature=assignment["assignment_signature"],
+        capsule=assignment.get("capsule") or {},
+    )
+
+
+@app.post("/pool/need", response_model=PoolNeedResponse)
+def request_pool_need(
+    body: PoolNeedRequest,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> PoolNeedResponse:
+    try:
+        result = store.request_pool_need(
+            role=body.role,
+            capability_required=body.capability_required,
+            parent_task_id=body.parent_task_id,
+            task_id=body.task_id,
+            project_id=body.project_id,
+            task_type=body.task_type,
+            payload=body.payload,
+            constraints=body.constraints,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return PoolNeedResponse(**result)
 
 
 @app.get("/agents/{agent_id}/canary-stats")
@@ -410,6 +477,7 @@ def create_task(
             parent_task_id=body.parent_task_id,
             parent_submission_id=body.parent_submission_id,
             project_id=body.project_id,
+            assignment_only=body.assignment_only,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

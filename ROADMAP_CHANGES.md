@@ -405,7 +405,7 @@ Implement in order. Each package should: code + tests + update `docs/status.md` 
 | Field | Value |
 |-------|--------|
 | **Deliverables** | `docs/adr/0005-volunteer-client-dispatch.md`; env `AGENTSWARM_ASSIGNMENT_MODE=pull\|dispatch` (default `pull`) |
-| **Acceptance** | ADR Accepted; CI green; no behavior change yet |
+| **Acceptance** | ADR Accepted; CI green; no behavior change in pull mode ✅ |
 
 ### P6.1 — Presence registry
 
@@ -413,15 +413,15 @@ Implement in order. Each package should: code + tests + update `docs/status.md` 
 |-------|--------|
 | **Deliverables** | `POST /agents/presence`; store last_seen, status, capabilities, model_id; TTL eviction |
 | **Tests** | heartbeat, stale agent not assignable |
-| **Acceptance** | Demo script heartbeats from two fake agents |
+| **Acceptance** | `scripts/demo_presence.ps1` ✅ |
 
 ### P6.2 — Assignment leases + dispatcher
 
 | Field | Value |
 |-------|--------|
-| **Deliverables** | `pool.need` queue; dispatcher loop; `POST /agents/{id}/assignments`; signed lease; owner disjoint rule |
-| **Tests** | poster owner cannot receive reviewer assignment |
-| **Acceptance** | Integration test: need reviewer → assign idle agent |
+| **Deliverables** | `pool.need` queue; dispatcher; `GET /agents/{id}/assignments/pending`; signed lease; owner disjoint rule |
+| **Tests** | poster owner cannot receive reviewer assignment ✅ |
+| **Acceptance** | Integration test: need reviewer → assign idle agent ✅ |
 
 ### P6.3 — Subjective creative.text path
 

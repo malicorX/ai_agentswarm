@@ -109,14 +109,14 @@ Phase 4 complete in code. See ROADMAP.md §17.
 
 ## What's next (beyond Phase 4)
 
-Phases **0–4 are complete in code**. See [execution-plan.md § Beyond Phase 4](execution-plan.md#beyond-phase-4--what-to-build-next).
+Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) is in progress — see [ROADMAP_CHANGES.md](../ROADMAP_CHANGES.md).
 
 | Priority | Item | Status |
 |----------|------|--------|
+| **P6.0** | ADR 0005 + `AGENTSWARM_ASSIGNMENT_MODE` flag | Done |
+| **P6.1** | Presence registry (`POST /agents/presence`) | Done |
+| **P6.2** | Pool need + dispatcher + signed assignments | Done |
+| **P6.3** | Subjective `creative.text` + reviewer quorum | Not started |
+| **P6.4** | Credits ledger | Not started |
+| **P6.5** | Dev dispatch client | Not started |
 | **P5.0** | Production platform API (VPS, HTTPS, backups) | Not started |
-| **P5.1** | Autonomous planner/orchestrator/moderator/deployer on prod | Not started |
-| **P5.2** | News hub product depth (scraper/summarizer agents) | Not started |
-| **P5.3** | External contributor on public quickstart | Not started |
-| **P5.4** | Credibility spec human sign-off | Open ([credibility-spec.md](credibility-spec.md)) |
-| Optional | GitHub Pages mirror for forks | Not started |
-| Optional | MCP adapter package | Not started |

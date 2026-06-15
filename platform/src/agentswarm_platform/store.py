@@ -87,6 +87,22 @@ from agentswarm_platform.credibility_ledger import (
     seed_agent_capabilities,
 )
 from agentswarm_platform.credibility import credibility_enabled
+from agentswarm_platform.assignment_config import dispatch_enabled
+from agentswarm_platform.presence_store import (
+    ensure_presence_schema,
+    set_presence_status,
+    upsert_presence,
+)
+from agentswarm_platform.dispatch_store import (
+    create_assignment_lease,
+    ensure_dispatch_schema,
+    get_pending_assignment_for_agent,
+    get_pool_need,
+    insert_pool_need,
+    mark_need_assigned,
+    new_claim_token,
+)
+from agentswarm_platform.dispatcher import dispatch_pool_need as pick_dispatch_agent
 from agentswarm_platform.models import (
     AgentBudgetStatus,
     AgentBudgetUsage,
@@ -205,6 +221,12 @@ class Store:
             conn.execute(
                 "ALTER TABLE tasks ADD COLUMN project_id TEXT NOT NULL DEFAULT 'default'"
             )
+        if "assignment_only" not in task_columns:
+            conn.execute(
+                "ALTER TABLE tasks ADD COLUMN assignment_only INTEGER NOT NULL DEFAULT 0"
+            )
+        ensure_presence_schema(conn)
+        ensure_dispatch_schema(conn)
         ensure_projects_schema(conn)
         ensure_credibility_schema(conn)
         ensure_replication_schema(conn)
@@ -542,6 +564,8 @@ class Store:
         parent_task_id: str | None = None,
         parent_submission_id: str | None = None,
         project_id: str | None = None,
+        *,
+        assignment_only: bool = False,
     ) -> TaskEnvelope:
         resolved_project = validate_project_id(project_id or DEFAULT_PROJECT_ID)
         with self._conn() as conn:
@@ -563,8 +587,9 @@ class Store:
                 """
                 INSERT INTO tasks (
                     task_id, task_type, capability_required, status, payload,
-                    parent_task_id, parent_submission_id, created_at, project_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    parent_task_id, parent_submission_id, created_at, project_id,
+                    assignment_only
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     task_id,
@@ -576,6 +601,7 @@ class Store:
                     parent_submission_id,
                     created_at,
                     resolved_project,
+                    1 if assignment_only else 0,
                 ),
             )
             self._append_audit(
@@ -733,10 +759,12 @@ class Store:
                     ).fetchone()
                     if group is None or group["status"] != "pending":
                         continue
+                if "assignment_only" in keys and int(row["assignment_only"] or 0) == 1:
+                    continue
                 tasks.append(self._row_to_task(row))
         return tasks
 
-    def claim_task(self, task_id: str, agent_id: str) -> ClaimResponse:
+    def claim_task(self, task_id: str, agent_id: str, *, via_assignment: bool = False) -> ClaimResponse:
         agent = self.get_agent(agent_id)
         if agent is None:
             raise ValueError("unknown agent")
@@ -751,11 +779,13 @@ class Store:
             ).fetchone()
             if row is None:
                 raise ValueError("task not found")
+            keys = row.keys()
+            if int(row["assignment_only"] or 0) == 1 and not via_assignment:
+                raise ValueError("task is assignment-only; await dispatcher assignment")
             if row["status"] != TaskStatus.CREATED.value:
                 raise ValueError("task not claimable")
             if row["capability_required"] not in agent["capabilities"]:
                 raise ValueError("agent lacks capability")
-            keys = row.keys()
             group_id = row["replication_group_id"] if "replication_group_id" in keys else None
             if group_id:
                 group = conn.execute(
@@ -831,6 +861,7 @@ class Store:
     ) -> SubmitResponse:
         replication_status: str | None = None
         canary_passed: bool | None = None
+        claiming_agent_id: str | None = None
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
@@ -930,7 +961,10 @@ class Store:
                     parent_submission_id=submission_id,
                     result_summary=result,
                 )
+            claiming_agent_id = row["claimed_by"]
 
+        if claiming_agent_id:
+            self._mark_agent_idle_if_present(claiming_agent_id)
         return SubmitResponse(
             submission_id=submission_id,
             replication_status=replication_status,
@@ -2100,3 +2134,166 @@ class Store:
             status=VerificationStatus(row["status"]),
             result_summary=json.loads(row["result_summary"]),
         )
+
+    def record_agent_presence(
+        self,
+        agent_id: str,
+        *,
+        status: str,
+        capabilities: list[str],
+        model_id: str | None,
+        load: float,
+        client_version: str | None,
+        ttl_sec: int,
+    ) -> dict[str, Any]:
+        agent = self.get_agent(agent_id)
+        if agent is None:
+            raise ValueError("unknown agent")
+        if status not in ("idle", "busy"):
+            raise ValueError("status must be idle or busy")
+        with self._conn() as conn:
+            recorded = upsert_presence(
+                conn,
+                agent_id=agent_id,
+                status=status,
+                capabilities=capabilities,
+                model_id=model_id,
+                load=load,
+                client_version=client_version,
+                ttl_sec=ttl_sec,
+            )
+            self._append_audit(
+                conn,
+                "agent.presence",
+                agent_id,
+                {"status": status, "capabilities": capabilities, "model_id": model_id},
+            )
+        return recorded
+
+    def request_pool_need(
+        self,
+        *,
+        role: str,
+        capability_required: str,
+        parent_task_id: str | None,
+        task_id: str | None,
+        project_id: str,
+        task_type: str | None,
+        payload: dict[str, Any],
+        constraints: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not dispatch_enabled():
+            raise ValueError("pool.need requires AGENTSWARM_ASSIGNMENT_MODE=dispatch")
+        resolved_project = validate_project_id(project_id)
+        resolved_task_id = task_id
+        if resolved_task_id is None:
+            resolved_type = task_type or f"{role}.assigned"
+            created = self.create_task(
+                resolved_type,
+                capability_required,
+                payload,
+                parent_task_id=parent_task_id,
+                project_id=resolved_project,
+                assignment_only=True,
+            )
+            resolved_task_id = created.task_id
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT task_id, assignment_only FROM tasks WHERE task_id = ?",
+                (resolved_task_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("task not found")
+            if int(row["assignment_only"] or 0) != 1:
+                raise ValueError("pool.need tasks must be assignment_only")
+            need_id = insert_pool_need(
+                conn,
+                role=role,
+                capability_required=capability_required,
+                task_id=resolved_task_id,
+                project_id=resolved_project,
+                parent_task_id=parent_task_id,
+                constraints=constraints,
+            )
+            self._append_audit(
+                conn,
+                "pool.need",
+                None,
+                {
+                    "need_id": need_id,
+                    "role": role,
+                    "task_id": resolved_task_id,
+                    "constraints": constraints,
+                },
+            )
+        assignment = self._dispatch_need(need_id)
+        return {
+            "need_id": need_id,
+            "task_id": resolved_task_id,
+            "assigned": assignment is not None,
+            "assignment": assignment,
+        }
+
+    def _dispatch_need(self, need_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            need_row = get_pool_need(conn, need_id)
+            if need_row is None or need_row["status"] != "pending":
+                return None
+            agent_id = pick_dispatch_agent(conn, need_row)
+            if agent_id is None:
+                return None
+            claim_token = new_claim_token()
+            deadline = (datetime.now(timezone.utc) + timedelta(hours=1)).replace(microsecond=0)
+            task_id = need_row["task_id"]
+            agent = self.get_agent(agent_id)
+            if agent is None:
+                return None
+            row = conn.execute("SELECT * FROM tasks WHERE task_id = ?", (task_id,)).fetchone()
+            if row is None or row["status"] != TaskStatus.CREATED.value:
+                return None
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, claimed_by = ?, claim_token = ?, claim_deadline = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.CLAIMED.value,
+                    agent_id,
+                    claim_token,
+                    deadline.isoformat(),
+                    task_id,
+                ),
+            )
+            lease = create_assignment_lease(
+                conn,
+                need_id=need_id,
+                agent_id=agent_id,
+                task_id=task_id,
+                claim_token=claim_token,
+            )
+            mark_need_assigned(conn, need_id=need_id, agent_id=agent_id, lease_id=lease["lease_id"])
+            set_presence_status(conn, agent_id, "busy")
+            self._append_audit(
+                conn,
+                "pool.assign",
+                agent_id,
+                {"need_id": need_id, "task_id": task_id, "lease_id": lease["lease_id"]},
+            )
+        assignment = self.get_pending_assignment(agent_id)
+        return assignment
+
+    def get_pending_assignment(self, agent_id: str) -> dict[str, Any] | None:
+        agent = self.get_agent(agent_id)
+        if agent is None:
+            return None
+        with self._conn() as conn:
+            return get_pending_assignment_for_agent(conn, agent_id)
+
+    def _mark_agent_idle_if_present(self, agent_id: str) -> None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT agent_id FROM agent_presence WHERE agent_id = ?", (agent_id,)
+            ).fetchone()
+            if row is not None:
+                set_presence_status(conn, agent_id, "idle")
