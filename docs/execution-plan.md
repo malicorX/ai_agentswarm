@@ -503,6 +503,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P10.11 Phase 10 close-out — `close_phase10.sh`, tag `v0.11.0-phase10`
 ✅ P11.0 Live lease reclaim verify — `verify_lease_reclaim_staging.py`
 ✅ P11.11 Phase 11 close-out — `close_phase11.sh`, tag `v0.12.0-phase11`
+✅ P12.0 Auto redispatch after reclaim — agent-targeted redispatch, staging verify without manual `pool/need`
 ```
 
 ---
@@ -513,7 +514,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
-| **P12.0** | Auto redispatch after reclaim | 🔄 In progress | P11.11 |
+| **P12.0** | Auto redispatch after reclaim | ✅ Done | P11.11 |
 | **P12.11** | Phase 12 close-out | ⬜ Pending | P12.0 |
 
 ### P12.0 — Auto redispatch after reclaim
