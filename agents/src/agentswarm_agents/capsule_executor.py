@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from agentswarm_platform.coordinator_plan import build_default_creative_goal_plan
+from agentswarm_agents.git_capsule import execute_git_patch_capsule
 
 
 def execute_capsule(assignment: dict[str, Any]) -> dict[str, Any]:
@@ -18,6 +19,12 @@ def execute_capsule(assignment: dict[str, Any]) -> dict[str, Any]:
                 "min_reviewers": int(capsule.get("min_reviewers", 3)),
             }
         )
+    if task_type == "codewriter.patch":
+        if isinstance(capsule.get("git"), dict):
+            git_capsule = dict(capsule)
+            git_capsule["task_id"] = assignment.get("task_id")
+            return execute_git_patch_capsule(git_capsule)
+        raise ValueError("codewriter.patch capsule requires git section in dispatch mode")
     if task_type == "creative.text":
         brief = capsule.get("brief", "creative work")
         return {

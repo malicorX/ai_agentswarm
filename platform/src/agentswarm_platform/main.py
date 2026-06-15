@@ -34,6 +34,8 @@ from agentswarm_platform.models import (
     ClaimResponse,
     CreativeGoalRequest,
     CreativeGoalResponse,
+    GitArtifactEnvelope,
+    GitPatchRequest,
     ReplicationGroupStatus,
     CredibilityImportRequest,
     DeployCreateRequest,
@@ -44,6 +46,7 @@ from agentswarm_platform.models import (
     PoolNeedResponse,
     ProjectCreateRequest,
     ProjectEnvelope,
+    ProjectRepoConfigRequest,
     SubmitRequest,
     SubmitResponse,
     TaskCreateRequest,
@@ -120,14 +123,7 @@ def create_project(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return ProjectEnvelope(
-        project_id=project["project_id"],
-        name=project["name"],
-        description=project["description"],
-        created_at=project["created_at"],
-        governance_template_id=project.get("governance_template_id"),
-        governance_config=project.get("governance_config") or {},
-    )
+    return ProjectEnvelope(**project)
 
 
 @app.get("/projects/{project_id}", response_model=ProjectEnvelope)
@@ -136,6 +132,40 @@ def get_project(project_id: str) -> ProjectEnvelope:
     if project is None:
         raise HTTPException(status_code=404, detail="project not found")
     return ProjectEnvelope(**project)
+
+
+@app.patch("/projects/{project_id}/repo", response_model=ProjectEnvelope)
+def configure_project_repo(
+    project_id: str,
+    body: ProjectRepoConfigRequest,
+    owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> ProjectEnvelope:
+    try:
+        project = store.update_project_repo_config(
+            project_id,
+            repo_url=body.repo_url,
+            default_branch=body.default_branch,
+            forge_type=body.forge_type,
+            actor_id=None if owner.via_bootstrap else owner.owner_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ProjectEnvelope(**project)
+
+
+@app.post("/projects/{project_id}/git/patches")
+def create_git_patch_assignment(
+    project_id: str,
+    body: GitPatchRequest,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> dict:
+    try:
+        return store.create_git_patch_assignment(
+            project_id=project_id,
+            patch=body.model_dump(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/projects/{project_id}/governance")
@@ -519,6 +549,14 @@ def create_task(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/submissions/{submission_id}/git-artifact", response_model=GitArtifactEnvelope)
+def get_submission_git_artifact(submission_id: str) -> GitArtifactEnvelope:
+    artifact = store.get_submission_git_artifact(submission_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="git artifact not found")
+    return GitArtifactEnvelope(**artifact)
 
 
 @app.get("/tasks/poll", response_model=list[TaskEnvelope])

@@ -40,6 +40,7 @@ from agentswarm_platform.project_store import (
     get_project,
     join_agent_to_project,
     list_projects,
+    update_project_repo,
     validate_project_id,
 )
 from agentswarm_platform.orchestration import enqueue_child_tasks
@@ -103,6 +104,11 @@ from agentswarm_platform.dispatch_store import (
     new_claim_token,
 )
 from agentswarm_platform.dispatcher import dispatch_pool_need as pick_dispatch_agent
+from agentswarm_platform.git_store import (
+    ensure_git_schema,
+    get_git_artifact,
+    insert_git_artifact,
+)
 from agentswarm_platform.credits_ledger import (
     burn_credits,
     credits_enabled,
@@ -267,6 +273,7 @@ class Store:
         ensure_deploy_schema(conn)
         ensure_credits_schema(conn)
         ensure_subjective_schema(conn)
+        ensure_git_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -485,6 +492,80 @@ class Store:
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
             return get_project(conn, validate_project_id(project_id))
+
+    def update_project_repo_config(
+        self,
+        project_id: str,
+        *,
+        repo_url: str,
+        default_branch: str = "main",
+        forge_type: str = "git",
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        resolved = validate_project_id(project_id)
+        with self._conn() as conn:
+            return update_project_repo(
+                conn,
+                project_id=resolved,
+                repo_url=repo_url,
+                default_branch=default_branch,
+                forge_type=forge_type,
+                append_audit=self._append_audit,
+                actor_id=actor_id,
+            )
+
+    def create_git_patch_assignment(
+        self,
+        *,
+        project_id: str,
+        patch: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not dispatch_enabled():
+            raise ValueError("git patch assignments require AGENTSWARM_ASSIGNMENT_MODE=dispatch")
+        resolved = validate_project_id(project_id)
+        project = self.get_project(resolved)
+        if project is None:
+            raise ValueError(f"unknown project: {resolved}")
+        repo_url = project.get("repo_url")
+        if not repo_url:
+            raise ValueError("project repo_url is not configured")
+        payload = {
+            "capsule": {
+                "git": {
+                    "repo_url": repo_url,
+                    "default_branch": project.get("default_branch") or "main",
+                    "forge_type": project.get("forge_type") or "git",
+                },
+                "patch": patch,
+            }
+        }
+        created = self.create_task(
+            "codewriter.patch",
+            "codewriter",
+            payload,
+            project_id=resolved,
+            assignment_only=True,
+        )
+        need = self.request_pool_need(
+            role="codewriter",
+            capability_required="codewriter",
+            parent_task_id=created.task_id,
+            task_id=created.task_id,
+            project_id=resolved,
+            task_type="codewriter.patch",
+            payload=payload,
+            constraints={},
+        )
+        return {
+            "task_id": created.task_id,
+            "project_id": resolved,
+            "assigned": need["assigned"],
+            "assignment": need.get("assignment"),
+        }
+
+    def get_submission_git_artifact(self, submission_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            return get_git_artifact(conn, submission_id)
 
     def get_agent(self, agent_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
@@ -935,6 +1016,16 @@ class Store:
                 {"task_id": row["task_id"], "submission_id": submission_id},
             )
 
+            git_artifact = result.get("git_artifact")
+            if isinstance(git_artifact, dict):
+                insert_git_artifact(
+                    conn,
+                    submission_id=submission_id,
+                    task_id=row["task_id"],
+                    project_id=project_id_from_task_row(row),
+                    artifact=git_artifact,
+                )
+
             task_payload = json.loads(row["payload"])
             shared_payload: dict[str, Any] | None = None
             group_id = row["replication_group_id"] if "replication_group_id" in row.keys() else None
@@ -1064,6 +1155,15 @@ class Store:
             "tester_task_id": tester_task_id,
             "test_result": test_result,
         }
+        parent_row = conn.execute(
+            "SELECT submission_result FROM tasks WHERE submission_id = ?",
+            (parent_submission_id,),
+        ).fetchone()
+        if parent_row is not None and parent_row["submission_result"]:
+            parent_result = json.loads(parent_row["submission_result"])
+            git_artifact = parent_result.get("git_artifact")
+            if isinstance(git_artifact, dict):
+                reviewer_payload["git_artifact"] = git_artifact
         project_id = self._project_id_for_task(conn, parent_task_id)
         conn.execute(
             """

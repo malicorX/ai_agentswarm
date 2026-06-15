@@ -72,6 +72,32 @@ class ProjectEnvelope(BaseModel):
     created_at: str
     governance_template_id: str | None = None
     governance_config: dict[str, Any] = Field(default_factory=dict)
+    repo_url: str | None = None
+    default_branch: str = "main"
+    forge_type: str = "git"
+
+
+class ProjectRepoConfigRequest(BaseModel):
+    repo_url: str
+    default_branch: str = "main"
+    forge_type: str = "git"
+
+
+class GitPatchRequest(BaseModel):
+    file: str
+    insert: str = ""
+    marker: str = "<!-- agentswarm -->"
+
+
+class GitArtifactEnvelope(BaseModel):
+    submission_id: str
+    task_id: str
+    project_id: str
+    repo_url: str
+    branch: str
+    commit_sha: str
+    forge_type: str
+    created_at: str
 
 
 class GovernanceTemplateSummary(BaseModel):

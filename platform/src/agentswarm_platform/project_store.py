@@ -49,6 +49,16 @@ def ensure_projects_schema(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE projects ADD COLUMN governance_config TEXT NOT NULL DEFAULT '{}'"
         )
+    if "repo_url" not in project_columns:
+        conn.execute("ALTER TABLE projects ADD COLUMN repo_url TEXT")
+    if "default_branch" not in project_columns:
+        conn.execute(
+            "ALTER TABLE projects ADD COLUMN default_branch TEXT NOT NULL DEFAULT 'main'"
+        )
+    if "forge_type" not in project_columns:
+        conn.execute(
+            "ALTER TABLE projects ADD COLUMN forge_type TEXT NOT NULL DEFAULT 'git'"
+        )
     row = conn.execute(
         "SELECT 1 FROM projects WHERE project_id = ?", (DEFAULT_PROJECT_ID,)
     ).fetchone()
@@ -92,6 +102,9 @@ def _project_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         if "governance_template_id" in keys
         else None,
         "governance_config": governance_config,
+        "repo_url": row["repo_url"] if "repo_url" in keys else None,
+        "default_branch": row["default_branch"] if "default_branch" in keys else "main",
+        "forge_type": row["forge_type"] if "forge_type" in keys else "git",
     }
 
 
@@ -166,6 +179,48 @@ def create_project(
     )
     project["bootstrap"] = bootstrap_result
     return project
+
+
+def update_project_repo(
+    conn: sqlite3.Connection,
+    *,
+    project_id: str,
+    repo_url: str,
+    default_branch: str = "main",
+    forge_type: str = "git",
+    append_audit: Callable[[sqlite3.Connection, str, str | None, dict[str, Any]], None],
+    actor_id: str | None = None,
+) -> dict[str, Any]:
+    if get_project(conn, project_id) is None:
+        raise ValueError(f"unknown project: {project_id}")
+    if not repo_url.strip():
+        raise ValueError("repo_url is required")
+    if forge_type not in ("git", "github", "gitlab"):
+        raise ValueError("forge_type must be git, github, or gitlab")
+    branch = default_branch.strip() or "main"
+    conn.execute(
+        """
+        UPDATE projects
+        SET repo_url = ?, default_branch = ?, forge_type = ?
+        WHERE project_id = ?
+        """,
+        (repo_url.strip(), branch, forge_type, project_id),
+    )
+    append_audit(
+        conn,
+        "project.repo_configured",
+        actor_id,
+        {
+            "project_id": project_id,
+            "repo_url": repo_url.strip(),
+            "default_branch": branch,
+            "forge_type": forge_type,
+        },
+    )
+    updated = get_project(conn, project_id)
+    if updated is None:
+        raise ValueError(f"unknown project: {project_id}")
+    return updated
 
 
 def join_agent_to_project(

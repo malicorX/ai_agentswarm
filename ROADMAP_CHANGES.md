@@ -480,7 +480,11 @@ Headless loop: `agentswarm-volunteer --headless --capabilities reviewer --loops 
 | Field | Value |
 |-------|--------|
 | **Deliverables** | Project `repo_url` in config; coder capsule with branch/commit in submission |
-| **Acceptance** | Assigned coder pushes branch; verifier reads artifact ref |
+| **Acceptance** | Assigned coder pushes branch; verifier reads artifact ref ✅ |
+
+Configure repo: `PATCH /projects/{id}/repo`  
+Assign patch: `POST /projects/{id}/git/patches` (dispatch mode)  
+Read artifact: `GET /submissions/{submission_id}/git-artifact`
 
 ### P6.10 — Staging on theebie.de
 
