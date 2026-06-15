@@ -513,6 +513,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P15.11 Phase 15 close-out — `close_phase15.sh`, tag `v0.16.0-phase15`
 ✅ P16.0 Dispatch migration docs — `dispatch-migration.md`, ADR 0005 phase 3
 ✅ P16.1 Assignment config metadata — `assignment` block, volunteer single config fetch
+✅ P16.11 Phase 16 close-out — `close_phase16.sh`, tag `v0.17.0-phase16`
 ```
 
 ---
@@ -525,7 +526,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 |----|---------|--------|------------|
 | **P16.0** | ADR + dispatch migration docs | ✅ Done | P15.11 |
 | **P16.1** | Platform `assignment` config + volunteer probe | ✅ Done | P16.0 |
-| **P16.11** | Phase 16 close-out | ⬜ Pending | P16.1 |
+| **P16.11** | Phase 16 close-out | ✅ Done | P16.1 |
 
 ### P16.0 — ADR + dispatch migration docs
 
