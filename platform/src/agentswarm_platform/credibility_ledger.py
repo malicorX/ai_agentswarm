@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any
@@ -684,6 +685,49 @@ def apply_parallel_group_credibility(
             apply_parallel_winner_outcome(conn, task_row=task)
         elif good_attempt_mint > 0:
             apply_good_attempt_reward(conn, task_row=task, amount=good_attempt_mint)
+
+
+def apply_major_version_haircut(conn: sqlite3.Connection, agent_id: str) -> int:
+    """Haircut earned credibility after a major version bump (ROADMAP §14)."""
+    if not credibility_enabled():
+        return 0
+    haircut = float(os.environ.get("AGENTSWARM_VERSION_MAJOR_HAIRCUT", "0.5"))
+    rows = conn.execute(
+        """
+        SELECT capability, project_id, score
+        FROM credibility_balances
+        WHERE agent_id = ?
+        """,
+        (agent_id,),
+    ).fetchall()
+    adjusted = 0
+    for row in rows:
+        old_score = float(row["score"])
+        new_score = compute_imported_score(
+            old_score,
+            haircut=haircut,
+            initial_score=INITIAL_SCORE,
+        )
+        delta = new_score - old_score
+        if abs(delta) < 1e-9:
+            continue
+        _apply_delta(
+            conn,
+            agent_id=agent_id,
+            capability=str(row["capability"]),
+            project_id=str(row["project_id"]),
+            delta=delta,
+            reason="version.major_haircut",
+            ref_type="agent",
+            ref_id=agent_id,
+            details={
+                "haircut": haircut,
+                "previous_score": old_score,
+                "new_score": new_score,
+            },
+        )
+        adjusted += 1
+    return adjusted
 
 
 def _apply_delta(

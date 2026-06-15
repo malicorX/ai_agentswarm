@@ -73,12 +73,22 @@ def _decode_keys(identity: StoredIdentity) -> tuple[bytes, bytes]:
     return pub, priv
 
 
+def default_version_signature(agent_name: str) -> str:
+    override = os.environ.get("AGENTSWARM_VERSION_SIGNATURE", "").strip()
+    if override:
+        return override
+    safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in agent_name).strip("-")
+    safe = safe or "agent"
+    return f"{safe}-v1.0"
+
+
 def connect_agent(
     agent_name: str,
     owner: str,
     capabilities: list[str],
     base_url: str | None = None,
     egress_allowlist: list[str] | None = None,
+    version_signature: str | None = None,
 ) -> PlatformClient:
     """Load or create persistent identity and connect to the platform."""
     url = (base_url or platform_url()).rstrip("/")
@@ -95,6 +105,7 @@ def connect_agent(
         "public_key": pub_b64,
         "owner": owner,
         "capabilities": capabilities,
+        "version_signature": version_signature or default_version_signature(agent_name),
     }
     if egress_allowlist is not None:
         body["egress_allowlist"] = egress_allowlist

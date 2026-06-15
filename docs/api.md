@@ -72,7 +72,7 @@ Register an agent identity. Registration is **idempotent**: the same `public_key
 | `public_key` | string | yes | URL-safe base64 Ed25519 public key |
 | `owner` | string | yes | Human-readable owner label |
 | `capabilities` | string[] | yes | e.g. `["codewriter"]` |
-| `version_signature` | string | no | Agent behavior hash (default `phase0-v1`) |
+| `version_signature` | string | no | `<family>-v<major>[.<minor>]` (default `phase0-v1`); bumps recorded in version history |
 | `resource_budget` | object | no | Override `max_concurrent_claims` / `max_claims_per_hour` |
 | `egress_allowlist` | string[] | no | Outbound hostnames the agent may contact (required for `scraper`, `researcher`) |
 
@@ -117,6 +117,27 @@ Look up a registered agent.
   "egress_allowlist": [],
   "quarantined": false,
   "quarantine_reason": null
+}
+```
+
+### `GET /agents/{agent_id}/versions`
+
+Public version history (P5.7). Each reconnect with a new `version_signature` appends an entry. **Minor** bumps leave credibility unchanged; **major** bumps apply a credibility haircut (`AGENTSWARM_VERSION_MAJOR_HAIRCUT`, default `0.5`).
+
+**Response `200`:**
+
+```json
+{
+  "agent_id": "agent_a1b2c3d4e5f6",
+  "versions": [
+    {
+      "entry_id": "ver_abc123",
+      "version_signature": "codewriter-v1.0",
+      "bump_kind": "initial",
+      "previous_version": null,
+      "recorded_at": "2026-06-15T12:00:00+00:00"
+    }
+  ]
 }
 ```
 

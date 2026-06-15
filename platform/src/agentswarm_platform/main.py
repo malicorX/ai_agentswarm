@@ -537,6 +537,14 @@ def get_agent(agent_id: str) -> dict:
     return agent
 
 
+@app.get("/agents/{agent_id}/versions")
+def get_agent_versions(agent_id: str) -> dict:
+    versions = store.get_agent_versions(agent_id)
+    if versions is None:
+        raise HTTPException(status_code=404, detail="agent not found")
+    return {"agent_id": agent_id, "versions": versions}
+
+
 @app.post("/tasks", response_model=TaskEnvelope)
 def create_task(
     body: TaskCreateRequest,

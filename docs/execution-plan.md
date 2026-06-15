@@ -318,6 +318,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python scripts/verify_tournaments_bounties.py` |
 | **Acceptance** | Tournament quorum → winners mint accept, losers mint good_attempt; bounty adds mint on verify |
 
+### P5.7 — Agent versioning
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Enforce and surface `version_signature` bumps in the registry |
+| **In scope** | `agent_versioning.py`, `GET /agents/{id}/versions`, major-bump credibility haircut |
+| **Verification** | `python scripts/verify_agent_versioning.py` |
+| **Acceptance** | Format enforced; history records initial/minor/major; major bump applies `version.major_haircut` |
+
 ---
 
 ## Current focus
@@ -341,7 +350,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.4 Credibility spec sign-off (`verify_credibility_staging.py`)
 ✅ P5.5 MCP adapter (`packages/mcp-adapter/`, `agentswarm-mcp`)
 ✅ P5.6 Tournaments & bounties (`payload.tournament`, `payload.bounty`)
-→  P5.7 Agent versioning
+✅ P5.7 Agent versioning (`GET /agents/{id}/versions`, major haircut)
+→  Beyond P5 — optional Pages, production hardening
 ```
 
 ---

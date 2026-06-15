@@ -76,6 +76,7 @@ from agentswarm_platform.replication_store import (
 )
 from agentswarm_platform.credibility_ledger import (
     apply_inactivity_decay_all,
+    apply_major_version_haircut,
     apply_task_outcome,
     assert_claim_tier_allowed,
     agent_can_claim_by_tier,
@@ -88,6 +89,8 @@ from agentswarm_platform.credibility_ledger import (
     seed_agent_capabilities,
 )
 from agentswarm_platform.credibility import credibility_enabled
+from agentswarm_platform.agent_versioning import classify_version_bump
+from agentswarm_platform.version_store import list_agent_versions, record_version_entry
 from agentswarm_platform.assignment_config import dispatch_enabled
 from agentswarm_platform.presence_store import (
     ensure_presence_schema,
@@ -274,6 +277,9 @@ class Store:
         ensure_credits_schema(conn)
         ensure_subjective_schema(conn)
         ensure_git_schema(conn)
+        from agentswarm_platform.version_store import ensure_version_schema
+
+        ensure_version_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -362,10 +368,12 @@ class Store:
         egress_json = json.dumps(egress_allowlist) if egress_allowlist is not None else None
         with self._conn() as conn:
             existing = conn.execute(
-                "SELECT agent_id FROM agents WHERE public_key = ?", (public_key,)
+                "SELECT agent_id, version_signature FROM agents WHERE public_key = ?",
+                (public_key,),
             ).fetchone()
             if existing is not None:
                 agent_id = existing["agent_id"]
+                previous_version = str(existing["version_signature"])
                 conn.execute(
                     """
                     UPDATE agents
@@ -384,6 +392,27 @@ class Store:
                         agent_id,
                     ),
                 )
+                bump = classify_version_bump(previous_version, version_signature)
+                if bump is not None:
+                    record_version_entry(
+                        conn,
+                        agent_id=agent_id,
+                        version_signature=version_signature,
+                        bump_kind=bump,
+                        previous_version=previous_version,
+                    )
+                    if bump == "major":
+                        apply_major_version_haircut(conn, agent_id)
+                    self._append_audit(
+                        conn,
+                        "agent.version_bumped",
+                        agent_id,
+                        {
+                            "previous_version": previous_version,
+                            "version_signature": version_signature,
+                            "bump_kind": bump,
+                        },
+                    )
                 self._append_audit(
                     conn,
                     "agent.reconnected",
@@ -392,6 +421,7 @@ class Store:
                         "owner": owner,
                         "owner_id": owner_id,
                         "capabilities": capabilities,
+                        "version_signature": version_signature,
                     },
                 )
                 seed_agent_capabilities(conn, agent_id, capabilities)
@@ -423,6 +453,12 @@ class Store:
                     egress_json,
                 ),
             )
+            record_version_entry(
+                conn,
+                agent_id=agent_id,
+                version_signature=version_signature,
+                bump_kind="initial",
+            )
             self._append_audit(
                 conn,
                 "agent.registered",
@@ -431,11 +467,18 @@ class Store:
                     "owner": owner,
                     "owner_id": owner_id,
                     "capabilities": capabilities,
+                    "version_signature": version_signature,
                 },
             )
             self._join_agent_projects(conn, agent_id, project_ids)
             self._seed_credibility_for_projects(conn, agent_id, capabilities, project_ids)
         return AgentRegisterResponse(agent_id=agent_id, credential=credential)
+
+    def get_agent_versions(self, agent_id: str) -> list[dict[str, Any]] | None:
+        if self.get_agent(agent_id) is None:
+            return None
+        with self._conn() as conn:
+            return list_agent_versions(conn, agent_id)
 
     def _project_targets(self, project_ids: list[str] | None) -> set[str]:
         if project_ids is None:
