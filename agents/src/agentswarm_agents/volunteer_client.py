@@ -16,6 +16,7 @@ from agentswarm_agents.docker_worker import (
     docker_capsule_executor,
     verify_assignment_signature,
 )
+from agentswarm_agents.ollama_executor import ollama_available, ollama_capsule_executor
 from agentswarm_agents.identity import StoredIdentity, load_identity, save_identity
 from agentswarm_agents.model_allowlist import validate_model_id
 from agentswarm_agents.owner_auth import owner_auth_headers
@@ -91,10 +92,13 @@ def resolve_executor(config: VolunteerConfig, agent_id: str) -> CapsuleExecutor:
             )
         return docker_capsule_executor(agent_id, image=config.worker_image)
     if runtime == "ollama":
-        raise RuntimeError(
-            "Ollama runtime is listed on the allowlist but not implemented in this build; "
-            "use llm-mock-v1 or llm-docker-worker-v1"
-        )
+        endpoint = str(model.get("endpoint", "http://127.0.0.1:11434"))
+        if not ollama_available(endpoint):
+            raise RuntimeError(
+                f"selected model requires a local Ollama server at {endpoint}; "
+                "start Ollama and pull the model, or use llm-mock-v1"
+            )
+        return ollama_capsule_executor(agent_id, model_entry=model)
     return execute_capsule
 
 

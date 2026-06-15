@@ -421,6 +421,24 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `bash scripts/run_full_staging_verify.sh` (or `.ps1`) · `python -m pytest platform/tests/test_verify_production_staging_full.py -q` |
 | **Acceptance** | Full bundle passes on theebie with bootstrap token; news/MCP skippable via env when swarm idle |
 
+### P7.5 — Ollama runtime executor
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Volunteer client can run subjective capsules via local Ollama (ADR 0007 `ollama` runtime) |
+| **In scope** | `ollama_executor.py`, wire `resolve_executor()` for `runtime=ollama`, `ollama_model` on allowlist entry |
+| **Verification** | `python -m pytest agents/tests/test_ollama_executor.py agents/tests/test_volunteer_client.py -q` |
+| **Acceptance** | `creative.text` and `reviewer.subjective` call localhost Ollama; remote endpoints rejected; coordinator still uses deterministic plan builder |
+
+### P7.6 — Reviewer hardware / VRAM guidance
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Document minimum volunteer hardware for subjective reviewers (ROADMAP_CHANGES open Q3) |
+| **In scope** | `docs/volunteer-hardware.md`, link from quickstart / ADR 0007 |
+| **Verification** | Doc review; references model allowlist tiers |
+| **Acceptance** | Clear VRAM/RAM guidance for reviewer vs creative roles |
+
 ---
 
 ## Current focus
@@ -458,6 +476,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P7.2 Volunteer model allowlist — ADR 0007, `models` on config
 ✅ P7.3 Human appeal for subjective rejects — ADR 0008
 ✅ P7.4 Full staging verify bundle — `run_full_staging_verify.sh`, P7 checks in full mode
+✅ P7.5 Ollama runtime executor — `ollama_executor.py`, localhost-only endpoint guard
 ```
 
 ---

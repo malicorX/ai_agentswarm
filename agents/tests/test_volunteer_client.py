@@ -52,6 +52,41 @@ def test_resolve_executor_in_process(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "scores" in result
 
 
+def test_resolve_executor_ollama(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("AGENTSWARM_ALLOWLIST_SKIP", raising=False)
+    config = VolunteerConfig(
+        agent_name="test",
+        base_url="http://127.0.0.1:8000",
+        owner="owner",
+        capabilities=["creative"],
+        model_id="ollama/llama3.2",
+    )
+    with (
+        patch("agentswarm_agents.volunteer_client.ollama_available", return_value=True),
+        patch(
+            "agentswarm_agents.volunteer_client.ollama_capsule_executor",
+            return_value=lambda assignment: {"text": "ollama"},
+        ) as factory,
+    ):
+        executor = resolve_executor(config, "agent-ollama")
+    factory.assert_called_once()
+    assert executor({"task_type": "creative.text", "capsule": {}}) == {"text": "ollama"}
+
+
+def test_resolve_executor_ollama_requires_server(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("AGENTSWARM_ALLOWLIST_SKIP", raising=False)
+    config = VolunteerConfig(
+        agent_name="test",
+        base_url="http://127.0.0.1:8000",
+        owner="owner",
+        capabilities=["creative"],
+        model_id="ollama/llama3.2",
+    )
+    with patch("agentswarm_agents.volunteer_client.ollama_available", return_value=False):
+        with pytest.raises(RuntimeError, match="Ollama"):
+            resolve_executor(config, "agent-ollama")
+
+
 def test_volunteer_run_once_verifies_and_submits(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AGENTSWARM_ASSIGNMENT_SECRET", "test-secret")
     monkeypatch.setenv("AGENTSWARM_ALLOWLIST_SKIP", "1")

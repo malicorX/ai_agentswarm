@@ -20,6 +20,7 @@ Each entry in `model_allowlist.json`:
 | `label` | yes | Human-readable name for the volunteer GUI |
 | `runtime` | yes | `in-process`, `docker`, or `ollama` |
 | `endpoint` | ollama only | Must be `http://127.0.0.1:*` or `http://localhost:*` |
+| `ollama_model` | ollama only | Model name passed to Ollama `/api/chat` (defaults to suffix of `id`) |
 | `local_only` | recommended for ollama | Documents that remote inference is forbidden |
 
 Bundled GGUF weights are **not** in v2; use `docker` runtime with a worker image that mounts local weights, or `ollama` with a localhost endpoint.
@@ -45,7 +46,7 @@ Default: platform enforcement **off** (staging/dev); production should set `AGEN
 |---------|--------|
 | `in-process` | Mock/dev executor (`llm-mock-v1`) |
 | `docker` | Worker image (`llm-docker-worker-v1`) |
-| `ollama` | Listed for forward compatibility; executor not implemented yet |
+| `ollama` | Local Ollama HTTP API (`ollama/llama3.2`); localhost endpoint only |
 
 ## Consequences
 
