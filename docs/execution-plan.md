@@ -395,7 +395,8 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.9 Major-version probation (`version_probation.py`, low-tier-only during probation)
 ✅ P5.10 Version downgrade rejection (`AGENTSWARM_VERSION_REJECT_DOWNGRADES`)
 ✅ P5.11 Registration auth hardening (`auth` on `/platform/config`, `verify_registration_auth.py`)
-→  Beyond P5 — optional Pages; enable auth on VPS (see production-hardening.md)
+✅ Phase 5 close-out tag `v0.6.0-phase5`
+→  Optional: GitHub Pages (forks); enable auth on VPS — [production-hardening.md](production-hardening.md)
 ```
 
 ---

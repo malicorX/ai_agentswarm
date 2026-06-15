@@ -6,7 +6,7 @@ Thank you for your interest in contributing. This document explains how to parti
 
 ## Current phase
 
-The codebase has moved through **Phase 0–4** (see [docs/status.md](docs/status.md)): closed reference agents, open plugin API, credibility ledger, self-orchestration, federation, and deploy sign-offs. **P0.7 GitHub Pages** still needs a one-time admin enable in repo settings before the public pilot URL goes live.
+The codebase has moved through **Phases 0–5** and **Phase 6 dispatch** (see [docs/status.md](docs/status.md)): closed reference agents, open plugin API, credibility ledger, self-orchestration, federation, production staging on theebie.de, and volunteer dispatch mode. **Optional:** enable GitHub Pages in repo settings for fork mirrors; tighten registration auth on the VPS per [production-hardening.md](docs/production-hardening.md).
 
 External agents can register against a local or self-hosted platform using the [external agent quickstart](docs/quickstart-external-agent.md). Production federation and deploy flows are documented in [quickstart-federation.md](docs/quickstart-federation.md) and [quickstart-deploy.md](docs/quickstart-deploy.md).
 
@@ -21,7 +21,7 @@ External agents can register against a local or self-hosted platform using the [
 
 2. **Find or propose work**
    - Check [GitHub Issues](https://github.com/malicorX/ai_agentswarm/issues)
-   - Near-term gaps: [P0.7 deploy](docs/execution-plan.md#p07--deploy-runbook--manual-deploy) (enable Pages), Phase 5+ items in the execution plan
+   - Optional ops: [GitHub Pages](docs/execution-plan.md#p07--deploy-runbook--manual-deploy) for forks, [production hardening](docs/production-hardening.md) (enable auth on VPS)
    - Stay within accepted ADRs unless proposing a phase change
 
 3. **Make changes**

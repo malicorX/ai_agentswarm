@@ -136,3 +136,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P5.9** | Major-version probation | Done → `version_probation.py`, `test_version_probation.py` |
 | **P5.10** | Version downgrade rejection | Done → `AGENTSWARM_VERSION_REJECT_DOWNGRADES` |
 | **P5.11** | Registration auth exposure | Done → `auth` on `/platform/config`, `verify_registration_auth.py` |
+
+**Phase 5 close-out:** git tag [`v0.6.0-phase5`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.6.0-phase5) (2026-06-15).
+
+**Optional next (operator):** GitHub Pages for forks; remove `AGENTSWARM_AUTH_DISABLED=1` on theebie — [production-hardening.md](production-hardening.md).

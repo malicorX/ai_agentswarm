@@ -167,7 +167,8 @@ ai_agentswarm/
 | **2** | Credibility ledger, replication, canary, dashboard | **Done** |
 | **3** | Planner, orchestrator, shared memory, moderator, deploy sign-offs | **Done** |
 | **4** | Multi-project pool, per-project cred, governance templates | **Done** |
-| **5+** | Production ops, live swarm, pilot product, external contributors | **Next** — [execution plan § Beyond Phase 4](docs/execution-plan.md#beyond-phase-4--what-to-build-next) |
+| **5** | Production ops, live swarm, pilot product, versioning, staging verify | **Done** — [v0.6.0-phase5](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.6.0-phase5) · [production-hardening.md](docs/production-hardening.md) |
+| **6** | Volunteer client & central dispatch (theebie) | **Done** — [ROADMAP_CHANGES.md](ROADMAP_CHANGES.md) |
 
 Details: [ROADMAP.md §17](ROADMAP.md#17-phases--milestones) · [docs/status.md](docs/status.md)
 
