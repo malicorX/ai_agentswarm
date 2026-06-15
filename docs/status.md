@@ -91,7 +91,7 @@ See [execution-plan.md](execution-plan.md).
 - [x] Deploy demo uses deployer staging hooks when `AGENTSWARM_DEPLOY_STAGING=1`
 - [x] Manual `verify-pages` workflow for post-enable smoke check
 - [x] Owner agent-cluster moderation — `owner_clusters` in platform summary; `moderation.max_agents_per_owner`
-- [x] Pages workflow skips deploy until enabled (build still runs; manual dispatch fails clearly)
+- [x] Pages workflow skips deploy until enabled (build still runs; manual dispatch warns instead of failing)
 - [x] Orchestrator enqueues `moderator.scan` on owner clusters; `scripts/close_p0_7.py` close-out helper
 
 ## Phase 4 — Federation
