@@ -56,7 +56,7 @@ Individual scripts (same as before):
 | `verify_news_pipeline.py` | Enqueue feed → verified article task |
 | `verify_production_swarm.py` | Swarm services processing tasks |
 
-`scripts/deploy_platform_theebie.sh` runs the quick bundle when `AGENTSWARM_VERIFY_STAGING_API=1` (default).
+`scripts/deploy_platform_theebie.sh` runs the quick bundle when `AGENTSWARM_VERIFY_STAGING_API=1` (default), with `AGENTSWARM_EXPECT_DISPATCH=1`, `AGENTSWARM_EXPECT_REGISTRATION_AUTH=1`, and bootstrap token from the server. The bundle also infers `auth.enforced` from `/platform/config` when those env flags are unset.
 
 ## Tighten before public launch
 

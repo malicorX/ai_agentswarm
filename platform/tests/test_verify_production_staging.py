@@ -20,6 +20,11 @@ def _load_module():
 
 def test_verify_production_staging_quick_orchestration() -> None:
     mod = _load_module()
+    reg_auth_calls: list[dict] = []
+
+    def capture_reg_auth(url: str, **kwargs: object) -> dict[str, str]:
+        reg_auth_calls.append(dict(kwargs))
+        return {"anonymous_register": "rejected"}
 
     with (
         patch.object(
@@ -31,7 +36,7 @@ def test_verify_production_staging_quick_orchestration() -> None:
                     (),
                     {
                         "verify_production_platform": staticmethod(
-                            lambda url, **kwargs: {"health": "ok"}
+                            lambda url, **kwargs: {"health": "ok", "auth_enforced": "true"}
                         )
                     },
                 ),
@@ -56,11 +61,7 @@ def test_verify_production_staging_quick_orchestration() -> None:
                 type(
                     "RegAuthMod",
                     (),
-                    {
-                        "verify_registration_auth_staging": staticmethod(
-                            lambda url, **kwargs: {"anonymous_register": "allowed"}
-                        )
-                    },
+                    {"verify_registration_auth_staging": staticmethod(capture_reg_auth)},
                 ),
                 type(
                     "ExternalMod",
@@ -84,4 +85,5 @@ def test_verify_production_staging_quick_orchestration() -> None:
     assert result["mode"] == "quick"
     assert result["platform"]["health"] == "ok"
     assert result["versioning"]["agent_id"] == "agent_v"
+    assert reg_auth_calls == [{"expect_enforced": True}]
     assert mock_pytest.call_count == 4

@@ -95,6 +95,12 @@ def verify_production_staging(
         expect_registration_auth = True
     elif _env_flag("AGENTSWARM_EXPECT_OPEN_REGISTRATION", default=False):
         expect_registration_auth = False
+    else:
+        enforced_raw = results["platform"].get("auth_enforced")
+        if enforced_raw == "true":
+            expect_registration_auth = True
+        elif enforced_raw == "false":
+            expect_registration_auth = False
     results["registration_auth"] = reg_auth_mod.verify_registration_auth_staging(
         clean,
         expect_enforced=expect_registration_auth,
