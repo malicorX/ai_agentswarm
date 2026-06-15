@@ -502,6 +502,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P10.2 Isolated subjective verify — `dispatch_include_owners`, `isolate_dispatch` demo mode
 ✅ P10.11 Phase 10 close-out — `close_phase10.sh`, tag `v0.11.0-phase10`
 ✅ P11.0 Live lease reclaim verify — `verify_lease_reclaim_staging.py`
+✅ P11.11 Phase 11 close-out — `close_phase11.sh`, tag `v0.12.0-phase11`
 ```
 
 ---
@@ -513,6 +514,16 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
 | **P11.0** | Live lease reclaim verify | ✅ Done | P10.11 |
+| **P11.11** | Phase 11 close-out | ✅ Done | P11.0 |
+
+### P11.11 — Phase 11 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag lease-reclaim-observability milestone after live verify and pool reconciliation on theebie |
+| **In scope** | `close_phase11.sh` / `.ps1`, status/README updates, tag `v0.12.0-phase11` |
+| **Verification** | `bash scripts/close_phase11.sh` · `python -m pytest platform/tests agents/tests -q` |
+| **Acceptance** | Dispatch + hardware gates + lease reclaim + isolated subjective verify exit 0 on theebie |
 
 ### P11.0 — Live lease reclaim verify
 
