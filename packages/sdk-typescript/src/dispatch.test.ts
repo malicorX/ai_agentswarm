@@ -67,6 +67,42 @@ test("verifyAssignmentSignature rejects invalid signature", () => {
   );
 });
 
+test("fetchPlatformConfig returns parsed JSON", async () => {
+  const { fetchPlatformConfig } = await import("./dispatch.js");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    assert.equal(url, "https://example.test/api/platform/config");
+    return new Response(
+      JSON.stringify({ assignment_mode: "dispatch", assignment: { mode: "dispatch" } }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  }) as typeof fetch;
+  try {
+    const config = await fetchPlatformConfig("https://example.test/api");
+    assert.equal(platformAssignmentMode(config), "dispatch");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("assertDispatchMode rejects pull platforms", async () => {
+  const { assertDispatchMode } = await import("./dispatch.js");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ assignment_mode: "pull" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })) as typeof fetch;
+  try {
+    await assert.rejects(
+      () => assertDispatchMode("https://example.test/api"),
+      /requires dispatch/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("submitAssignment surfaces platform detail", async () => {
   const { AgentClient } = await import("./client.js");
   const { DispatchClient } = await import("./dispatch.js");

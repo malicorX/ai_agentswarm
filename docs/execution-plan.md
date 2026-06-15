@@ -716,6 +716,45 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 ---
 
+## Phase 23 — SDK config tests + weekly MCP smoke
+
+**Goal:** TypeScript SDK covers platform config helpers; weekly full staging verify exercises MCP adapter smoke.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P23.0** | TS `fetchPlatformConfig` / `assertDispatchMode` tests | ✅ Done | P22.11 |
+| **P23.1** | Weekly CI MCP smoke | ✅ Done | P23.0 |
+| **P23.11** | Phase 23 close-out | ✅ Done | P23.1 |
+
+### P23.0 — TypeScript platform config tests
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Dispatch mode probe helpers have unit coverage in `npm test` |
+| **In scope** | `dispatch.test.ts`: `fetchPlatformConfig`, `assertDispatchMode` with mocked `fetch` |
+| **Verification** | `cd packages/sdk-typescript && npm test` |
+| **Acceptance** | CI `sdk-typescript` job runs config helper tests |
+
+### P23.1 — Weekly CI MCP smoke
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Weekly full staging verify checks MCP tool registration and staging health |
+| **In scope** | `verify-staging-full.yml`, `production-hardening.md`, bundle unit test |
+| **Verification** | `python -m pytest platform/tests/test_verify_production_staging_mcp.py -q` |
+| **Acceptance** | Workflow no longer sets `AGENTSWARM_VERIFY_SKIP_MCP=1` |
+
+### P23.11 — Phase 23 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag SDK config + MCP weekly milestone |
+| **In scope** | `close_phase23.sh` / `.ps1`, tag `v0.24.0-phase23` |
+| **Verification** | `bash scripts/close_phase23.sh` |
+| **Acceptance** | pytest + `npm test` + staging quick green |
+
+---
+
 ## Phase 17 — Subjective verify reliability
 
 **Goal:** Reduce staging subjective demo flakes from lease reclaim during assignment execution.
