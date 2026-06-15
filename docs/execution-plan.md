@@ -510,6 +510,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P14.0 Stale pending pool-need expiry — `expire_stale_pending_pool_needs()`, theebie prune (3214→26 pending)
 ✅ P14.11 Phase 14 close-out — `close_phase14.sh`, tag `v0.15.0-phase14`
 ✅ P15.0 Shell script LF normalization — CRLF fix on `scripts/**/*.sh`
+✅ P15.11 Phase 15 close-out — `close_phase15.sh`, tag `v0.16.0-phase15`
 ```
 
 ---
@@ -521,7 +522,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | ID | Package | Status | Depends on |
 |----|---------|--------|------------|
 | **P15.0** | Shell script LF normalization | ✅ Done | P14.11 |
-| **P15.11** | Phase 15 close-out | ⬜ Pending | P15.0 |
+| **P15.11** | Phase 15 close-out | ✅ Done | P15.0 |
 
 ### P15.0 — Shell script LF normalization
 
