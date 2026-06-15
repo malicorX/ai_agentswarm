@@ -23,6 +23,8 @@ Each entry in `model_allowlist.json`:
 | `ollama_model` | ollama only | Model name passed to Ollama `/api/chat` (defaults to suffix of `id`) |
 | `local_only` | recommended for ollama | Documents that remote inference is forbidden |
 
+See [volunteer-hardware.md](../volunteer-hardware.md) for VRAM/RAM guidance per allowlisted model.
+
 Bundled GGUF weights are **not** in v2; use `docker` runtime with a worker image that mounts local weights, or `ollama` with a localhost endpoint.
 
 ### Publication

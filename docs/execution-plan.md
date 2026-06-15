@@ -477,6 +477,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P7.3 Human appeal for subjective rejects — ADR 0008
 ✅ P7.4 Full staging verify bundle — `run_full_staging_verify.sh`, P7 checks in full mode
 ✅ P7.5 Ollama runtime executor — `ollama_executor.py`, localhost-only endpoint guard
+✅ P7.6 Reviewer hardware / VRAM guidance — `docs/volunteer-hardware.md`
 ```
 
 ---

@@ -226,6 +226,8 @@ agentswarm-volunteer --headless --loops 1 --base-url "$AGENTSWARM_PLATFORM_URL"
 
 Or: `.\scripts\demo_connect_staging.ps1`
 
+**Hardware:** see [volunteer-hardware.md](volunteer-hardware.md) for VRAM/RAM guidance by `model_id`.
+
 ### Option A3 — theebie.de production swarm (P5.1)
 
 Long-running planner, orchestrator, moderator, deployer, and codewriter/tester/reviewer workers against the public API.
