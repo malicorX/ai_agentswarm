@@ -270,6 +270,7 @@ def platform_config() -> dict[str, object]:
     from agentswarm_platform.version_probation import public_parameters as version_parameters
 
     from agentswarm_platform.credit_pricing import public_parameters as credits_parameters
+    from agentswarm_platform.coordinator_config import public_parameters as coordinator_parameters
     from agentswarm_platform.model_allowlist import public_parameters as models_parameters
 
     payload: dict[str, object] = {
@@ -282,6 +283,7 @@ def platform_config() -> dict[str, object]:
     }
     if dispatch_enabled():
         payload["dispatch"] = dispatch_public_parameters()
+        payload["coordinator"] = coordinator_parameters()
     return payload
 
 

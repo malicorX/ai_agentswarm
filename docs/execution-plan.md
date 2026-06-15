@@ -490,6 +490,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ Phase 7 close-out — weekly staging verify cron, tag `v0.8.0-phase7`
 ✅ P8.0 Staging model allowlist enforcement — `models.enforced=true` on theebie
 ✅ P8.1 Forge-agnostic git — ADR 0009, `forge_type` metadata only in v1
+✅ P8.2 Coordinator planning — ADR 0010, optional single-shot Ollama planner
 ```
 
 ---
@@ -502,6 +503,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 |----|---------|--------|------------|
 | **P8.0** | Staging model allowlist enforcement | ✅ Done | P7.2, ADR 0007 |
 | **P8.1** | Forge-agnostic git (ADR 0009) | ✅ Done | P6.9 |
+| **P8.2** | Coordinator planning (ADR 0010) | ✅ Done | P7.5, P6.7 |
 
 ### P8.0 — Staging model allowlist enforcement
 
@@ -520,6 +522,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **In scope** | ADR 0009, `forge_types.py`, tests for `github`/`gitlab` labels, ROADMAP_CHANGES close-out |
 | **Verification** | `python -m pytest platform/tests/test_forge_types.py platform/tests/test_git_patch.py -q` |
 | **Acceptance** | Execution is local `git` only; `forge_type` is metadata; GitHub/GitLab are labels not API dependencies |
+
+### P8.2 — Coordinator planning (ADR 0010)
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Resolve coordinator LLM vs planner question; optional single-shot Ollama planner on client |
+| **In scope** | ADR 0010, `coordinator_planner.py`, Ollama coordinator path + fallback, `coordinator` on `/platform/config` |
+| **Verification** | `python -m pytest agents/tests/test_coordinator_planner.py agents/tests/test_ollama_coordinator.py platform/tests/test_coordinator_config.py -q` |
+| **Acceptance** | Default deterministic; `AGENTSWARM_COORDINATOR_LLM=1` enables one-shot LLM plan validated before submit |
 
 ---
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from agentswarm_platform.coordinator_plan import build_default_creative_goal_plan
+from agentswarm_agents.coordinator_planner import build_deterministic_coordinator_plan
 from agentswarm_agents.git_capsule import execute_git_patch_capsule
 
 
@@ -11,14 +11,7 @@ def execute_capsule(assignment: dict[str, Any]) -> dict[str, Any]:
     task_type = assignment.get("task_type", "")
     capsule = assignment.get("capsule") or {}
     if task_type == "coordinator.decompose":
-        return build_default_creative_goal_plan(
-            {
-                "goal_id": capsule.get("goal_id"),
-                "brief": capsule.get("brief", ""),
-                "rubric": capsule.get("rubric") or [{"id": "quality", "weight": 1.0}],
-                "min_reviewers": int(capsule.get("min_reviewers", 3)),
-            }
-        )
+        return build_deterministic_coordinator_plan(capsule)
     if task_type == "codewriter.patch":
         if isinstance(capsule.get("git"), dict):
             git_capsule = dict(capsule)

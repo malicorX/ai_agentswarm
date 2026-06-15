@@ -8,6 +8,11 @@ from urllib.parse import urlparse
 import httpx
 
 from agentswarm_agents.capsule_executor import execute_capsule
+from agentswarm_agents.coordinator_planner import (
+    build_deterministic_coordinator_plan,
+    coordinator_llm_enabled,
+    goal_from_capsule,
+)
 from agentswarm_agents.docker_worker import verify_assignment_signature
 
 _LLM_TASK_TYPES = frozenset({"creative.text", "reviewer.subjective"})
@@ -151,6 +156,51 @@ def _normalize_reviewer_result(raw: dict[str, Any], capsule: dict[str, Any]) -> 
     return {"scores": scores, "rationale": rationale.strip() or "Ollama reviewer response."}
 
 
+def _coordinator_decompose_prompt(capsule: dict[str, Any]) -> list[dict[str, str]]:
+    goal = goal_from_capsule(capsule)
+    example = build_deterministic_coordinator_plan(capsule)
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are a coordinator for AgentSwarm subjective goals. "
+                "Respond with JSON only: "
+                '{"goal_id": "...", "pool_needs": [...], "deferred_pool_needs": [...]}. '
+                "Use only task_type creative.text in pool_needs and reviewer.subjective "
+                "in deferred_pool_needs."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Goal:\n{json.dumps(goal)}\n\n"
+                f"Valid example plan:\n{json.dumps(example)}"
+            ),
+        },
+    ]
+
+
+def _try_coordinator_llm_plan(
+    capsule: dict[str, Any],
+    *,
+    model_entry: dict[str, Any],
+    timeout_sec: float,
+) -> dict[str, Any]:
+    from agentswarm_platform.coordinator_plan import validate_coordinator_plan
+
+    endpoint = str(model_entry.get("endpoint", "http://127.0.0.1:11434"))
+    model = ollama_model_name(model_entry)
+    content = ollama_chat(
+        endpoint,
+        model,
+        _coordinator_decompose_prompt(capsule),
+        timeout_sec=timeout_sec,
+    )
+    parsed = _parse_json_object(content)
+    goal_id = str(capsule.get("goal_id", ""))
+    return validate_coordinator_plan(parsed, goal_id=goal_id)
+
+
 def execute_capsule_with_ollama(
     assignment: dict[str, Any],
     *,
@@ -161,6 +211,18 @@ def execute_capsule_with_ollama(
     capsule = assignment.get("capsule") or {}
     if not isinstance(capsule, dict):
         capsule = {}
+
+    if task_type == "coordinator.decompose":
+        if coordinator_llm_enabled():
+            try:
+                return _try_coordinator_llm_plan(
+                    capsule,
+                    model_entry=model_entry,
+                    timeout_sec=timeout_sec,
+                )
+            except (ValueError, RuntimeError, json.JSONDecodeError):
+                return build_deterministic_coordinator_plan(capsule)
+        return execute_capsule(assignment)
 
     if task_type not in _LLM_TASK_TYPES:
         return execute_capsule(assignment)

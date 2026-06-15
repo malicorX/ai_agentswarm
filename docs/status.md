@@ -147,6 +147,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P7.11** | Phase 7 close-out | Done → weekly `verify-staging-full.yml`, tag `v0.8.0-phase7` |
 | **P8.0** | Staging model allowlist enforcement | Done → `models.enforced=true` on theebie (2026-06-15) |
 | **P8.1** | Forge-agnostic git (ADR 0009) | Done → local `git` only; `forge_type` is metadata |
+| **P8.2** | Coordinator planning (ADR 0010) | Done → deterministic default; optional Ollama single-shot |
 
 **Staging model allowlist:** enforced 2026-06-15 via `scripts/harden_staging_model_allowlist_theebie.sh`.
 

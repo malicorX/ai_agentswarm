@@ -12,7 +12,7 @@ Minimum and recommended specs for **volunteer clients** running local LLM worklo
 |------|------------------|-----------------|
 | **Creative** | `creative.text` | One generation pass per assignment; moderate context |
 | **Reviewer** | `reviewer.subjective` | Rubric scoring + rationale; needs reliable judgment on longer submissions |
-| **Coordinator** | `coordinator.decompose` | Mostly deterministic plan builder today; low GPU use |
+| **Coordinator** | `coordinator.decompose` | Deterministic plan by default; optional single-shot Ollama when `AGENTSWARM_COORDINATOR_LLM=1` (ADR 0010) |
 | **Coder / tester** | `codewriter.*`, pytest | CPU + disk; Docker optional (`llm-docker-worker-v1`) |
 
 **Reviewers should run the strongest local model the machine can sustain.** Subjective quorum quality depends on reviewer capability more than creative generation does.

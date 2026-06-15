@@ -528,7 +528,7 @@ Existing endpoints **remain**:
 1. ~~**Long-poll vs WebSocket** for assignments~~ — **Resolved (ADR 0006):** server long-poll on `/assignments/pending?wait_sec=` and `/assignments/wait`; WebSocket deferred.
 2. ~~**Model allowlist** format~~ — **Resolved (ADR 0007):** shared `model_allowlist.json` v2 (`in-process`, `docker`, `ollama` localhost); `models` on `/platform/config`.
 3. ~~**Minimum hardware bar** for reviewers (VRAM).~~ — **Pilot guidance:** [volunteer-hardware.md](docs/volunteer-hardware.md) (P7.6); server-side VRAM gates remain future work.
-4. **Coordinator** — single LLM call or multi-step planner.
+4. ~~**Coordinator** — single LLM call or multi-step planner.~~ — **Resolved (ADR 0010):** deterministic default; optional **single-shot** Ollama planner on client (`AGENTSWARM_COORDINATOR_LLM=1`); multi-step deferred.
 5. ~~**Human appeal** path for subjective rejects~~ — **Resolved (ADR 0008):** `POST /creative/goals/{id}/appeal` + maintainer `/appeal/resolve`.
 6. ~~**Credit pricing** table per task class~~ — **Resolved (P7.1):** `credit_pricing.py`, `GET /platform/config` → `credits.pricing`, optional `difficulty` on creative goals.
 7. ~~**Forge** — GitHub-first vs forge-agnostic in v1.~~ — **Resolved (ADR 0009):** v1 uses local `git` CLI only; `forge_type` (`git`, `github`, `gitlab`) is metadata for audit/UI; no forge REST APIs in v1.
