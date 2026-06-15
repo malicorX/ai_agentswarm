@@ -20,12 +20,17 @@ sys.path.insert(0, str(_ROOT / "agents" / "src"))
 sys.path.insert(0, str(_ROOT / "platform" / "src"))
 
 from agentswarm_agents.owner_auth import owner_auth_headers
-from agentswarm_agents.volunteer_client import VolunteerClient, VolunteerConfig
+from agentswarm_agents.volunteer_client import (
+    CLIENT_VERSION,
+    VolunteerClient,
+    VolunteerConfig,
+)
 from agentswarm_platform.crypto import generate_keypair, public_key_b64
 
 DEFAULT_RUBRIC = [{"id": "quality", "weight": 1.0, "description": "Overall craft"}]
 TERMINAL_GOAL_STATUSES = frozenset({"verified", "rejected"})
 PRESENCE_WARMUP_SEC = 2.0
+READY_TIMEOUT_SEC = 45.0
 
 
 def _clean_url(base_url: str) -> str:
@@ -106,6 +111,60 @@ def register_poster_and_create_goal(
         return poster_id, goal_id
 
 
+def connect_volunteer_idle(
+    base_url: str,
+    *,
+    capabilities: list[str],
+    owner: str,
+    model_id: str,
+) -> tuple[VolunteerClient, VolunteerConfig]:
+    suffix = uuid.uuid4().hex[:8]
+    config = VolunteerConfig(
+        agent_name=f"demo-{'-'.join(capabilities)}-{suffix}",
+        base_url=_clean_url(base_url),
+        owner=owner,
+        capabilities=capabilities,
+        model_id=model_id,
+        wait_timeout_sec=60.0,
+        poll_sec=1.0,
+    )
+    volunteer = VolunteerClient(config)
+    volunteer.connect()
+    client = volunteer._client
+    if client is None:
+        raise RuntimeError("volunteer connect did not initialize dispatch client")
+    client.heartbeat(
+        config.capabilities,
+        status="idle",
+        model_id=config.model_id,
+        client_version=CLIENT_VERSION,
+        ttl_sec=config.heartbeat_ttl_sec,
+    )
+    return volunteer, config
+
+
+def wait_for_volunteer_assignment(
+    volunteer: VolunteerClient,
+    config: VolunteerConfig,
+    *,
+    capabilities: list[str],
+    owner: str,
+    wait_timeout_sec: float,
+    total_wait_sec: float,
+) -> bool:
+    deadline = time.monotonic() + total_wait_sec
+    while time.monotonic() < deadline:
+        attempt_sec = min(wait_timeout_sec, deadline - time.monotonic())
+        if attempt_sec <= 0:
+            break
+        volunteer.config = replace(config, wait_timeout_sec=attempt_sec)
+        if volunteer.run_once():
+            return True
+    raise RuntimeError(
+        f"volunteer {capabilities} ({owner}) timed out waiting for an assignment"
+    )
+
+
 def run_volunteer_role(
     base_url: str,
     *,
@@ -115,30 +174,20 @@ def run_volunteer_role(
     wait_timeout_sec: float,
     total_wait_sec: float | None = None,
 ) -> bool:
-    suffix = uuid.uuid4().hex[:8]
-    config = VolunteerConfig(
-        agent_name=f"demo-{'-'.join(capabilities)}-{suffix}",
-        base_url=_clean_url(base_url),
-        owner=owner,
+    volunteer, config = connect_volunteer_idle(
+        base_url,
         capabilities=capabilities,
+        owner=owner,
         model_id=model_id,
+    )
+    resolved_total = total_wait_sec if total_wait_sec is not None else wait_timeout_sec
+    return wait_for_volunteer_assignment(
+        volunteer,
+        config,
+        capabilities=capabilities,
+        owner=owner,
         wait_timeout_sec=wait_timeout_sec,
-        poll_sec=1.0,
-    )
-    volunteer = VolunteerClient(config)
-    volunteer.connect()
-    deadline = time.monotonic() + (
-        total_wait_sec if total_wait_sec is not None else wait_timeout_sec
-    )
-    while time.monotonic() < deadline:
-        attempt_sec = min(config.wait_timeout_sec, deadline - time.monotonic())
-        if attempt_sec <= 0:
-            break
-        volunteer.config = replace(config, wait_timeout_sec=attempt_sec)
-        if volunteer.run_once():
-            return True
-    raise RuntimeError(
-        f"volunteer {capabilities} ({owner}) timed out waiting for an assignment"
+        total_wait_sec=resolved_total,
     )
 
 
@@ -173,7 +222,8 @@ def _start_volunteer_threads(
     model_id: str,
     wait_timeout_sec: float,
     goal_timeout_sec: float,
-) -> tuple[list[threading.Thread], list[BaseException]]:
+    goal_posted: threading.Event,
+) -> tuple[list[threading.Thread], list[BaseException], threading.Barrier]:
     """Start coordinator, creative, and reviewer clients (must be idle before goal post)."""
     run_id = uuid.uuid4().hex[:8]
     roles: list[tuple[list[str], str]] = [
@@ -186,19 +236,29 @@ def _start_volunteer_threads(
     errors: list[BaseException] = []
     lock = threading.Lock()
     threads: list[threading.Thread] = []
+    ready_barrier = threading.Barrier(len(roles) + 1, timeout=READY_TIMEOUT_SEC)
 
     def worker(capabilities: list[str], owner: str) -> None:
         try:
+            volunteer, config = connect_volunteer_idle(
+                base_url,
+                capabilities=capabilities,
+                owner=owner,
+                model_id=model_id,
+            )
+            ready_barrier.wait()
+            if not goal_posted.wait(timeout=goal_timeout_sec):
+                raise RuntimeError("timed out waiting for creative goal to be posted")
             role_total_wait = (
                 goal_timeout_sec + wait_timeout_sec
                 if "reviewer" in capabilities
                 else wait_timeout_sec
             )
-            run_volunteer_role(
-                base_url,
+            wait_for_volunteer_assignment(
+                volunteer,
+                config,
                 capabilities=capabilities,
                 owner=owner,
-                model_id=model_id,
                 wait_timeout_sec=wait_timeout_sec,
                 total_wait_sec=role_total_wait,
             )
@@ -216,7 +276,7 @@ def _start_volunteer_threads(
         thread.start()
         threads.append(thread)
 
-    return threads, errors
+    return threads, errors, ready_barrier
 
 
 def _join_volunteer_threads(
@@ -226,7 +286,7 @@ def _join_volunteer_threads(
     goal_timeout_sec: float,
     wait_timeout_sec: float,
 ) -> None:
-    join_deadline = time.monotonic() + goal_timeout_sec + wait_timeout_sec
+    join_deadline = time.monotonic() + goal_timeout_sec + (wait_timeout_sec * 2) + 30.0
     for thread in threads:
         remaining = max(0.0, join_deadline - time.monotonic())
         thread.join(timeout=remaining)
@@ -276,14 +336,19 @@ def run_volunteer_subjective_demo(
                 f"Ollama not reachable at {endpoint}; start Ollama or omit --ollama"
             )
 
-    threads, errors = _start_volunteer_threads(
+    goal_posted = threading.Event()
+    threads, errors, ready_barrier = _start_volunteer_threads(
         clean,
         min_reviewers=min_reviewers,
         model_id=resolved_model,
         wait_timeout_sec=wait_timeout_sec,
         goal_timeout_sec=goal_timeout_sec,
+        goal_posted=goal_posted,
     )
-    time.sleep(PRESENCE_WARMUP_SEC)
+    try:
+        ready_barrier.wait()
+    except threading.BrokenBarrierError as exc:
+        raise RuntimeError("volunteer clients did not all register presence in time") from exc
 
     poster_id, goal_id = register_poster_and_create_goal(
         clean,
@@ -291,6 +356,7 @@ def run_volunteer_subjective_demo(
         min_reviewers=min_reviewers,
         pass_threshold=pass_threshold,
     )
+    goal_posted.set()
 
     _join_volunteer_threads(
         threads,

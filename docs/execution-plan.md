@@ -492,6 +492,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P8.1 Forge-agnostic git — ADR 0009, `forge_type` metadata only in v1
 ✅ P8.2 Coordinator planning — ADR 0010, optional single-shot Ollama planner
 ✅ P8.3 Volunteer subjective demo — `demo_volunteer_subjective_staging.sh`
+✅ Phase 8 close-out — `close_phase8.sh`, tag `v0.9.0-phase8`
 ```
 
 ---
@@ -506,8 +507,17 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **P8.1** | Forge-agnostic git (ADR 0009) | ✅ Done | P6.9 |
 | **P8.2** | Coordinator planning (ADR 0010) | ✅ Done | P7.5, P6.7 |
 | **P8.3** | Volunteer subjective staging demo | ✅ Done | P8.2, P6.3 |
+| **P8.11** | Phase 8 close-out | ✅ Done | P8.3 |
 
-### P8.0 — Staging model allowlist enforcement
+### P8.11 — Phase 8 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag production-volunteer hardening milestone after live subjective path on theebie |
+| **In scope** | `close_phase8.sh` / `.ps1`, status/README updates, tag `v0.9.0-phase8` |
+| **Verification** | `bash scripts/close_phase8.sh` · `python -m pytest platform/tests agents/tests -q` |
+| **Acceptance** | Dispatch smoke + volunteer subjective demo exit 0 on theebie |
+
 
 | Field | Value |
 |-------|--------|

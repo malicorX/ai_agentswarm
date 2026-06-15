@@ -59,7 +59,7 @@ GitHub Actions: **Verify staging (full)** (`.github/workflows/verify-staging-ful
 - **Scheduled:** Sundays 06:00 UTC (weekly cron, P7.11)
 - **Secret:** `AGENTSWARM_BOOTSTRAP_TOKEN` on the repo; news pipeline skipped in CI by default (`AGENTSWARM_VERIFY_SKIP_NEWS=1`)
 
-Maintainer close-out: `bash scripts/close_phase7.sh` (pytest + live dispatch smoke).
+Maintainer close-out: `bash scripts/close_phase8.sh` (pytest + dispatch smoke + volunteer subjective demo). Phase 7: `close_phase7.sh`.
 
 Optional swarm smoke (slow):
 

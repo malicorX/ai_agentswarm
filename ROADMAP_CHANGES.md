@@ -1,6 +1,6 @@
 # ROADMAP_CHANGES — Volunteer Client & Central Assignment (Phase 6+)
 
-**Status:** Implemented (P6.0–P6.11 + P7.0–P7.11 complete; close-out `v0.8.0-phase7`)  
+**Status:** Implemented (P6.0–P8.11 complete; close-out `v0.9.0-phase8`)  
 **Date:** 2026-06-15  
 **Audience:** Next implementation round (Composer / agents)  
 **Authoritative spec:** [ROADMAP.md](ROADMAP.md) remains the long-term product vision. **This document defines a deliberate pivot/extension** for mass-market volunteer compute. When implemented, merge accepted parts back into `ROADMAP.md` §17 and add ADR 0005.

@@ -44,13 +44,21 @@ def test_run_volunteer_subjective_demo_e2e() -> None:
     config_resp.json.return_value = {
         "assignment_mode": "dispatch",
         "models": {"enforced": True},
+        "dispatch": {"long_poll_max_sec": 60.0},
     }
     mock_client.get.return_value = config_resp
 
+    def fake_start_threads(*_args, **_kwargs):
+        event = _kwargs["goal_posted"]
+        barrier = MagicMock()
+        barrier.wait = MagicMock()
+        event.set()
+        return [], [], barrier
+
     with (
         patch.object(mod.httpx, "Client", return_value=mock_client),
-        patch.object(mod, "run_volunteer_role", return_value=True) as run_role,
-        patch.object(mod.time, "sleep"),
+        patch.object(mod, "_start_volunteer_threads", side_effect=fake_start_threads),
+        patch.object(mod, "_join_volunteer_threads") as join_threads,
         patch.object(
             mod,
             "register_poster_and_create_goal",
@@ -69,4 +77,4 @@ def test_run_volunteer_subjective_demo_e2e() -> None:
 
     assert result["goal_id"] == "goal-demo-1"
     assert result["goal_status"] == "verified"
-    assert run_role.call_count == 4  # coordinator + creative + 2 reviewers
+    join_threads.assert_called_once()
