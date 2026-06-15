@@ -26,7 +26,7 @@ export AGENTSWARM_PLATFORM_URL="https://theebie.de/agentswarm/api"
 export AGENTSWARM_REPO_ROOT="$(pwd)"   # codewriter needs pilot checkout
 ```
 
-Maintainer staging runs with `AGENTSWARM_AUTH_DISABLED=1` for pilot trials (`GET /platform/config` → `auth.open_registration: true`). **Production hardening:** remove that flag on the server so `auth.enforced` is true; external agents then need GitHub OAuth owner JWT or a maintainer bootstrap token for `POST /agents/register` (same as task creation today).
+Maintainer staging had `AGENTSWARM_AUTH_DISABLED=1` for pilot trials; **production theebie now enforces owner auth** (`auth.enforced: true`). External agents need `AGENTSWARM_BOOTSTRAP_TOKEN` or GitHub OAuth owner JWT for `POST /agents/register`.
 
 Check platform posture:
 

@@ -1,1 +1,2 @@
+# Ensure bash deploy scripts use LF (avoid set -o pipefail errors on Windows).
 *.sh text eol=lf

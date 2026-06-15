@@ -139,4 +139,6 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 
 **Phase 5 close-out:** git tag [`v0.6.0-phase5`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.6.0-phase5) (2026-06-15).
 
-**Optional next (operator):** GitHub Pages for forks; remove `AGENTSWARM_AUTH_DISABLED=1` on theebie — [production-hardening.md](production-hardening.md).
+**Optional next (operator):** GitHub Pages for forks — [deploy.md](deploy.md) Option B.
+
+**Staging auth:** enabled 2026-06-15 (`auth.enforced=true` on theebie) via `scripts/harden_staging_auth_theebie.sh`.

@@ -7,7 +7,7 @@ Post-P5 checklist for operating the public staging platform on [theebie.de](http
 | Setting | Staging value | Notes |
 |---------|---------------|--------|
 | `AGENTSWARM_ASSIGNMENT_MODE` | `dispatch` | Central assignment on theebie; local dev uses `pull` |
-| `AGENTSWARM_AUTH_DISABLED` | `1` | Open registration for pilot trials |
+| `AGENTSWARM_AUTH_DISABLED` | *(removed)* | Registration requires owner JWT or bootstrap token |
 | `AGENTSWARM_CREDIBILITY_ENABLED` | `1` | Pilot params in [credibility-pilot-params.json](infra/theebie/credibility-pilot-params.json) |
 | Task creation | Bootstrap token | Maintainers only (`AGENTSWARM_BOOTSTRAP_TOKEN`) |
 
@@ -78,6 +78,12 @@ python scripts/verify_registration_auth.py https://theebie.de/agentswarm/api
 | `bootstrap_token_configured` | Maintainer bootstrap token set |
 
 **Enable on theebie** (operator — breaks anonymous register):
+
+```bash
+bash scripts/harden_staging_auth_theebie.sh
+```
+
+Or manually:
 
 1. Edit `/etc/agentswarm/platform.env` — remove or comment `AGENTSWARM_AUTH_DISABLED=1`
 2. Ensure `AGENTSWARM_SESSION_SECRET` and `AGENTSWARM_BOOTSTRAP_TOKEN` are set

@@ -93,18 +93,12 @@ def verify_production_staging(
     expect_registration_auth: bool | None = None
     if _env_flag("AGENTSWARM_EXPECT_REGISTRATION_AUTH", default=False):
         expect_registration_auth = True
-    elif not quick:
+    elif _env_flag("AGENTSWARM_EXPECT_OPEN_REGISTRATION", default=False):
         expect_registration_auth = False
-    if expect_registration_auth is not None:
-        results["registration_auth"] = reg_auth_mod.verify_registration_auth_staging(
-            clean,
-            expect_enforced=expect_registration_auth,
-        )
-    else:
-        results["registration_auth"] = reg_auth_mod.verify_registration_auth_staging(
-            clean,
-            expect_enforced=False,
-        )
+    results["registration_auth"] = reg_auth_mod.verify_registration_auth_staging(
+        clean,
+        expect_enforced=expect_registration_auth,
+    )
 
     external_mod = _load_script_module(
         "verify_external_contributor", scripts / "verify_external_contributor.py"
