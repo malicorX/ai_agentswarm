@@ -250,5 +250,26 @@ class AssignmentEnvelope(BaseModel):
     capsule: dict[str, Any] = Field(default_factory=dict)
 
 
+class CreativeGoalRequest(BaseModel):
+    poster_agent_id: str
+    brief: str
+    rubric: list[dict[str, Any]]
+    project_id: str = "default"
+    min_reviewers: int = 3
+    pass_threshold: float = 6.0
+
+
+class CreativeGoalResponse(BaseModel):
+    goal_id: str
+    coordinator_task_id: str
+    status: str
+
+
+class AgentCreditsResponse(BaseModel):
+    agent_id: str
+    balance: float
+    enabled: bool
+
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()

@@ -27,10 +27,13 @@ from agentswarm_platform.models import (
     AgentRegisterRequest,
     AgentRegisterResponse,
     AssignmentEnvelope,
+    AgentCreditsResponse,
     AuditEvent,
     CheckpointRequest,
     ClaimRequest,
     ClaimResponse,
+    CreativeGoalRequest,
+    CreativeGoalResponse,
     ReplicationGroupStatus,
     CredibilityImportRequest,
     DeployCreateRequest,
@@ -279,6 +282,14 @@ def get_agent_credibility(
     return {"agent_id": agent_id, "project_id": project_id, "capabilities": scores}
 
 
+@app.get("/agents/{agent_id}/credits", response_model=AgentCreditsResponse)
+def get_agent_credits(agent_id: str) -> AgentCreditsResponse:
+    credits = store.get_agent_credits(agent_id)
+    if credits is None:
+        raise HTTPException(status_code=404, detail="agent not found")
+    return AgentCreditsResponse(**credits)
+
+
 @app.get("/agents/{agent_id}/profile")
 def get_agent_profile(
     agent_id: str,
@@ -344,6 +355,33 @@ def request_pool_need(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return PoolNeedResponse(**result)
+
+
+@app.post("/creative/goals", response_model=CreativeGoalResponse)
+def create_creative_goal(
+    body: CreativeGoalRequest,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> CreativeGoalResponse:
+    try:
+        result = store.create_creative_goal(
+            poster_agent_id=body.poster_agent_id,
+            brief=body.brief,
+            rubric=body.rubric,
+            project_id=body.project_id,
+            min_reviewers=body.min_reviewers,
+            pass_threshold=body.pass_threshold,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CreativeGoalResponse(**result)
+
+
+@app.get("/creative/goals/{goal_id}")
+def get_creative_goal(goal_id: str) -> dict:
+    goal = store.get_creative_goal_status(goal_id)
+    if goal is None:
+        raise HTTPException(status_code=404, detail="goal not found")
+    return goal
 
 
 @app.get("/agents/{agent_id}/canary-stats")
@@ -532,6 +570,18 @@ def submit_task(body: SubmitRequest) -> SubmitResponse:
             )
         if task_type == "deploy.execute":
             return store.complete_deploy_execute_submit(
+                body.claim_token, body.result, body.signature
+            )
+        if task_type == "coordinator.decompose":
+            return store.complete_coordinator_decompose_submit(
+                body.claim_token, body.result, body.signature
+            )
+        if task_type == "creative.text":
+            return store.complete_creative_text_submit(
+                body.claim_token, body.result, body.signature
+            )
+        if task_type == "reviewer.subjective":
+            return store.complete_reviewer_subjective_submit(
                 body.claim_token, body.result, body.signature
             )
         return store.submit_task(body.claim_token, body.result, body.signature)

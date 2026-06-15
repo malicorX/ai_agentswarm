@@ -290,9 +290,10 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ Phases 0–4 core complete (code + tests + demos)
 ✅ P0.7 static pilot live on theebie.de (/sites/agentswarm/)
 ✅ P6.0–P6.2 dispatch mode (presence, pool.need, assignments) — behind AGENTSWARM_ASSIGNMENT_MODE=dispatch
-→  P6.3  Subjective creative.text + reviewer quorum
-→  P6.4  Credits ledger
-→  P6.5  Dev dispatch client
+✅ P6.3  Subjective creative.text + reviewer quorum (`POST /creative/goals`, `GET /creative/goals/{id}`)
+✅ P6.4  Credits ledger (`GET /agents/{id}/credits`, burn on goal post, mint on verify)
+✅ P6.5  Dev dispatch client (`agents/.../dispatch_client.py`, `scripts/run_dispatch_client.py`)
+→  P6.6  Docker worker image
 ```
 
 ---

@@ -116,7 +116,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P6.0** | ADR 0005 + `AGENTSWARM_ASSIGNMENT_MODE` flag | Done |
 | **P6.1** | Presence registry (`POST /agents/presence`) | Done |
 | **P6.2** | Pool need + dispatcher + signed assignments | Done |
-| **P6.3** | Subjective `creative.text` + reviewer quorum | Not started |
-| **P6.4** | Credits ledger | Not started |
-| **P6.5** | Dev dispatch client | Not started |
+| **P6.3** | Subjective `creative.text` + reviewer quorum | Done |
+| **P6.4** | Credits ledger | Done |
+| **P6.5** | Dev dispatch client | Done |
 | **P5.0** | Production platform API (VPS, HTTPS, backups) | Not started |

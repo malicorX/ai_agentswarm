@@ -428,23 +428,23 @@ Implement in order. Each package should: code + tests + update `docs/status.md` 
 | Field | Value |
 |-------|--------|
 | **Deliverables** | `creative.text` post (credit burn); coordinator stub; `reviewer.subjective` capsule + quorum aggregation |
-| **Tests** | 3 reviewer scores → pass/fail |
-| **Acceptance** | End-to-end demo without Docker (dev client) |
+| **Tests** | 3 reviewer scores → pass/fail ✅ |
+| **Acceptance** | End-to-end demo without Docker (dev client) ✅ |
 
 ### P6.4 — Credits ledger
 
 | Field | Value |
 |-------|--------|
 | **Deliverables** | `credits_ledger` table; `GET /agents/{id}/credits`; burn on post, mint on verify |
-| **Tests** | insufficient credits rejected |
-| **Acceptance** | Demo: earn credits as reviewer, spend to post poem task |
+| **Tests** | insufficient credits rejected ✅ |
+| **Acceptance** | Demo: earn credits as reviewer, spend to post poem task ✅ |
 
 ### P6.5 — Dev dispatch client
 
 | Field | Value |
 |-------|--------|
 | **Deliverables** | `agents/src/agentswarm_agents/dispatch_client.py` + `scripts/run_dispatch_client.py` — heartbeat, wait, execute capsule (in-process LLM mock ok) |
-| **Acceptance** | Two terminals: two clients, dispatcher assigns both roles |
+| **Acceptance** | Two terminals: two clients, dispatcher assigns both roles ✅ |
 
 ### P6.6 — Docker worker image
 

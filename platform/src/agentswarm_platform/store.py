@@ -103,6 +103,26 @@ from agentswarm_platform.dispatch_store import (
     new_claim_token,
 )
 from agentswarm_platform.dispatcher import dispatch_pool_need as pick_dispatch_agent
+from agentswarm_platform.credits_ledger import (
+    burn_credits,
+    credits_enabled,
+    ensure_credits_schema,
+    get_credits_balance,
+    goal_post_cost,
+    mint_credits,
+    reviewer_reward,
+)
+from agentswarm_platform.subjective_store import (
+    aggregate_quorum,
+    ensure_subjective_schema,
+    get_creative_goal,
+    insert_creative_goal,
+    insert_subjective_review,
+    list_reviews_for_goal,
+    resolve_goal,
+    set_goal_artifact,
+    weighted_review_score,
+)
 from agentswarm_platform.models import (
     AgentBudgetStatus,
     AgentBudgetUsage,
@@ -237,6 +257,8 @@ class Store:
 
         ensure_owner_anchoring_schema(conn)
         ensure_deploy_schema(conn)
+        ensure_credits_schema(conn)
+        ensure_subjective_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -2297,3 +2319,411 @@ class Store:
             ).fetchone()
             if row is not None:
                 set_presence_status(conn, agent_id, "idle")
+
+    def get_agent_credits(self, agent_id: str) -> dict[str, Any] | None:
+        agent = self.get_agent(agent_id)
+        if agent is None:
+            return None
+        with self._conn() as conn:
+            balance = get_credits_balance(conn, agent_id)
+        return {
+            "agent_id": agent_id,
+            "balance": balance,
+            "enabled": credits_enabled(),
+        }
+
+    def create_creative_goal(
+        self,
+        *,
+        poster_agent_id: str,
+        brief: str,
+        rubric: list[dict[str, Any]],
+        project_id: str | None = None,
+        min_reviewers: int = 3,
+        pass_threshold: float = 6.0,
+    ) -> dict[str, Any]:
+        if not dispatch_enabled():
+            raise ValueError("creative goals require AGENTSWARM_ASSIGNMENT_MODE=dispatch")
+        if min_reviewers < 1:
+            raise ValueError("min_reviewers must be at least 1")
+        if not rubric:
+            raise ValueError("rubric must not be empty")
+        poster = self.get_agent(poster_agent_id)
+        if poster is None:
+            raise ValueError("poster agent not found")
+        resolved_project = validate_project_id(project_id or DEFAULT_PROJECT_ID)
+        with self._conn() as conn:
+            goal_id = insert_creative_goal(
+                conn,
+                poster_agent_id=poster_agent_id,
+                project_id=resolved_project,
+                brief=brief,
+                rubric=rubric,
+                min_reviewers=min_reviewers,
+                pass_threshold=pass_threshold,
+            )
+            if credits_enabled():
+                burn_credits(
+                    conn,
+                    poster_agent_id,
+                    goal_post_cost(),
+                    reason="goal_post",
+                    ref_type="creative_goal",
+                    ref_id=goal_id,
+                )
+        coordinator_payload = {
+            "goal_id": goal_id,
+            "capsule": {
+                "goal_id": goal_id,
+                "brief": brief,
+                "rubric": rubric,
+                "min_reviewers": min_reviewers,
+            },
+        }
+        coordinator_task = self.create_task(
+            "coordinator.decompose",
+            "coordinator",
+            coordinator_payload,
+            project_id=resolved_project,
+            assignment_only=True,
+        )
+        self.request_pool_need(
+            role="coordinator",
+            capability_required="coordinator",
+            parent_task_id=coordinator_task.task_id,
+            task_id=coordinator_task.task_id,
+            project_id=resolved_project,
+            task_type="coordinator.decompose",
+            payload=coordinator_payload,
+            constraints={},
+        )
+        return {
+            "goal_id": goal_id,
+            "coordinator_task_id": coordinator_task.task_id,
+            "status": "pending",
+        }
+
+    def get_creative_goal_status(self, goal_id: str) -> dict[str, Any] | None:
+        with self._conn() as conn:
+            goal = get_creative_goal(conn, goal_id)
+            if goal is None:
+                return None
+            reviews = list_reviews_for_goal(conn, goal_id)
+        goal["reviews"] = reviews
+        return goal
+
+    def _spawn_creative_worker_for_goal(self, goal_id: str) -> str:
+        with self._conn() as conn:
+            goal = get_creative_goal(conn, goal_id)
+        if goal is None:
+            raise ValueError("goal not found")
+        worker_payload = {
+            "goal_id": goal_id,
+            "capsule": {
+                "goal_id": goal_id,
+                "brief": goal["brief"],
+                "rubric": goal["rubric"],
+            },
+        }
+        worker_task = self.create_task(
+            "creative.text",
+            "creative",
+            worker_payload,
+            project_id=goal["project_id"],
+            assignment_only=True,
+        )
+        self.request_pool_need(
+            role="creative",
+            capability_required="creative",
+            parent_task_id=worker_task.task_id,
+            task_id=worker_task.task_id,
+            project_id=goal["project_id"],
+            task_type="creative.text",
+            payload=worker_payload,
+            constraints={},
+        )
+        return worker_task.task_id
+
+    def _schedule_subjective_reviewers(self, goal_id: str, *, parent_task_id: str) -> list[str]:
+        with self._conn() as conn:
+            goal = get_creative_goal(conn, goal_id)
+        if goal is None:
+            raise ValueError("goal not found")
+        poster = self.get_agent(goal["poster_agent_id"])
+        if poster is None:
+            raise ValueError("poster agent missing")
+        with self._conn() as conn:
+            worker_row = conn.execute(
+                "SELECT claimed_by FROM tasks WHERE task_id = ?", (parent_task_id,)
+            ).fetchone()
+        exclude_owners = [poster["owner"]]
+        exclude_agent_ids = [goal["poster_agent_id"]]
+        if worker_row is not None and worker_row["claimed_by"]:
+            exclude_agent_ids.append(worker_row["claimed_by"])
+        task_ids: list[str] = []
+        for _ in range(goal["min_reviewers"]):
+            review_payload = {
+                "goal_id": goal_id,
+                "capsule": {
+                    "goal_id": goal_id,
+                    "brief": goal["brief"],
+                    "artifact_text": goal["artifact_text"],
+                    "rubric": goal["rubric"],
+                },
+            }
+            created = self.create_task(
+                "reviewer.subjective",
+                "reviewer",
+                review_payload,
+                parent_task_id=parent_task_id,
+                project_id=goal["project_id"],
+                assignment_only=True,
+            )
+            self.request_pool_need(
+                role="reviewer",
+                capability_required="reviewer",
+                parent_task_id=parent_task_id,
+                task_id=created.task_id,
+                project_id=goal["project_id"],
+                task_type="reviewer.subjective",
+                payload=review_payload,
+                constraints={
+                    "exclude_owners": exclude_owners,
+                    "exclude_agent_ids": exclude_agent_ids,
+                },
+            )
+            task_ids.append(created.task_id)
+        return task_ids
+
+    def _maybe_finalize_subjective_quorum(self, conn: sqlite3.Connection, goal_id: str) -> None:
+        goal = get_creative_goal(conn, goal_id)
+        if goal is None or goal["status"] in ("verified", "rejected"):
+            return
+        reviews = list_reviews_for_goal(conn, goal_id)
+        if len(reviews) < goal["min_reviewers"]:
+            return
+        passed, aggregate = aggregate_quorum(
+            reviews,
+            goal["rubric"],
+            pass_threshold=goal["pass_threshold"],
+        )
+        status = "verified" if passed else "rejected"
+        resolve_goal(conn, goal_id, status=status, aggregate_score=aggregate)
+        if credits_enabled() and passed:
+            reward = reviewer_reward()
+            for review in reviews:
+                mint_credits(
+                    conn,
+                    review["reviewer_agent_id"],
+                    reward,
+                    reason="subjective_review",
+                    ref_type="creative_goal",
+                    ref_id=goal_id,
+                    details={"aggregate_score": aggregate},
+                )
+        self._append_audit(
+            conn,
+            f"creative_goal.{status}",
+            None,
+            {
+                "goal_id": goal_id,
+                "aggregate_score": aggregate,
+                "review_count": len(reviews),
+            },
+        )
+
+    def complete_coordinator_decompose_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "coordinator.decompose":
+                raise ValueError("not a coordinator task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            payload = json.loads(row["payload"])
+            goal_id = payload.get("goal_id")
+            if not goal_id:
+                raise ValueError("coordinator task missing goal_id")
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            self._append_audit(
+                conn,
+                "coordinator.completed",
+                row["claimed_by"],
+                {"task_id": row["task_id"], "goal_id": goal_id},
+            )
+            claiming_agent_id = row["claimed_by"]
+        self._mark_agent_idle_if_present(claiming_agent_id)
+        worker_task_id = self._spawn_creative_worker_for_goal(goal_id)
+        return SubmitResponse(
+            submission_id=submission_id,
+            enqueued_task_ids=[worker_task_id],
+        )
+
+    def complete_creative_text_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "creative.text":
+                raise ValueError("not a creative.text task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            payload = json.loads(row["payload"])
+            goal_id = payload.get("goal_id")
+            if not goal_id:
+                raise ValueError("creative task missing goal_id")
+            text = result.get("text")
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError("creative.text result requires non-empty text")
+            set_goal_artifact(conn, goal_id, text.strip())
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            self._append_audit(
+                conn,
+                "creative.text.completed",
+                row["claimed_by"],
+                {"task_id": row["task_id"], "goal_id": goal_id},
+            )
+            parent_task_id = row["task_id"]
+            claiming_agent_id = row["claimed_by"]
+        self._mark_agent_idle_if_present(claiming_agent_id)
+        reviewer_task_ids = self._schedule_subjective_reviewers(
+            goal_id, parent_task_id=parent_task_id
+        )
+        return SubmitResponse(
+            submission_id=submission_id,
+            enqueued_task_ids=reviewer_task_ids,
+        )
+
+    def complete_reviewer_subjective_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "reviewer.subjective":
+                raise ValueError("not a reviewer.subjective task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            payload = json.loads(row["payload"])
+            goal_id = payload.get("goal_id")
+            if not goal_id:
+                raise ValueError("reviewer task missing goal_id")
+            goal = get_creative_goal(conn, goal_id)
+            if goal is None:
+                raise ValueError("goal not found")
+            scores = result.get("scores")
+            if not isinstance(scores, dict):
+                raise ValueError("reviewer result requires scores object")
+            rationale = result.get("rationale", "")
+            if not isinstance(rationale, str):
+                raise ValueError("reviewer rationale must be a string")
+            weighted_review_score(scores, goal["rubric"])
+            insert_subjective_review(
+                conn,
+                goal_id=goal_id,
+                reviewer_agent_id=row["claimed_by"],
+                task_id=row["task_id"],
+                scores={k: float(v) for k, v in scores.items()},
+                rationale=rationale,
+            )
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            self._append_audit(
+                conn,
+                "reviewer.subjective.completed",
+                row["claimed_by"],
+                {"task_id": row["task_id"], "goal_id": goal_id},
+            )
+            self._maybe_finalize_subjective_quorum(conn, goal_id)
+            claiming_agent_id = row["claimed_by"]
+        self._mark_agent_idle_if_present(claiming_agent_id)
+        return SubmitResponse(submission_id=submission_id)

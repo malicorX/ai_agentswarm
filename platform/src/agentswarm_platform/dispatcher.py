@@ -13,16 +13,28 @@ def _exclude_owners_from_constraints(constraints: dict[str, Any]) -> set[str]:
     return {str(item) for item in raw}
 
 
+def _exclude_agent_ids_from_constraints(constraints: dict[str, Any]) -> set[str]:
+    raw = constraints.get("exclude_agent_ids") or constraints.get("exclude_agents") or []
+    return {str(item) for item in raw}
+
+
 def select_agent_for_need(
     conn: sqlite3.Connection,
     *,
     capability_required: str,
     constraints: dict[str, Any],
 ) -> dict[str, Any] | None:
-    exclude = _exclude_owners_from_constraints(constraints)
+    exclude_owners = _exclude_owners_from_constraints(constraints)
+    exclude_agents = _exclude_agent_ids_from_constraints(constraints)
     candidates = list_idle_agents_for_capability(
-        conn, capability_required, exclude_owners=exclude
+        conn, capability_required, exclude_owners=exclude_owners
     )
+    if not candidates and exclude_owners:
+        candidates = list_idle_agents_for_capability(
+            conn, capability_required, exclude_owners=set()
+        )
+    if exclude_agents:
+        candidates = [c for c in candidates if c["agent_id"] not in exclude_agents]
     if not candidates:
         return None
     top_load = candidates[0]["load"]
