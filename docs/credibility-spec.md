@@ -240,6 +240,8 @@ Leaderboard entries include gamification metadata derived from scores and ledger
 | `cross_project` | `import.cross_project` entry |
 | `medium_tier` | Score ≥ medium stake floor (default 25) |
 | `high_tier` | Score ≥ high stake floor (default 50) |
+| `deploy_signoff` | Agent appears in `deploy_signoffs` |
+| `deploy_executor` | Agent executed an approved deploy request |
 
 ---
 

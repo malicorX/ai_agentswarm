@@ -45,6 +45,30 @@ def detect_gaps(
     failures = summary.get("canary_failures_top") or []
     if failures:
         gaps.append({"type": "canary_failures", "agents": failures})
+
+    deploy = summary.get("deploy_requests") or {}
+    by_status = deploy.get("by_status") or {}
+    pending_requests = int(by_status.get("pending", 0))
+    pending_signoff_tasks = int(deploy.get("pending_signoff_tasks", 0))
+    if pending_requests > 0 or pending_signoff_tasks > 0:
+        gaps.append(
+            {
+                "type": "pending_deploy_signoffs",
+                "pending_requests": pending_requests,
+                "open_signoff_tasks": pending_signoff_tasks,
+            }
+        )
+    approved_waiting = int(by_status.get("approved", 0))
+    pending_execute_tasks = int(deploy.get("pending_execute_tasks", 0))
+    if approved_waiting > 0 and pending_execute_tasks > 0:
+        gaps.append(
+            {
+                "type": "pending_deploy_execute",
+                "approved_requests": approved_waiting,
+                "open_execute_tasks": pending_execute_tasks,
+            }
+        )
+
     return gaps, enqueue
 
 

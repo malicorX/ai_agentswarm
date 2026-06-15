@@ -59,6 +59,7 @@ from agentswarm_platform.deploy_store import (
     record_deploy_signoff,
     refresh_deploy_request_status,
     reject_deploy_request,
+    summarize_deploy_requests,
 )
 from agentswarm_platform.replication import (
     ReplicationConfig,
@@ -1831,6 +1832,7 @@ class Store:
             memory_rows = conn.execute(
                 "SELECT memory_key FROM memory_entries ORDER BY memory_key ASC"
             ).fetchall()
+            deploy_summary = summarize_deploy_requests(conn)
         tasks = {row["status"]: int(row["n"]) for row in task_rows}
         replication_groups = {row["status"]: int(row["n"]) for row in repl_rows}
         canary_failures_top = [
@@ -1846,6 +1848,7 @@ class Store:
             "replication_groups": replication_groups,
             "canary_failures_top": canary_failures_top,
             "memory_keys": [row["memory_key"] for row in memory_rows],
+            "deploy_requests": deploy_summary,
         }
 
     def get_agent_credibility(

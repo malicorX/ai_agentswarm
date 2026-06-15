@@ -36,6 +36,8 @@ def test_platform_summary(client: TestClient) -> None:
     summary = client.get("/platform/summary").json()
     assert "tasks" in summary
     assert "memory_keys" in summary
+    assert "deploy_requests" in summary
+    assert "by_status" in summary["deploy_requests"]
 
 
 def test_planner_submit_enqueues_codewriter_tasks(client: TestClient) -> None:

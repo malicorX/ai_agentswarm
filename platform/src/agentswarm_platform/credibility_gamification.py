@@ -20,6 +20,8 @@ BADGE_DEFINITIONS: dict[str, str] = {
     "cross_project": "Imported reputation from another project",
     "medium_tier": "Eligible for medium-stake tasks",
     "high_tier": "Eligible for high-stake tasks",
+    "deploy_signoff": "Signed off on a deploy request",
+    "deploy_executor": "Executed an approved deploy",
 }
 
 
@@ -83,6 +85,16 @@ def badges_for_agent(
         earned.append("medium_tier")
     if score >= TIER_HIGH_MIN:
         earned.append("high_tier")
+    if conn.execute(
+        "SELECT 1 FROM deploy_signoffs WHERE agent_id = ? LIMIT 1",
+        (agent_id,),
+    ).fetchone():
+        earned.append("deploy_signoff")
+    if conn.execute(
+        "SELECT 1 FROM deploy_requests WHERE executed_by_agent_id = ? LIMIT 1",
+        (agent_id,),
+    ).fetchone():
+        earned.append("deploy_executor")
     return [
         {"id": badge_id, "label": BADGE_DEFINITIONS[badge_id]}
         for badge_id in earned

@@ -273,6 +273,7 @@ Deferred until Phase 3 demonstrates single-project self-orchestration.
 ✅ Tag v0.5.1-phase5
 ✅ Pages workflow dispatch script + dashboard deploy detail panel
 ✅ Deploy sign-off demo (`scripts/demo_deploy_signoff.ps1`, `docs/quickstart-deploy.md`)
+✅ Platform summary deploy counts; orchestrator deploy gaps; deploy badges
 →  P0.7  Deploy (enable GitHub Pages in repo Settings, then re-run workflow)
 ```
 

@@ -28,3 +28,21 @@ def test_detect_idle_pool_gap() -> None:
     gaps, enqueue = detect_gaps(summary, backlog, memory_key="news-backlog")
     assert gaps[0]["type"] == "idle_pool_with_backlog"
     assert enqueue[0]["task_type"] == "planner.plan"
+
+
+def test_detect_pending_deploy_gaps() -> None:
+    summary = {
+        "tasks": {"created": 0},
+        "canary_failures_top": [],
+        "memory_keys": [],
+        "deploy_requests": {
+            "by_status": {"pending": 1, "approved": 1},
+            "pending_signoff_tasks": 2,
+            "pending_execute_tasks": 1,
+        },
+    }
+    gaps, enqueue = detect_gaps(summary, None, memory_key="news-backlog")
+    types = {gap["type"] for gap in gaps}
+    assert "pending_deploy_signoffs" in types
+    assert "pending_deploy_execute" in types
+    assert enqueue == []

@@ -253,7 +253,7 @@ On submit, the platform records pass/fail, emits `canary.passed` / `canary.faile
 
 ### `GET /platform/summary`
 
-Pool snapshot for orchestrator/moderator workers: task counts by status, registered agents, open moderation flags.
+Pool snapshot for orchestrator/moderator workers: task counts by status, replication groups, canary failure leaders, memory keys, and deploy request counts (`deploy_requests.by_status`, `pending_signoff_tasks`, `pending_execute_tasks`).
 
 ### `GET /memory`
 

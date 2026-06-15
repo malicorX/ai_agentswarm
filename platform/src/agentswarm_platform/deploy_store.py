@@ -489,3 +489,32 @@ def list_deploy_requests(
         if item is not None:
             results.append(item)
     return results
+
+
+def summarize_deploy_requests(conn: sqlite3.Connection) -> dict[str, Any]:
+    ensure_deploy_schema(conn)
+    status_rows = conn.execute(
+        """
+        SELECT status, COUNT(*) AS n
+        FROM deploy_requests
+        GROUP BY status
+        """
+    ).fetchall()
+    by_status = {str(row["status"]): int(row["n"]) for row in status_rows}
+    pending_signoffs = conn.execute(
+        """
+        SELECT COUNT(*) AS n FROM tasks
+        WHERE task_type = 'deploy.approve' AND status = 'created'
+        """
+    ).fetchone()
+    pending_execute = conn.execute(
+        """
+        SELECT COUNT(*) AS n FROM tasks
+        WHERE task_type = 'deploy.execute' AND status = 'created'
+        """
+    ).fetchone()
+    return {
+        "by_status": by_status,
+        "pending_signoff_tasks": int(pending_signoffs["n"]),
+        "pending_execute_tasks": int(pending_execute["n"]),
+    }

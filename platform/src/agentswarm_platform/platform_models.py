@@ -18,3 +18,4 @@ class PlatformSummary(BaseModel):
     replication_groups: dict[str, int]
     canary_failures_top: list[dict[str, Any]]
     memory_keys: list[str]
+    deploy_requests: dict[str, Any] = Field(default_factory=dict)

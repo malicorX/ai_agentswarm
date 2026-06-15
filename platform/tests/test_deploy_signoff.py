@@ -289,3 +289,18 @@ def test_deploy_reject_cancels_pending_request(
     request = cred_client.get(f"/deploy/requests/{created.json()['request_id']}").json()
     assert request["status"] == "rejected"
 
+
+def test_platform_summary_counts_deploy_requests(cred_client: TestClient) -> None:
+    cred_client.post(
+        "/deploy/requests",
+        json={
+            "environment": "staging",
+            "artifact_ref": "sha-summary",
+            "required_signoffs": 1,
+        },
+    )
+    summary = cred_client.get("/platform/summary").json()
+    deploy = summary["deploy_requests"]
+    assert deploy["by_status"].get("pending", 0) >= 1
+    assert deploy["pending_signoff_tasks"] >= 1
+
