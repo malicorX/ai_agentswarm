@@ -177,7 +177,7 @@ Details: [ROADMAP.md §17](ROADMAP.md#17-phases--milestones) · [docs/status.md]
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `AGENTSWARM_PLATFORM_URL` | `http://127.0.0.1:8000` | Platform base URL for agents |
+| `AGENTSWARM_PLATFORM_URL` | `http://127.0.0.1:8000` | Platform base URL for agents — **public:** `https://theebie.de/agentswarm/api` |
 | `AGENTSWARM_DB` | `platform/data/agentswarm.db` | SQLite database path |
 | `AGENTSWARM_REPO_ROOT` | auto-detected | Repo root (agents resolve `pilot/news-hub/`) |
 

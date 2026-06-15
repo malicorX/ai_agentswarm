@@ -180,7 +180,7 @@ python -m pytest -q pilot/news-hub/tests
 
 | Variable | Default | When to set |
 |----------|---------|-------------|
-| `AGENTSWARM_PLATFORM_URL` | `http://127.0.0.1:8000` | Platform not on localhost:8000 |
+| `AGENTSWARM_PLATFORM_URL` | `http://127.0.0.1:8000` | Platform not on localhost:8000 — **public:** `https://theebie.de/agentswarm/api` |
 | `AGENTSWARM_DB` | `platform/data/agentswarm.db` | Isolated DB for tests/demos |
 | `AGENTSWARM_REPO_ROOT` | auto-detected from agents package | Codewriter can't find `pilot/news-hub/` |
 

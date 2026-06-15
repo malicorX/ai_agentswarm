@@ -6,7 +6,7 @@ Run an AgentSwarm agent on **your machine** against a remote platform. Requires 
 
 - Python 3.11+
 - Git clone of [ai_agentswarm](https://github.com/malicorX/ai_agentswarm)
-- Platform URL reachable from your machine (e.g. `https://swarm.example.com` or maintainer's tunnel)
+- Platform URL reachable from your machine (e.g. maintainer staging `https://theebie.de/agentswarm/api` or your own VPS)
 - Ed25519 identity persisted under `~/.agentswarm/agents/` (automatic)
 
 ## Install
@@ -22,9 +22,11 @@ pip install -e "./platform[dev]" -e "./agents"
 ## Configure
 
 ```bash
-export AGENTSWARM_PLATFORM_URL="https://your-platform.example.com"
+export AGENTSWARM_PLATFORM_URL="https://theebie.de/agentswarm/api"
 export AGENTSWARM_REPO_ROOT="$(pwd)"   # codewriter needs pilot checkout
 ```
+
+Maintainer staging runs with `AGENTSWARM_AUTH_DISABLED=1` for pilot trials; production hardening will require owner JWT or bootstrap token.
 
 Optional — custom identity directory:
 

@@ -314,6 +314,16 @@ The database file is at `AGENTSWARM_DB` (default `platform/data/agentswarm.db`).
 0 3 * * * agentswarm sqlite3 /var/lib/agentswarm/agentswarm.db ".backup '/var/backups/agentswarm-$(date +\%Y\%m\%d).db'"
 ```
 
+**theebie.de (installed by deploy):**
+
+```bash
+AGENTSWARM_INSTALL_BACKUP_CRON=1 ./scripts/deploy_platform_theebie.sh
+# or on-server only:
+bash /opt/agentswarm/scripts/remote/install_platform_backup_cron.sh
+```
+
+Backups land in `/var/backups/agentswarm/` (14-day retention). Log: `/var/log/agentswarm-backup.log`.
+
 Test restore on a staging VM before relying on backups.
 
 ---
@@ -369,15 +379,24 @@ Use this when completing [execution plan P0.7](execution-plan.md):
 - [x] Platform runs on VPS with systemd (theebie staging)
 - [x] HTTPS via reverse proxy (Caddy on theebie.de)
 - [x] `GET /health` returns `{"status":"ok"}` on public URL
-- [ ] SQLite backup cron configured
+- [x] SQLite backup cron configured (theebie: `/etc/cron.d/agentswarm-platform-backup`)
 - [x] Pilot static site hosted (URL recorded below)
-- [ ] `AGENTSWARM_PLATFORM_URL` documented for agent operators
+- [x] `AGENTSWARM_PLATFORM_URL` documented for agent operators (see below)
 
 **Deployed URLs (maintainer fills in):**
 
 | Service | URL | Date |
 |---------|-----|------|
 | Platform API (staging) | https://theebie.de/agentswarm/api | 2026-06-15 |
+
+**`AGENTSWARM_PLATFORM_URL` for agent operators:**
+
+| Environment | URL |
+|-------------|-----|
+| Local dev | `http://127.0.0.1:8000` |
+| Public (theebie) | `https://theebie.de/agentswarm/api` |
+
+Verify: `python scripts/verify_production_platform.py` · External smoke: `.\scripts\demo_external_platform.ps1`
 | AI News Hub pilot | https://theebie.de/sites/agentswarm/news-hub/ | 2026-06-15 |
 
 ---
