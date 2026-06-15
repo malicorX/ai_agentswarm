@@ -19,6 +19,11 @@ def _exclude_agent_ids_from_constraints(constraints: dict[str, Any]) -> set[str]
     return {str(item) for item in raw}
 
 
+def _include_owners_from_constraints(constraints: dict[str, Any]) -> set[str]:
+    raw = constraints.get("include_owners") or []
+    return {str(item) for item in raw}
+
+
 def select_agent_for_need(
     conn: sqlite3.Connection,
     *,
@@ -27,15 +32,18 @@ def select_agent_for_need(
 ) -> dict[str, Any] | None:
     exclude_owners = _exclude_owners_from_constraints(constraints)
     exclude_agents = _exclude_agent_ids_from_constraints(constraints)
+    include_owners = _include_owners_from_constraints(constraints)
     candidates = list_idle_agents_for_capability(
         conn, capability_required, exclude_owners=exclude_owners
     )
-    if not candidates and exclude_owners:
+    if not include_owners and not candidates and exclude_owners:
         candidates = list_idle_agents_for_capability(
             conn, capability_required, exclude_owners=set()
         )
     if exclude_agents:
         candidates = [c for c in candidates if c["agent_id"] not in exclude_agents]
+    if include_owners:
+        candidates = [c for c in candidates if c["owner"] in include_owners]
     if capability_required == "reviewer":
         candidates = [
             candidate

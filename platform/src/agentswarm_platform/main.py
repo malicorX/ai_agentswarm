@@ -308,9 +308,14 @@ def register_agent(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    owner_label = owner.github_login
     if not owner.via_bootstrap and body.owner and body.owner != owner.github_login:
         raise HTTPException(status_code=400, detail="owner field must match authenticated login")
+    # Bootstrap / open registration: persist the client-supplied owner label for dispatch isolation.
+    owner_label = (
+        body.owner.strip()
+        if owner.via_bootstrap and body.owner and body.owner.strip()
+        else owner.github_login
+    )
     try:
         return store.register_agent(
             public_key=body.public_key,
@@ -463,6 +468,7 @@ def create_creative_goal(
             min_reviewers=body.min_reviewers,
             pass_threshold=body.pass_threshold,
             difficulty=body.difficulty,
+            dispatch_include_owners=body.dispatch_include_owners,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

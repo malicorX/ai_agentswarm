@@ -2789,6 +2789,7 @@ class Store:
         min_reviewers: int = 3,
         pass_threshold: float = 6.0,
         difficulty: float = 1.0,
+        dispatch_include_owners: list[str] | None = None,
     ) -> dict[str, Any]:
         if not dispatch_enabled():
             raise ValueError("creative goals require AGENTSWARM_ASSIGNMENT_MODE=dispatch")
@@ -2809,6 +2810,7 @@ class Store:
                 rubric=rubric,
                 min_reviewers=min_reviewers,
                 pass_threshold=pass_threshold,
+                dispatch_include_owners=dispatch_include_owners,
             )
             if credits_enabled():
                 cost = post_cost("creative.goal", difficulty=difficulty)
@@ -2836,6 +2838,9 @@ class Store:
             project_id=resolved_project,
             assignment_only=True,
         )
+        coordinator_constraints: dict[str, Any] = {}
+        if dispatch_include_owners:
+            coordinator_constraints["include_owners"] = list(dispatch_include_owners)
         self.request_pool_need(
             role="coordinator",
             capability_required="coordinator",
@@ -2844,7 +2849,7 @@ class Store:
             project_id=resolved_project,
             task_type="coordinator.decompose",
             payload=coordinator_payload,
-            constraints={},
+            constraints=coordinator_constraints,
         )
         return {
             "goal_id": goal_id,

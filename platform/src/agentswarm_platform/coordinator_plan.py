@@ -162,8 +162,15 @@ def resolve_pool_need_constraints(
         exclude_agent_ids.append(worker_agent_id)
     deduped_owners = list(dict.fromkeys(exclude_owners))
     deduped_agents = list(dict.fromkeys(exclude_agent_ids))
-    return {
+    include_owners = [str(item) for item in resolved.pop("include_owners", [])]
+    goal_include = goal.get("dispatch_include_owners") or []
+    include_owners.extend(str(item) for item in goal_include)
+    deduped_include = list(dict.fromkeys(include_owners))
+    payload = {
         **resolved,
         "exclude_owners": deduped_owners,
         "exclude_agent_ids": deduped_agents,
     }
+    if deduped_include:
+        payload["include_owners"] = deduped_include
+    return payload

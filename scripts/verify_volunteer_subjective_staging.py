@@ -83,6 +83,7 @@ def verify_volunteer_subjective_staging(
         min_reviewers=min_reviewers,
         wait_timeout_sec=wait_timeout_sec,
         goal_timeout_sec=goal_timeout_sec,
+        isolate_dispatch=True,
     )
     if result.get("goal_status") != "verified":
         raise RuntimeError(

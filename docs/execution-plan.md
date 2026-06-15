@@ -499,6 +499,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ Phase 9 close-out — `close_phase9.sh`, tag `v0.10.0-phase9`
 ✅ P10.0 Expired assignment lease reclaim — `reclaim_expired_assignment_leases()`
 ✅ P10.1 Stale presence reclaim + subjective prep — `maintain_dispatch_pool()`, `prep_staging_subjective_verify.sh`
+✅ P10.2 Isolated subjective verify — `dispatch_include_owners`, `isolate_dispatch` demo mode
 ```
 
 ---
@@ -511,6 +512,16 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 |----|---------|--------|------------|
 | **P10.0** | Expired lease reclaim | ✅ Done | P9.0 |
 | **P10.1** | Stale presence reclaim + subjective prep | ✅ Done | P10.0 |
+| **P10.2** | Isolated subjective verify (`include_owners`) | ✅ Done | P10.1 |
+
+### P10.2 — Isolated subjective verify
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Staging subjective verify assigns only demo volunteers, not live swarm agents |
+| **In scope** | `include_owners` dispatch constraint, `dispatch_include_owners` on creative goals, `isolate_dispatch` demo mode |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py platform/tests/test_coordinator_plan.py -q` |
+| **Acceptance** | `verify_volunteer_subjective_staging.py` passes on theebie with live swarm present |
 
 ### P10.1 — Stale presence reclaim + subjective prep
 

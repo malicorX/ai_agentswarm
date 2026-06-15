@@ -57,6 +57,10 @@ def ensure_subjective_schema(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE creative_goals ADD COLUMN deferred_pool_needs_json TEXT"
         )
+    if "dispatch_include_owners_json" not in columns:
+        conn.execute(
+            "ALTER TABLE creative_goals ADD COLUMN dispatch_include_owners_json TEXT"
+        )
 
 
 def insert_creative_goal(
@@ -68,14 +72,19 @@ def insert_creative_goal(
     rubric: list[dict[str, Any]],
     min_reviewers: int,
     pass_threshold: float,
+    dispatch_include_owners: list[str] | None = None,
 ) -> str:
     goal_id = f"goal-{uuid.uuid4().hex[:12]}"
+    include_json = (
+        json.dumps(dispatch_include_owners) if dispatch_include_owners else None
+    )
     conn.execute(
         """
         INSERT INTO creative_goals (
             goal_id, poster_agent_id, project_id, brief, rubric_json,
-            min_reviewers, pass_threshold, status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            min_reviewers, pass_threshold, status, created_at,
+            dispatch_include_owners_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
         """,
         (
             goal_id,
@@ -86,6 +95,7 @@ def insert_creative_goal(
             min_reviewers,
             pass_threshold,
             utc_now_iso(),
+            include_json,
         ),
     )
     return goal_id
@@ -114,6 +124,12 @@ def get_creative_goal(conn: sqlite3.Connection, goal_id: str) -> dict[str, Any] 
             json.loads(row["deferred_pool_needs_json"])
             if "deferred_pool_needs_json" in row.keys()
             and row["deferred_pool_needs_json"]
+            else []
+        ),
+        "dispatch_include_owners": (
+            json.loads(row["dispatch_include_owners_json"])
+            if "dispatch_include_owners_json" in row.keys()
+            and row["dispatch_include_owners_json"]
             else []
         ),
     }

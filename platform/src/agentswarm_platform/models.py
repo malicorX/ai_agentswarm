@@ -288,6 +288,7 @@ class CreativeGoalRequest(BaseModel):
     min_reviewers: int = 3
     pass_threshold: float = 6.0
     difficulty: float = Field(default=1.0, ge=0.1, le=10.0)
+    dispatch_include_owners: list[str] | None = None
 
 
 class CreativeGoalResponse(BaseModel):

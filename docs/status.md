@@ -156,6 +156,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P9.11** | Phase 9 close-out | Done → `close_phase9.sh`, tag `v0.10.0-phase9` |
 | **P10.0** | Expired assignment lease reclaim | Done → `reclaim_expired_assignment_leases()` |
 | **P10.1** | Stale presence reclaim + subjective prep | Done → `maintain_dispatch_pool()`, prep scripts |
+| **P10.2** | Isolated subjective verify | Done → `dispatch_include_owners`, `isolate_dispatch` |
 
 **Staging model allowlist:** enforced 2026-06-15 via `scripts/harden_staging_model_allowlist_theebie.sh`.
 

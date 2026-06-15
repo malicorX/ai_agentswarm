@@ -272,3 +272,60 @@ def test_stale_presence_lease_reclaimed_on_idle_presence(
     reclaimed = dispatch_client.get(f"/agents/{reviewer_b}/assignments/pending").json()
     assert reclaimed is not None
     assert reclaimed["task_id"] == need["task_id"]
+
+
+def test_pool_need_include_owners_restricts_dispatch(
+    dispatch_client: TestClient,
+) -> None:
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    swarm_id, _ = register_agent(dispatch_client, ["reviewer"], owner="swarm-reviewer")
+    isolated_id, _ = register_agent(dispatch_client, ["reviewer"], owner="isolated-reviewer")
+    for agent_id in (swarm_id, isolated_id):
+        dispatch_client.post(
+            f"/agents/{agent_id}/presence",
+            json={
+                "status": "idle",
+                "capabilities": ["reviewer"],
+                "model_id": "llm-mock-v1",
+                "vram_gb": 8.0,
+                "ttl_sec": 120,
+            },
+        )
+    from agentswarm_platform import main as platform_main
+    from agentswarm_platform.dispatcher import select_agent_for_need
+
+    with platform_main.store._conn() as conn:
+        selected = select_agent_for_need(
+            conn,
+            capability_required="reviewer",
+            constraints={"include_owners": ["isolated-reviewer"]},
+        )
+    assert selected is not None
+    assert selected["owner"] == "isolated-reviewer"
+
+    need = dispatch_client.post(
+        "/pool/need",
+        json={
+            "role": "reviewer",
+            "capability_required": "reviewer",
+            "task_type": "reviewer.subjective",
+            "payload": {
+                "capsule": {
+                    "brief": "Score this poem",
+                    "rubric": [{"id": "quality", "weight": 1.0}],
+                }
+            },
+            "constraints": {
+                "exclude_owners": ["poster-owner"],
+                "include_owners": ["isolated-reviewer"],
+            },
+        },
+    )
+    assert need.status_code == 200
+    body = need.json()
+    assert body["assigned"] is True
+    assert (
+        dispatch_client.get(f"/agents/{isolated_id}/assignments/pending").json()
+        is not None
+    )
+    assert dispatch_client.get(f"/agents/{swarm_id}/assignments/pending").json() is None

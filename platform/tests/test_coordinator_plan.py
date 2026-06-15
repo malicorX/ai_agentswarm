@@ -63,3 +63,13 @@ def test_resolve_pool_need_constraints_exclude_flags() -> None:
     assert "poster-owner" in resolved["exclude_owners"]
     assert "agent-poster" in resolved["exclude_agent_ids"]
     assert "agent-worker" in resolved["exclude_agent_ids"]
+
+
+def test_resolve_pool_need_constraints_merges_goal_include_owners() -> None:
+    resolved = resolve_pool_need_constraints(
+        {"exclude_poster": True},
+        goal={**GOAL, "dispatch_include_owners": ["demo-coordinator-run"]},
+        poster_owner="poster-owner",
+        worker_agent_id=None,
+    )
+    assert resolved["include_owners"] == ["demo-coordinator-run"]

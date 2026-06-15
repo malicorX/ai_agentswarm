@@ -69,6 +69,7 @@ def register_poster_and_create_goal(
     brief: str,
     min_reviewers: int,
     pass_threshold: float,
+    dispatch_include_owners: list[str] | None = None,
     timeout: float = 30.0,
 ) -> tuple[str, str]:
     """Register poster agent and POST /creative/goals. Returns (poster_id, goal_id)."""
@@ -94,15 +95,18 @@ def register_poster_and_create_goal(
         reg.raise_for_status()
         poster_id = reg.json()["agent_id"]
 
+        goal_payload: dict[str, object] = {
+            "poster_agent_id": poster_id,
+            "brief": brief,
+            "rubric": DEFAULT_RUBRIC,
+            "min_reviewers": min_reviewers,
+            "pass_threshold": pass_threshold,
+        }
+        if dispatch_include_owners:
+            goal_payload["dispatch_include_owners"] = dispatch_include_owners
         goal = client.post(
             f"{clean}/creative/goals",
-            json={
-                "poster_agent_id": poster_id,
-                "brief": brief,
-                "rubric": DEFAULT_RUBRIC,
-                "min_reviewers": min_reviewers,
-                "pass_threshold": pass_threshold,
-            },
+            json=goal_payload,
             headers=headers,
         )
         goal.raise_for_status()
@@ -235,10 +239,23 @@ def _serve_volunteer_until(
             time.sleep(config.poll_sec)
 
 
+def _build_demo_roles(
+    run_id: str,
+    min_reviewers: int,
+) -> list[tuple[list[str], str]]:
+    roles: list[tuple[list[str], str]] = [
+        (["coordinator"], f"demo-coordinator-{run_id}"),
+        (["creative"], f"demo-creative-{run_id}"),
+    ]
+    for index in range(min_reviewers):
+        roles.append((["reviewer"], f"demo-reviewer-{index}-{run_id}"))
+    return roles
+
+
 def _start_volunteer_threads(
     base_url: str,
     *,
-    min_reviewers: int,
+    roles: list[tuple[list[str], str]],
     model_id: str,
     wait_timeout_sec: float,
     goal_timeout_sec: float,
@@ -247,14 +264,6 @@ def _start_volunteer_threads(
     require_role_assignments: bool = True,
 ) -> tuple[list[threading.Thread], list[BaseException], threading.Barrier]:
     """Start coordinator, creative, and reviewer clients (must be idle before goal post)."""
-    run_id = uuid.uuid4().hex[:8]
-    roles: list[tuple[list[str], str]] = [
-        (["coordinator"], f"demo-coordinator-{run_id}"),
-        (["creative"], f"demo-creative-{run_id}"),
-    ]
-    for index in range(min_reviewers):
-        roles.append((["reviewer"], f"demo-reviewer-{index}-{run_id}"))
-
     errors: list[BaseException] = []
     lock = threading.Lock()
     threads: list[threading.Thread] = []
@@ -337,6 +346,7 @@ def run_volunteer_subjective_demo(
     goal_timeout_sec: float = 180.0,
     brief: str = "Write a haiku about volunteer AI compute on the swarm",
     require_role_assignments: bool = True,
+    isolate_dispatch: bool = False,
 ) -> dict[str, Any]:
     clean = _clean_url(base_url)
     with httpx.Client(timeout=30.0, follow_redirects=True) as client:
@@ -364,11 +374,17 @@ def run_volunteer_subjective_demo(
                 f"Ollama not reachable at {endpoint}; start Ollama or omit --ollama"
             )
 
+    run_id = uuid.uuid4().hex[:8]
+    roles = _build_demo_roles(run_id, min_reviewers)
+    dispatch_include_owners = (
+        [owner for _caps, owner in roles] if isolate_dispatch else None
+    )
+
     goal_posted = threading.Event()
     goal_terminal = threading.Event()
     threads, errors, ready_barrier = _start_volunteer_threads(
         clean,
-        min_reviewers=min_reviewers,
+        roles=roles,
         model_id=resolved_model,
         wait_timeout_sec=wait_timeout_sec,
         goal_timeout_sec=goal_timeout_sec,
@@ -386,6 +402,7 @@ def run_volunteer_subjective_demo(
         brief=brief,
         min_reviewers=min_reviewers,
         pass_threshold=pass_threshold,
+        dispatch_include_owners=dispatch_include_owners,
     )
     goal_posted.set()
 
@@ -435,6 +452,7 @@ def run_volunteer_subjective_demo(
         "aggregate_score": goal.get("aggregate_score"),
         "model_id": resolved_model,
         "min_reviewers": min_reviewers,
+        "isolate_dispatch": isolate_dispatch,
     }
 
 
