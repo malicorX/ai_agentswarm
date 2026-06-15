@@ -519,6 +519,13 @@ def apply_task_outcome(
                 ref_id=parent_task_row["task_id"],
                 details={"bonus": bounty_bonus, "project_id": project_id},
             )
+        from agentswarm_platform.version_probation import record_probation_verification
+
+        record_probation_verification(
+            conn,
+            str(submitter_id),
+            task_id=str(parent_task_row["task_id"]),
+        )
     elif not accepted:
         _apply_delta(
             conn,

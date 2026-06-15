@@ -75,4 +75,4 @@ def test_verify_production_staging_quick_orchestration() -> None:
     assert result["mode"] == "quick"
     assert result["platform"]["health"] == "ok"
     assert result["versioning"]["agent_id"] == "agent_v"
-    assert mock_pytest.call_count == 2
+    assert mock_pytest.call_count == 3

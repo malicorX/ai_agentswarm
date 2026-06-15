@@ -77,8 +77,11 @@ python scripts/trigger_pages_deploy.py
 
 ## Not yet implemented (ROADMAP §14)
 
-- Major-version **probation period** (extra verification rounds after a major bump; today only credibility haircut applies)
 - Automatic rejection of **downgrade** version signatures (family/major/minor decrease is classified as major bump + haircut, not blocked)
+
+## Implemented (P5.9)
+
+- Major-version **probation**: after a major bump, agents may only claim `stake_tier=low` until `AGENTSWARM_VERSION_PROBATION_VERIFICATIONS` verified accepts (default `3`). Exposed on `GET /agents/{id}`, `GET /agents/{id}/profile`, and `GET /platform/config` → `versioning`.
 
 ## Related
 

@@ -257,10 +257,12 @@ def health() -> dict[str, str]:
 @app.get("/platform/config")
 def platform_config() -> dict[str, object]:
     from agentswarm_platform.credibility import public_parameters
+    from agentswarm_platform.version_probation import public_parameters as version_parameters
 
     return {
         "assignment_mode": assignment_mode(),
         "credibility": public_parameters(),
+        "versioning": version_parameters(),
     }
 
 

@@ -8,16 +8,21 @@ import sys
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
-_TESTS = _ROOT / "platform" / "tests" / "test_agent_versioning.py"
+_TESTS = [
+    _ROOT / "platform" / "tests" / "test_agent_versioning.py",
+    _ROOT / "platform" / "tests" / "test_version_probation.py",
+]
 
 
 def main() -> int:
-    if not _TESTS.is_file():
-        print(f"Missing {_TESTS}", file=sys.stderr)
+    missing = [path for path in _TESTS if not path.is_file()]
+    if missing:
+        for path in missing:
+            print(f"Missing {path}", file=sys.stderr)
         return 1
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", str(_TESTS), "-q"],
-        cwd=_ROOT / "platform",
+        [sys.executable, "-m", "pytest", *[str(path) for path in _TESTS], "-q"],
+        cwd=_ROOT,
         check=False,
     )
     if proc.returncode != 0:

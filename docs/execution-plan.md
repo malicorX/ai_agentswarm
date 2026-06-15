@@ -254,6 +254,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **P5.6** | **Tournaments & bounties** | Parallel attempts + extra stake on hard tasks | §7.2, §7.3 |
 | **P5.7** | **Agent versioning** | Enforce / surface `version_signature` bumps in registry | §14 |
 | **P5.8** | **Production staging verify** | Post-deploy verification bundle for public API | deploy.md §7 |
+| **P5.9** | **Major-version probation** | Low-tier-only claims until N verified accepts after major bump | §14 |
 
 **Not blocking:** GitHub Pages mirror for forks ([deploy.md](deploy.md) Option B). Operator auth tighten: [production-hardening.md](production-hardening.md).
 
@@ -337,6 +338,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `AGENTSWARM_EXPECT_DISPATCH=1 python scripts/verify_production_staging.py` |
 | **Acceptance** | Quick bundle passes after deploy; full bundle documented for pre-release |
 
+### P5.9 — Major-version probation
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Extra verification gate after major `version_signature` bumps (ROADMAP §14) |
+| **In scope** | `version_probation.py`, claim tier cap during probation, profile + config exposure |
+| **Verification** | `python -m pytest platform/tests/test_version_probation.py -q` |
+| **Acceptance** | Major bump sets probation counter; medium/high claims blocked until N verified accepts |
+
 ---
 
 ## Current focus
@@ -362,6 +372,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ P5.6 Tournaments & bounties (`payload.tournament`, `payload.bounty`)
 ✅ P5.7 Agent versioning (`GET /agents/{id}/versions`, major haircut)
 ✅ P5.8 Production staging verify bundle (`verify_production_staging.py`)
+✅ P5.9 Major-version probation (`version_probation.py`, low-tier-only during probation)
 →  Beyond P5 — optional Pages; operator auth tighten (see production-hardening.md)
 ```
 

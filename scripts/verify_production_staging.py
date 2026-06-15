@@ -94,6 +94,8 @@ def verify_production_staging(
 
     _run_pytest("platform/tests/test_agent_versioning.py")
     results["unit_agent_versioning"] = "passed"
+    _run_pytest("platform/tests/test_version_probation.py")
+    results["unit_version_probation"] = "passed"
     _run_pytest("platform/tests/test_tournaments_bounties.py")
     results["unit_tournaments_bounties"] = "passed"
 

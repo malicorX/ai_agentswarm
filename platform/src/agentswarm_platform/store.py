@@ -278,8 +278,10 @@ class Store:
         ensure_subjective_schema(conn)
         ensure_git_schema(conn)
         from agentswarm_platform.version_store import ensure_version_schema
+        from agentswarm_platform.version_probation import ensure_probation_schema
 
         ensure_version_schema(conn)
+        ensure_probation_schema(conn)
 
     def upsert_owner(self, github_user_id: str, github_login: str) -> dict[str, Any]:
         from agentswarm_platform.auth import new_owner_id
@@ -403,6 +405,21 @@ class Store:
                     )
                     if bump == "major":
                         apply_major_version_haircut(conn, agent_id)
+                        from agentswarm_platform.version_probation import (
+                            start_major_version_probation,
+                        )
+
+                        probation_required = start_major_version_probation(conn, agent_id)
+                        if probation_required > 0:
+                            self._append_audit(
+                                conn,
+                                "agent.probation_started",
+                                agent_id,
+                                {
+                                    "version_signature": version_signature,
+                                    "verifications_required": probation_required,
+                                },
+                            )
                     self._append_audit(
                         conn,
                         "agent.version_bumped",
@@ -629,6 +646,11 @@ class Store:
             "egress_allowlist": self._agent_egress_allowlist(row),
             "quarantined": bool(row["quarantined"]) if "quarantined" in keys else False,
             "quarantine_reason": row["quarantine_reason"] if "quarantine_reason" in keys else None,
+            "version_probation_remaining": (
+                int(row["version_probation_remaining"])
+                if "version_probation_remaining" in keys
+                else 0
+            ),
         }
 
     def _agent_resource_budget(self, row: sqlite3.Row) -> dict[str, int]:
@@ -909,6 +931,14 @@ class Store:
                         conn, agent_id, cap, task_project, task_payload
                     ):
                         continue
+                    from agentswarm_platform.version_probation import (
+                        agent_can_claim_during_probation,
+                    )
+
+                    if not agent_can_claim_during_probation(
+                        conn, agent_id, task_payload
+                    ):
+                        continue
                 group_id = row["replication_group_id"] if "replication_group_id" in keys else None
                 if group_id:
                     group = conn.execute(
@@ -963,6 +993,11 @@ class Store:
                     project_id=project_id_from_task_row(row),
                     payload=task_payload,
                 )
+                from agentswarm_platform.version_probation import (
+                    assert_probation_allows_claim,
+                )
+
+                assert_probation_allows_claim(conn, agent_id, task_payload)
             if row["task_type"] not in ("tester.run", "reviewer.approve"):
                 lock_claim_stake(
                     conn,
@@ -2307,12 +2342,16 @@ class Store:
                 "quarantined": bool(row["quarantined"]) if "quarantined" in keys else False,
             }
             credibility_rows = list_agent_credibility(conn, agent_id, project_id)
-            return build_agent_profile(
+            from agentswarm_platform.version_probation import probation_status
+
+            profile = build_agent_profile(
                 conn,
                 agent,
                 project_id=project_id,
                 credibility_rows=credibility_rows,
             )
+            profile["version_probation"] = probation_status(conn, agent_id)
+            return profile
 
     def get_replication_group_status(self, group_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:

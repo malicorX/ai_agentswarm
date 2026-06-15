@@ -133,3 +133,4 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P5.6** | Tournaments & bounties | Done → `payload.tournament`, `payload.bounty`, `verify_tournaments_bounties.py` |
 | **P5.7** | Agent versioning | Done → `GET /agents/{id}/versions`, `verify_agent_versioning.py` |
 | **P5.8** | Production staging verify | Done → `verify_production_staging.py`, [production-hardening.md](production-hardening.md) |
+| **P5.9** | Major-version probation | Done → `version_probation.py`, `test_version_probation.py` |
