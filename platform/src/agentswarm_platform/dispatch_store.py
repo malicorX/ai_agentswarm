@@ -96,7 +96,7 @@ def list_pending_need_ids_for_agent(
     *,
     limit: int = 32,
 ) -> list[str]:
-    """Pending needs an idle agent can take, oldest first."""
+    """Owner-scoped pending needs an idle agent can take, oldest first."""
     presence = conn.execute(
         "SELECT * FROM agent_presence WHERE agent_id = ?", (agent_id,)
     ).fetchone()
@@ -109,8 +109,7 @@ def list_pending_need_ids_for_agent(
         return []
     owner = str(agent["owner"] or "")
     capabilities = set(json.loads(presence["capabilities"]))
-    specific: list[str] = []
-    generic: list[str] = []
+    matched: list[str] = []
     for need in list_pending_pool_needs(conn):
         capability_required = str(need["capability_required"])
         if capability_required not in capabilities:
@@ -141,15 +140,12 @@ def list_pending_need_ids_for_agent(
         ):
             continue
         need_id = str(need["need_id"])
-        if include_owners:
-            specific.append(need_id)
-        else:
-            generic.append(need_id)
-        if len(specific) >= limit:
+        if not include_owners:
+            continue
+        matched.append(need_id)
+        if len(matched) >= limit:
             break
-    if specific:
-        return specific[:limit]
-    return generic[:limit]
+    return matched[:limit]
 
 
 def mark_need_assigned(

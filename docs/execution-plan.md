@@ -509,6 +509,35 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 ---
 
+## Phase 13 — Subjective verify hardening
+
+**Goal:** Isolated volunteer subjective demos on staging are not starved or hijacked by generic pool backlog.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P13.0** | Scoped-only idle redispatch | 🔄 In progress | P12.11 |
+| **P13.11** | Phase 13 close-out | ⬜ Pending | P13.0 |
+
+### P13.0 — Scoped-only idle redispatch
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Idle presence only claims `include_owners` needs; generic backlog dispatches on assignment poll fallback |
+| **In scope** | `list_pending_need_ids_for_agent()` scoped-only, `get_pending_assignment()` global fallback |
+| **Verification** | `python -m pytest platform/tests/test_dispatch.py -q` · `python scripts/verify_volunteer_subjective_staging.py https://theebie.de/agentswarm/api` |
+| **Acceptance** | Creative goals leave `pending` on isolated staging demo; close-out subjective check passes |
+
+### P13.11 — Phase 13 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag subjective-hardening milestone after live verify on theebie |
+| **In scope** | `close_phase13.sh` / `.ps1`, status updates, tag `v0.14.0-phase13` |
+| **Verification** | `bash scripts/close_phase13.sh` |
+| **Acceptance** | Full close-out bundle exits 0 on theebie |
+
+---
+
 ## Phase 12 — Automatic redispatch after reclaim
 
 **Goal:** Reclaimed pool needs redispatch to idle volunteers without a manual `POST /pool/need` retry.

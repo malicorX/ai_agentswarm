@@ -2790,6 +2790,10 @@ class Store:
             self._redispatch_pending_pool_needs(for_agent_id=agent_id)
             with self._conn() as conn:
                 assignment = get_pending_assignment_for_agent(conn, agent_id)
+            if assignment is None:
+                self._redispatch_pending_pool_needs()
+                with self._conn() as conn:
+                    assignment = get_pending_assignment_for_agent(conn, agent_id)
         return assignment
 
     def _mark_agent_idle_if_present(self, agent_id: str) -> None:

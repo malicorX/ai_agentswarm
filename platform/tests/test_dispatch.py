@@ -406,6 +406,42 @@ def test_orphaned_assigned_need_reconciled_on_idle_presence(
     assert reclaimed["task_id"] == need["task_id"]
 
 
+def test_idle_presence_skips_generic_coordinator_backlog(
+    dispatch_client: TestClient,
+) -> None:
+    """Volunteers warming up before an isolated goal must not take stale pool work."""
+    from agentswarm_platform import main as platform_main
+
+    with platform_main.store._conn() as conn:
+        for index in range(5):
+            conn.execute(
+                """
+                INSERT INTO pool_needs (
+                    need_id, role, capability_required, parent_task_id, task_id,
+                    project_id, constraints_json, status, created_at
+                ) VALUES (?, 'coordinator', 'coordinator', ?, ?, 'default', '{}', 'pending', ?)
+                """,
+                (
+                    f"need-generic-backlog-{index}",
+                    f"task-generic-backlog-{index}",
+                    f"task-generic-backlog-{index}",
+                    f"2020-01-01T00:{index:02d}:00+00:00",
+                ),
+            )
+
+    coordinator_id, _ = register_agent(
+        dispatch_client, ["coordinator"], owner="demo-coordinator-isolated"
+    )
+    dispatch_client.post(
+        f"/agents/{coordinator_id}/presence",
+        json={"status": "idle", "capabilities": ["coordinator"], "ttl_sec": 120},
+    )
+    pending = dispatch_client.get(
+        f"/agents/{coordinator_id}/assignments/pending"
+    ).json()
+    assert pending is None
+
+
 def test_prepare_pool_need_redispatches_orphaned_claimed_task(
     dispatch_client: TestClient,
 ) -> None:
