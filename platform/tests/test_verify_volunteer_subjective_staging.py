@@ -80,3 +80,13 @@ def test_resolve_subjective_verify_timeouts_from_env(monkeypatch) -> None:
     monkeypatch.setenv("AGENTSWARM_VERIFY_SUBJECTIVE_GOAL_TIMEOUT_SEC", "900")
     monkeypatch.setenv("AGENTSWARM_VERIFY_SUBJECTIVE_WAIT_SEC", "45")
     assert mod.resolve_subjective_verify_timeouts() == (900.0, 45.0)
+
+
+def test_prep_skipped_on_ci_without_ssh(monkeypatch) -> None:
+    mod = _load_module()
+    monkeypatch.delenv("AGENTSWARM_VERIFY_SKIP_PREP", raising=False)
+    monkeypatch.delenv("AGENTSWARM_VERIFY_FORCE_PREP", raising=False)
+    monkeypatch.setenv("CI", "true")
+    with patch.object(mod.subprocess, "run") as mock_run:
+        mod.prep_staging_subjective_verify()
+    mock_run.assert_not_called()

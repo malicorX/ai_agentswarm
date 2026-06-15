@@ -20,7 +20,15 @@ PREP_SCRIPT = _ROOT / "scripts" / "prep_staging_subjective_verify.sh"
 
 def _skip_prep() -> bool:
     raw = os.environ.get("AGENTSWARM_VERIFY_SKIP_PREP", "").strip().lower()
-    return raw in ("1", "true", "yes")
+    if raw in ("1", "true", "yes"):
+        return True
+    force = os.environ.get("AGENTSWARM_VERIFY_FORCE_PREP", "").strip().lower()
+    if force in ("1", "true", "yes"):
+        return False
+    # GitHub Actions and other CI runners cannot SSH to theebie for pool restart.
+    if os.environ.get("CI", "").strip().lower() in ("1", "true"):
+        return True
+    return False
 
 
 def prep_staging_subjective_verify() -> None:
