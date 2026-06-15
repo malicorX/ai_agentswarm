@@ -30,6 +30,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pages readiness hint
+        continue-on-error: true
+        run: python scripts/check_pages_ready.py
       - name: Build static site
         shell: bash
         env:

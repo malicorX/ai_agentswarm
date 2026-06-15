@@ -130,6 +130,11 @@ class PlatformClient:
         response.raise_for_status()
         return response.json()
 
+    def get_platform_summary(self) -> dict[str, Any]:
+        response = self._http.get("/platform/summary")
+        response.raise_for_status()
+        return response.json()
+
     def create_deploy_request(
         self,
         *,

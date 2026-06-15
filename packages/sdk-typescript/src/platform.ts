@@ -166,6 +166,14 @@ export class PlatformClient {
     };
   }
 
+  async getPlatformSummary(): Promise<Record<string, unknown>> {
+    const response = await fetch(`${this.baseUrl}/platform/summary`);
+    if (!response.ok) {
+      throw new Error(`get platform summary failed: ${response.status}`);
+    }
+    return (await response.json()) as Record<string, unknown>;
+  }
+
   async createDeployRequest(params: {
     environment: string;
     artifactRef: string;

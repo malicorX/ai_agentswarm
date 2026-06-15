@@ -21,3 +21,12 @@ def test_platform_api_projects_and_templates(client: TestClient) -> None:
 
     governance = client.get("/projects/sdk-test/governance").json()
     assert governance["project_id"] == "sdk-test"
+
+
+def test_platform_summary_includes_deploy_counts(client: TestClient) -> None:
+    summary = client.get("/platform/summary").json()
+    assert "tasks" in summary
+    deploy = summary["deploy_requests"]
+    assert "by_status" in deploy
+    assert "pending_signoff_tasks" in deploy
+    assert "pending_execute_tasks" in deploy
