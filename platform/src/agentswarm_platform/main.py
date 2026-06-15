@@ -56,7 +56,12 @@ from agentswarm_platform.models import (
 )
 from agentswarm_platform.platform_models import MemoryUpsertRequest, PlatformSummary
 from agentswarm_platform.oauth import router as auth_router
-from agentswarm_platform.assignment_config import assignment_mode
+from agentswarm_platform.assignment_config import assignment_mode, dispatch_enabled
+from agentswarm_platform.assignment_wait import (
+    clamp_wait_sec,
+    dispatch_public_parameters,
+    wait_for_pending_assignment,
+)
 from agentswarm_platform.store import Store
 
 DB_PATH = Path(os.environ.get("AGENTSWARM_DB", "platform/data/agentswarm.db"))
@@ -261,12 +266,15 @@ def platform_config() -> dict[str, object]:
     from agentswarm_platform.agent_versioning import versioning_public_parameters
     from agentswarm_platform.version_probation import public_parameters as version_parameters
 
-    return {
+    payload: dict[str, object] = {
         "assignment_mode": assignment_mode(),
         "auth": auth_parameters(),
         "credibility": public_parameters(),
         "versioning": {**versioning_public_parameters(), **version_parameters()},
     }
+    if dispatch_enabled():
+        payload["dispatch"] = dispatch_public_parameters()
+    return payload
 
 
 @app.post("/agents/register", response_model=AgentRegisterResponse)
@@ -361,22 +369,50 @@ def record_agent_presence(agent_id: str, body: AgentPresenceRequest) -> AgentPre
     return AgentPresenceResponse(**recorded)
 
 
-@app.get("/agents/{agent_id}/assignments/pending", response_model=AssignmentEnvelope | None)
-def get_pending_assignment(agent_id: str) -> AssignmentEnvelope | None:
-    assignment = store.get_pending_assignment(agent_id)
-    if assignment is None:
-        return None
+def _assignment_envelope(assignment: dict[str, object]) -> AssignmentEnvelope:
     return AssignmentEnvelope(
-        lease_id=assignment["lease_id"],
-        task_id=assignment["task_id"],
-        task_type=assignment["task_type"],
-        capability_required=assignment["capability_required"],
-        project_id=assignment["project_id"],
-        claim_token=assignment["claim_token"],
-        expires_at=assignment["expires_at"],
-        assignment_signature=assignment["assignment_signature"],
+        lease_id=str(assignment["lease_id"]),
+        task_id=str(assignment["task_id"]),
+        task_type=str(assignment["task_type"]),
+        capability_required=str(assignment["capability_required"]),
+        project_id=str(assignment["project_id"]),
+        claim_token=str(assignment["claim_token"]),
+        expires_at=str(assignment["expires_at"]),
+        assignment_signature=str(assignment["assignment_signature"]),
         capsule=assignment.get("capsule") or {},
     )
+
+
+def _fetch_pending_assignment(agent_id: str, wait_sec: float) -> dict[str, object] | None:
+    try:
+        clamped = clamp_wait_sec(wait_sec)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if clamped <= 0:
+        return store.get_pending_assignment(agent_id)
+    return wait_for_pending_assignment(store.get_pending_assignment, agent_id, clamped)
+
+
+@app.get("/agents/{agent_id}/assignments/pending", response_model=AssignmentEnvelope | None)
+def get_pending_assignment(
+    agent_id: str,
+    wait_sec: float = Query(default=0, ge=0),
+) -> AssignmentEnvelope | None:
+    assignment = _fetch_pending_assignment(agent_id, wait_sec)
+    if assignment is None:
+        return None
+    return _assignment_envelope(assignment)
+
+
+@app.get("/agents/{agent_id}/assignments/wait", response_model=AssignmentEnvelope | None)
+def wait_for_assignment_endpoint(
+    agent_id: str,
+    wait_sec: float = Query(default=30, ge=0),
+) -> AssignmentEnvelope | None:
+    assignment = _fetch_pending_assignment(agent_id, wait_sec)
+    if assignment is None:
+        return None
+    return _assignment_envelope(assignment)
 
 
 @app.post("/pool/need", response_model=PoolNeedResponse)

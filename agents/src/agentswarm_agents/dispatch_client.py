@@ -36,8 +36,16 @@ class DispatchClient(PlatformClient):
         response.raise_for_status()
         return response.json()
 
-    def get_pending_assignment(self) -> dict[str, Any] | None:
-        response = self._http.get(f"/agents/{self.agent_id}/assignments/pending")
+    def get_pending_assignment(self, *, wait_sec: float = 0) -> dict[str, Any] | None:
+        params: dict[str, float] = {}
+        if wait_sec > 0:
+            params["wait_sec"] = wait_sec
+        timeout = max(30.0, wait_sec + 10.0) if wait_sec > 0 else 30.0
+        response = self._http.get(
+            f"/agents/{self.agent_id}/assignments/pending",
+            params=params or None,
+            timeout=timeout,
+        )
         response.raise_for_status()
         return response.json()
 
@@ -46,7 +54,10 @@ class DispatchClient(PlatformClient):
         *,
         poll_sec: float = 1.0,
         timeout_sec: float = 30.0,
+        server_long_poll: bool = True,
     ) -> dict[str, Any] | None:
+        if server_long_poll:
+            return self.get_pending_assignment(wait_sec=timeout_sec)
         deadline = time.monotonic() + timeout_sec
         while time.monotonic() < deadline:
             assignment = self.get_pending_assignment()

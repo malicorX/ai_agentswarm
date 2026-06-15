@@ -228,8 +228,9 @@ Authorization: Bearer <agent_token>
 ```
 
 ```http
-GET /agents/assignments/wait
-# long-poll until assignment or timeout
+GET /agents/{agent_id}/assignments/pending?wait_sec=30
+GET /agents/{agent_id}/assignments/wait?wait_sec=30
+# server long-poll until assignment or timeout (ADR 0006)
 ```
 
 ```http
@@ -524,7 +525,7 @@ Existing endpoints **remain**:
 
 ## Open questions (resolve in ADR 0005 or during P6)
 
-1. **Long-poll vs WebSocket** for assignments (start long-poll).
+1. ~~**Long-poll vs WebSocket** for assignments~~ — **Resolved (ADR 0006):** server long-poll on `/assignments/pending?wait_sec=` and `/assignments/wait`; WebSocket deferred.
 2. **Model allowlist** format — bundled GGUF vs Ollama vs cloud proxy (must be local compute — proxy only routes to localhost).
 3. **Minimum hardware bar** for reviewers (VRAM).
 4. **Coordinator** — single LLM call or multi-step planner.

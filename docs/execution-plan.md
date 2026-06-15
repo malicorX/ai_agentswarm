@@ -376,6 +376,15 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 | **Verification** | `python scripts/verify_dispatch_staging.py` · `python -m pytest platform/tests -q` |
 | **Acceptance** | Staging dispatch smoke passes; docs record close-out tag |
 
+### P7.0 — Assignment long-poll
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Server-side long-poll for dispatch assignments (ROADMAP_CHANGES open Q1) |
+| **In scope** | `wait_sec` on `/assignments/pending`, `/assignments/wait`, `assignment_wait.py`, ADR 0006, `DispatchClient` uses server long-poll |
+| **Verification** | `python -m pytest platform/tests/test_assignment_long_poll.py -q` |
+| **Acceptance** | Clients wait in one HTTP request; config exposes `dispatch.long_poll_max_sec`; pull mode unchanged |
+
 ---
 
 ## Current focus
@@ -408,6 +417,7 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 ✅ GitHub Pages fork mirror — https://malicorx.github.io/ai_agentswarm/
 ✅ Staging registration auth enforced — [production-hardening.md](production-hardening.md)
 ✅ Phase 6 close-out — `verify_dispatch_staging.py`, tag `v0.7.0-phase6`
+✅ P7.0 Assignment long-poll — `/assignments/wait`, ADR 0006
 ```
 
 ---

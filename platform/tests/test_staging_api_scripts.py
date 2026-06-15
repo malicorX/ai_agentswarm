@@ -101,6 +101,7 @@ def test_verify_dispatch_staging_success() -> None:
     config_resp.json.return_value = {
         "assignment_mode": "dispatch",
         "auth": {"enforced": False},
+        "dispatch": {"long_poll_max_sec": 60.0, "long_poll_interval_sec": 0.25},
     }
     config_resp.raise_for_status = MagicMock()
     register_resp = MagicMock()

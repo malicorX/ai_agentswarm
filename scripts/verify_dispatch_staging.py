@@ -53,6 +53,9 @@ def verify_dispatch_staging(base_url: str, *, timeout: float = 30.0) -> dict[str
         if mode != "dispatch":
             raise RuntimeError(f"expected assignment_mode=dispatch, got {mode!r}")
         result["assignment_mode"] = str(mode)
+        dispatch_block = config_body.get("dispatch")
+        if not isinstance(dispatch_block, dict) or "long_poll_max_sec" not in dispatch_block:
+            raise RuntimeError("platform config missing dispatch.long_poll_max_sec")
 
         headers = _register_headers(config_body)
         pub, _priv = generate_keypair()
@@ -83,7 +86,10 @@ def verify_dispatch_staging(base_url: str, *, timeout: float = 30.0) -> dict[str
         presence.raise_for_status()
         result["presence"] = presence.json().get("status", "ok")
 
-        pending = client.get(f"{clean}/agents/{agent_id}/assignments/pending")
+        pending = client.get(
+            f"{clean}/agents/{agent_id}/assignments/wait",
+            params={"wait_sec": 0},
+        )
         pending.raise_for_status()
         result["assignments_pending"] = "empty" if pending.json() is None else "assigned"
 

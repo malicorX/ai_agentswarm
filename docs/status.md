@@ -137,6 +137,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P5.10** | Version downgrade rejection | Done → `AGENTSWARM_VERSION_REJECT_DOWNGRADES` |
 | **P5.11** | Registration auth exposure | Done → `auth` on `/platform/config`, `verify_registration_auth.py` |
 | **P6.11** | Phase 6 close-out | Done → `verify_dispatch_staging.py`, tag `v0.7.0-phase6` |
+| **P7.0** | Assignment long-poll | Done → `/assignments/wait`, ADR 0006 |
 
 **Phase 6 close-out:** git tag [`v0.7.0-phase6`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.7.0-phase6) (2026-06-15).
 
