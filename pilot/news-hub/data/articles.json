@@ -42,6 +42,17 @@
       "source": "X",
       "published_at": "2026-06-13T12:00:00+00:00",
       "topics": []
+    },
+    {
+      "id": "external-trial-12b3de984f",
+      "title": "External contributor trial",
+      "summary": "P5.3 verify script \u2014 remote agent add-article.",
+      "url": "https://example.com/external-contributor-trial",
+      "source": "P5.3 verify",
+      "published_at": "2026-06-15T12:00:00+00:00",
+      "topics": [
+        "external-trial"
+      ]
     }
   ]
 }

@@ -182,8 +182,11 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P20.0** | SDK reviewer submit e2e test | Done → creative goal flow via `DispatchClient` |
 | **P20.1** | Quickstart + staging verify | Done → `verify_sdk_dispatch_staging.py` |
 | **P20.11** | Phase 20 close-out | Done → tag `v0.21.0-phase20` |
+| **P21.0** | SDK dispatch in production verify | Done → `sdk_dispatch` in quick bundle |
+| **P21.1** | News pipeline verify refactor | Done → `news_feed_pipeline.py`, enqueue-only mode |
+| **P21.11** | Phase 21 close-out | Done → tag `v0.22.0-phase21` |
 
-**Phase 19 close-out:** git tag [`v0.20.0-phase19`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.20.0-phase19) (2026-06-15).
+**Phase 20 close-out:** git tag [`v0.21.0-phase20`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.21.0-phase20) (2026-06-15).
 
 **Phase 16 close-out:** git tag [`v0.17.0-phase16`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.17.0-phase16) (2026-06-13).
 

@@ -58,3 +58,47 @@ def test_verify_model_allowlist_staging_rejects_unknown_when_enforced(
 
     assert result["unknown_model_presence"] == "rejected"
     assert result["allowed_model_presence"] == "ok"
+    allowed_call = mock_client.post.call_args_list[2]
+    assert allowed_call.args[0].endswith("/presence")
+    assert allowed_call.kwargs["json"]["model_id"] == "llm-mock-v1"
+
+
+def test_verify_model_allowlist_staging_includes_vram_when_hardware_enforced(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mod = _load_module()
+    monkeypatch.setenv("AGENTSWARM_BOOTSTRAP_TOKEN", "test-bootstrap")
+
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+
+    config_resp = MagicMock()
+    config_resp.raise_for_status = MagicMock()
+    config_resp.json.return_value = {
+        "auth": {"enforced": True},
+        "models": {
+            "enforced": True,
+            "allowlist": [{"id": "llm-mock-v1"}],
+        },
+        "hardware": {"enforced": True, "reviewer_min_vram_gb": 6.0},
+    }
+    reg_resp = MagicMock()
+    reg_resp.raise_for_status = MagicMock()
+    reg_resp.json.return_value = {"agent_id": "agent-model"}
+    bad_resp = MagicMock(status_code=400, text="not on allowlist")
+    good_resp = MagicMock()
+    good_resp.raise_for_status = MagicMock()
+
+    mock_client.get.return_value = config_resp
+    mock_client.post.side_effect = [reg_resp, bad_resp, good_resp]
+
+    with patch.object(httpx, "Client", return_value=mock_client):
+        result = mod.verify_model_allowlist_staging(
+            "https://theebie.de/agentswarm/api",
+            expect_enforced=True,
+        )
+
+    assert result["hardware_gates"] == "enforced"
+    allowed_call = mock_client.post.call_args_list[2]
+    assert allowed_call.kwargs["json"]["vram_gb"] == 8.0

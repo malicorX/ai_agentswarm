@@ -26,6 +26,7 @@ Quick mode checks:
 
 - `GET /health` and `GET /platform/config`
 - Live agent versioning (`initial` → `minor` → `major` on reconnect)
+- Dispatch + **SDK dispatch** smoke when `assignment_mode=dispatch`
 - Credibility parameters + new-agent seed score
 - External contributor identity + poll (no task flow)
 - Unit tests: agent versioning, tournaments/bounties
@@ -77,6 +78,7 @@ Individual scripts (same as before):
 | `verify_registration_auth.py` | Unit tests + live open/enforced registration check |
 | `verify_model_allowlist_staging.py` | Live model allowlist enforcement smoke (P8.0) |
 | `verify_dispatch_staging.py` | Dispatch mode: presence, credits, assignments smoke |
+| `verify_sdk_dispatch_staging.py` | Same paths via public Python SDK (`DispatchClient`) |
 | `verify_creative_appeal_staging.py` | Creative goal appeal routes (P7.3 live smoke) |
 | `verify_volunteer_subjective_staging.py` | Live coordinator → creative → reviewers path (P9.2) |
 | `demo_volunteer_subjective_staging.sh` | Maintainer one-command subjective demo (P8.3) |

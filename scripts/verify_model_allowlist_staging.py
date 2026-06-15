@@ -101,14 +101,21 @@ def verify_model_allowlist_staging(
                 bad.raise_for_status()
                 result["unknown_model_presence"] = "accepted"
 
+        allowed_payload: dict[str, object] = {
+            "status": "idle",
+            "capabilities": ["reviewer"],
+            "model_id": "llm-mock-v1",
+            "ttl_sec": 60,
+        }
+        hardware_block = config_body.get("hardware")
+        if isinstance(hardware_block, dict) and hardware_block.get("enforced"):
+            min_vram = float(hardware_block.get("reviewer_min_vram_gb", 6.0))
+            allowed_payload["vram_gb"] = max(8.0, min_vram)
+            result["hardware_gates"] = "enforced"
+
         good = client.post(
             f"{clean}/agents/{agent_id}/presence",
-            json={
-                "status": "idle",
-                "capabilities": ["reviewer"],
-                "model_id": "llm-mock-v1",
-                "ttl_sec": 60,
-            },
+            json=allowed_payload,
         )
         good.raise_for_status()
         result["allowed_model_presence"] = "ok"

@@ -51,6 +51,15 @@ def test_verify_production_staging_full_orchestration() -> None:
                     {"verify_dispatch_staging": staticmethod(lambda url: {"register": "ok"})},
                 ),
                 type(
+                    "SdkDispatchMod",
+                    (),
+                    {
+                        "verify_sdk_dispatch_staging": staticmethod(
+                            lambda url: {"register": "agent_sdk"}
+                        )
+                    },
+                ),
+                type(
                     "VersionMod",
                     (),
                     {"verify_agent_versioning_staging": staticmethod(lambda url: {"ok": "1"})},

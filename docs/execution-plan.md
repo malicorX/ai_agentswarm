@@ -638,6 +638,45 @@ Phases **0–4 are implemented in code** (see [status.md](status.md)). [ROADMAP.
 
 ---
 
+## Phase 21 — Staging bundle + news pipeline polish
+
+**Goal:** Production verify bundle covers SDK dispatch; news pipeline verify is testable and reports better failures.
+
+| ID | Package | Status | Depends on |
+|----|---------|--------|------------|
+| **P21.0** | SDK dispatch in production verify | ✅ Done | P20.11 |
+| **P21.1** | News pipeline verify refactor | ✅ Done | P21.0 |
+| **P21.11** | Phase 21 close-out | ✅ Done | P21.1 |
+
+### P21.0 — SDK dispatch in production verify
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Quick staging bundle exercises public SDK dispatch paths |
+| **In scope** | `verify_production_staging.py` calls `verify_sdk_dispatch_staging` when dispatch |
+| **Verification** | `python -m pytest platform/tests/test_verify_production_staging.py -q` |
+| **Acceptance** | Quick orchestration includes `sdk_dispatch` result |
+
+### P21.1 — News pipeline verify refactor
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Structured news verify with enqueue-only mode and clearer timeouts |
+| **In scope** | `news_feed_pipeline.py`, `verify_news_pipeline()` function, unit tests |
+| **Verification** | `python -m pytest platform/tests/test_verify_news_pipeline.py -q` |
+| **Acceptance** | `AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY=1` skips swarm wait; timeout cites summary |
+
+### P21.11 — Phase 21 close-out
+
+| Field | Value |
+|-------|--------|
+| **Goal** | Tag staging-bundle polish milestone |
+| **In scope** | `close_phase21.sh` / `.ps1`, tag `v0.22.0-phase21` |
+| **Verification** | `bash scripts/close_phase21.sh` |
+| **Acceptance** | Full pytest + production staging quick on theebie |
+
+---
+
 ## Phase 17 — Subjective verify reliability
 
 **Goal:** Reduce staging subjective demo flakes from lease reclaim during assignment execution.

@@ -85,6 +85,11 @@ def verify_production_staging(
         )
         results["dispatch"] = dispatch_mod.verify_dispatch_staging(clean)
 
+        sdk_dispatch_mod = _load_script_module(
+            "verify_sdk_dispatch_staging", scripts / "verify_sdk_dispatch_staging.py"
+        )
+        results["sdk_dispatch"] = sdk_dispatch_mod.verify_sdk_dispatch_staging(clean)
+
     versioning_mod = _load_script_module(
         "verify_agent_versioning_staging", scripts / "verify_agent_versioning_staging.py"
     )
@@ -217,20 +222,14 @@ def verify_production_staging(
                     results["volunteer_subjective"] = "skipped_no_assignment_secret"
 
         if not _env_flag("AGENTSWARM_VERIFY_SKIP_NEWS", default=False):
-            news_proc = subprocess.run(
-                [sys.executable, str(scripts / "verify_news_pipeline.py")],
-                cwd=_ROOT,
-                env={**os.environ, "AGENTSWARM_PLATFORM_URL": clean},
-                capture_output=True,
-                text=True,
-                check=False,
+            news_mod = _load_script_module(
+                "verify_news_pipeline", scripts / "verify_news_pipeline.py"
             )
-            if news_proc.returncode != 0:
-                raise RuntimeError(
-                    "news pipeline verify failed:\n"
-                    f"{news_proc.stdout}\n{news_proc.stderr}"
-                )
-            results["news_pipeline"] = "passed"
+            news_enqueue_only = _env_flag("AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY", default=False)
+            results["news_pipeline"] = news_mod.verify_news_pipeline(
+                clean,
+                enqueue_only=news_enqueue_only,
+            )
         else:
             results["news_pipeline"] = "skipped"
 
@@ -269,9 +268,11 @@ def main() -> int:
             os.environ.get("AGENTSWARM_STAGING_API_URL", "https://theebie.de/agentswarm/api"),
         )
     )
-    quick = _env_flag("AGENTSWARM_VERIFY_QUICK", default=True)
+    quick = True
     if _env_flag("AGENTSWARM_VERIFY_FULL", default=False):
         quick = False
+    if os.environ.get("AGENTSWARM_VERIFY_QUICK", "").strip():
+        quick = _env_flag("AGENTSWARM_VERIFY_QUICK", default=True)
 
     expect_dispatch: bool | None = None
     if _env_flag("AGENTSWARM_EXPECT_DISPATCH", default=False):

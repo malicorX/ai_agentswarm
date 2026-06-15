@@ -53,6 +53,15 @@ def test_verify_production_staging_quick_orchestration() -> None:
                     {"verify_dispatch_staging": staticmethod(capture_dispatch)},
                 ),
                 type(
+                    "SdkDispatchMod",
+                    (),
+                    {
+                        "verify_sdk_dispatch_staging": staticmethod(
+                            lambda url: {"register": "agent_sdk"}
+                        )
+                    },
+                ),
+                type(
                     "VersionMod",
                     (),
                     {
@@ -115,6 +124,7 @@ def test_verify_production_staging_quick_orchestration() -> None:
     assert result["mode"] == "quick"
     assert result["platform"]["health"] == "ok"
     assert result["dispatch"]["assignment_mode"] == "dispatch"
+    assert result["sdk_dispatch"]["register"] == "agent_sdk"
     assert result["versioning"]["agent_id"] == "agent_v"
     assert reg_auth_calls == [{"expect_enforced": True}]
     assert mock_pytest.call_count == 5
