@@ -39,6 +39,7 @@ from agentswarm_platform.models import (
     CreativeGoalAppealResponse,
     CreativeGoalRequest,
     CreativeGoalResponse,
+    CreativeGoalListResponse,
     DispatchCapacityResponse,
     GoalRealignDispatchRequest,
     GoalRealignDispatchResponse,
@@ -494,6 +495,26 @@ def create_creative_goal(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return CreativeGoalResponse(**result)
+
+
+@app.get("/creative/goals", response_model=CreativeGoalListResponse)
+def list_creative_goals(
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+    q: str | None = None,
+    status: str | None = None,
+    goal_kind: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> CreativeGoalListResponse:
+    return CreativeGoalListResponse(
+        **store.list_creative_goals(
+            q=q,
+            status=status,
+            goal_kind=goal_kind,
+            limit=limit,
+            offset=offset,
+        )
+    )
 
 
 @app.get("/creative/goals/{goal_id}")

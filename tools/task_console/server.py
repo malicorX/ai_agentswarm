@@ -22,6 +22,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from agentswarm_agents.outcome_bundle import build_outcome_bundle
 from agentswarm_agents.replay_goal import (
     build_workspace_zip,
     fetch_replay_context,
@@ -65,6 +66,16 @@ class RunState:
 
 RUNS: dict[str, RunState] = {}
 RUNS_LOCK = threading.Lock()
+
+
+def _platform_auth_headers() -> dict[str, str]:
+    headers: dict[str, str] = {}
+    token = os.environ.get("AGENTSWARM_BOOTSTRAP_TOKEN") or os.environ.get(
+        "AGENTSWARM_OWNER_TOKEN"
+    )
+    if token:
+        headers["X-Bootstrap-Token"] = token
+    return headers
 
 
 def _resolve_task_file(task_file: str) -> Path:
@@ -215,18 +226,49 @@ def read_task_file(task_path: str) -> dict[str, Any]:
 @app.get("/api/proxy/dispatch/capacity")
 def proxy_dispatch_capacity(api_url: str) -> dict[str, Any]:
     clean = api_url.rstrip("/")
-    headers: dict[str, str] = {}
-    token = os.environ.get("AGENTSWARM_BOOTSTRAP_TOKEN") or os.environ.get(
-        "AGENTSWARM_OWNER_TOKEN"
-    )
-    if token:
-        headers["X-Bootstrap-Token"] = token
     with httpx.Client(timeout=15.0, follow_redirects=True) as client:
-        response = client.get(f"{clean}/dispatch/capacity", headers=headers)
+        response = client.get(f"{clean}/dispatch/capacity", headers=_platform_auth_headers())
         if response.status_code == 401:
             raise HTTPException(
                 status_code=401,
                 detail="dispatch/capacity requires bootstrap token in server env",
+            )
+        response.raise_for_status()
+        return response.json()
+
+
+@app.get("/api/proxy/creative/goals")
+def proxy_list_creative_goals(
+    api_url: str,
+    q: str | None = None,
+    status: str | None = None,
+    goal_kind: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict[str, Any]:
+    clean = api_url.rstrip("/")
+    params: dict[str, Any] = {"limit": limit, "offset": offset}
+    if q:
+        params["q"] = q
+    if status:
+        params["status"] = status
+    if goal_kind:
+        params["goal_kind"] = goal_kind
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        response = client.get(
+            f"{clean}/creative/goals",
+            params=params,
+            headers=_platform_auth_headers(),
+        )
+        if response.status_code == 401:
+            raise HTTPException(
+                status_code=401,
+                detail="listing goals requires bootstrap token in server env",
+            )
+        if response.status_code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail="platform does not support goal listing yet — deploy latest platform API",
             )
         response.raise_for_status()
         return response.json()
@@ -278,6 +320,27 @@ def proxy_replay_context(goal_id: str, api_url: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.get("/api/goals/{goal_id}/outcome")
+def goal_outcome(goal_id: str, api_url: str) -> dict[str, Any]:
+    try:
+        ctx = _load_replay_context(api_url, goal_id)
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+            trace_response = client.get(f"{api_url.rstrip('/')}/creative/goals/{goal_id}/trace")
+        if trace_response.status_code == 404:
+            raise HTTPException(status_code=404, detail="goal not found")
+        trace_response.raise_for_status()
+        trace = trace_response.json()
+        return build_outcome_bundle(trace, replay_context=ctx)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/api/goals/{goal_id}/workspace-tree")
@@ -338,14 +401,11 @@ def goal_workspace_zip(goal_id: str, api_url: str) -> Response:
 @app.get("/api/proxy/artifacts/{artifact_ref:path}")
 def proxy_artifact(artifact_ref: str, api_url: str) -> dict[str, Any]:
     clean = api_url.rstrip("/")
-    headers: dict[str, str] = {}
-    token = os.environ.get("AGENTSWARM_BOOTSTRAP_TOKEN") or os.environ.get(
-        "AGENTSWARM_OWNER_TOKEN"
-    )
-    if token:
-        headers["X-Bootstrap-Token"] = token
     with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-        response = client.get(f"{clean}/artifacts/{artifact_ref}", headers=headers)
+        response = client.get(
+            f"{clean}/artifacts/{artifact_ref}",
+            headers=_platform_auth_headers(),
+        )
         if response.status_code == 404:
             raise HTTPException(status_code=404, detail="artifact not found")
         if response.status_code == 401:

@@ -136,6 +136,56 @@
       word-break: break-all;
       margin-top: 0.5rem;
     }
+    .goal-picker {
+      display: flex;
+      gap: 0.5rem;
+      align-items: stretch;
+    }
+    .goal-picker > input[type="search"] {
+      flex: 2;
+      min-width: 0;
+    }
+    .goal-status-filter {
+      flex: 1;
+      min-width: 7.5rem;
+      max-width: 11rem;
+    }
+    .goal-picker-menu {
+      margin-top: 0.35rem;
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #0d1117;
+    }
+    .goal-picker-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 0.65rem;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
+      background: transparent;
+      color: var(--text);
+      font-weight: 400;
+    }
+    .goal-picker-item:last-child { border-bottom: none; }
+    .goal-picker-item:hover,
+    .goal-picker-item:focus-visible {
+      background: #21262d;
+      outline: none;
+    }
+    .goal-picker-title {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      margin-bottom: 0.15rem;
+    }
+    .goal-picker-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
     .pipeline {
       display: flex;
       flex-direction: column;
@@ -353,6 +403,58 @@
       overflow: auto;
     }
     .replay-warn { color: var(--warn); font-size: 0.8rem; margin-top: 0.35rem; }
+    .outcome-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 0.75rem 0;
+    }
+    .outcome-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 0.75rem;
+      background: #0d1117;
+    }
+    .outcome-card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      align-items: baseline;
+      margin-bottom: 0.25rem;
+    }
+    .outcome-kind {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .outcome-label { font-weight: 600; font-size: 0.9rem; }
+    .outcome-preview {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0.25rem 0 0.5rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .outcome-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .outcome-actions button {
+      width: auto;
+      flex: 0 0 auto;
+      padding: 0.25rem 0.55rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .outcome-brief {
+      font-size: 0.85rem;
+      color: var(--text);
+      margin: 0.5rem 0 0;
+      white-space: pre-wrap;
+    }
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -417,8 +519,22 @@
         </div>
       </div>
       <div class="field">
-        <label for="goalId">Goal ID (watch existing)</label>
-        <input id="goalId" type="text" placeholder="goal-… (optional)" spellcheck="false" />
+        <label for="goalPicker">Browse / load goal</label>
+        <div class="goal-picker">
+          <input id="goalPicker" type="search" placeholder="Search goal id or brief…" autocomplete="off" spellcheck="false" />
+          <select id="goalStatusFilter" class="goal-status-filter" title="Filter by status">
+            <option value="">All statuses</option>
+            <option value="verified">Verified</option>
+            <option value="pending">Pending / running</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div id="goalPickerMenu" class="goal-picker-menu" hidden></div>
+        <p id="goalPickerHint" class="subtitle" style="margin:0.35rem 0 0"></p>
+      </div>
+      <div class="field">
+        <label for="goalId">Selected goal</label>
+        <input id="goalId" type="text" placeholder="goal-…" spellcheck="false" />
       </div>
       <div class="row">
         <button id="startBtn" type="button">Dispatch task</button>
@@ -450,9 +566,13 @@
       </div>
 
       <div class="panel replay-panel" id="replayPanel" hidden>
-        <h2>Project &amp; replay</h2>
+        <h2>Outcome &amp; replay</h2>
         <div id="replayMeta" class="workspace-note" style="margin-top:0"></div>
+        <p id="outcomeSummary" class="subtitle" style="margin:0.35rem 0 0"></p>
+        <div id="outcomeBrief" class="outcome-brief" hidden></div>
+        <div id="outcomeList" class="outcome-list"></div>
         <div id="creativeArtifact" class="artifact-box" hidden></div>
+        <h2 style="margin-top:1rem;font-size:0.8rem">Workspace files</h2>
         <div class="replay-actions">
           <button id="refreshTreeBtn" type="button" class="secondary">Refresh file tree</button>
           <button id="downloadZipBtn" type="button" class="secondary">Download project (.zip)</button>
@@ -495,6 +615,152 @@
     let modalDownloadRevoke = null;
     let lastReplayGoalId = null;
     let lastLoggedTerminalStatus = null;
+    let goalCatalogGoals = [];
+    let goalPickerTimer = null;
+    let goalCatalogAvailable = true;
+    let lastOutcomeBundle = null;
+    const RECENT_GOALS_KEY = "agentswarm_recent_goals";
+
+    function loadRecentGoals() {
+      try {
+        return JSON.parse(localStorage.getItem(RECENT_GOALS_KEY) || "[]");
+      } catch {
+        return [];
+      }
+    }
+
+    function saveRecentGoal(goal) {
+      if (!goal || !goal.goal_id) return;
+      const entry = {
+        goal_id: goal.goal_id,
+        status: goal.status || "",
+        goal_kind: goal.goal_kind || "",
+        brief_preview: goal.brief_preview || goal.brief || "",
+        created_at: goal.created_at || new Date().toISOString(),
+        source: goal.source || "recent",
+      };
+      const merged = [
+        entry,
+        ...loadRecentGoals().filter((item) => item.goal_id !== entry.goal_id),
+      ].slice(0, 40);
+      localStorage.setItem(RECENT_GOALS_KEY, JSON.stringify(merged));
+    }
+
+    function mergeGoalCatalog(apiGoals, recentGoals, query) {
+      const needle = (query || "").trim().toLowerCase();
+      const seen = new Set();
+      const merged = [];
+      for (const goal of apiGoals) {
+        if (seen.has(goal.goal_id)) continue;
+        seen.add(goal.goal_id);
+        merged.push({ ...goal, source: "platform" });
+      }
+      for (const goal of recentGoals) {
+        if (seen.has(goal.goal_id)) continue;
+        if (needle) {
+          const hay = `${goal.goal_id} ${goal.brief_preview || ""}`.toLowerCase();
+          if (!hay.includes(needle)) continue;
+        }
+        seen.add(goal.goal_id);
+        merged.push({ ...goal, source: "recent" });
+      }
+      return merged;
+    }
+
+    function renderGoalPickerMenu(goals, hint) {
+      const menu = $("goalPickerMenu");
+      $("goalPickerHint").textContent = hint || "";
+      if (!goals.length) {
+        menu.hidden = true;
+        menu.innerHTML = "";
+        return;
+      }
+      menu.hidden = false;
+      menu.innerHTML = goals.map((goal) => {
+        const status = escapeHtml(goal.status || "—");
+        const kind = escapeHtml(goal.goal_kind || "");
+        const when = escapeHtml((goal.created_at || "").replace("T", " ").slice(0, 19));
+        const brief = escapeHtml(goal.brief_preview || "");
+        const source = goal.source === "recent" ? " · this browser" : "";
+        return `<button type="button" class="goal-picker-item" data-goal-id="${escapeHtml(goal.goal_id)}">
+          <div class="goal-picker-title">${escapeHtml(goal.goal_id)} <span class="badge ${statusBadge(goal.status)}">${status}</span></div>
+          <div class="goal-picker-meta">${kind}${source}${when ? ` · ${when}` : ""}${brief ? ` — ${brief}` : ""}</div>
+        </button>`;
+      }).join("");
+    }
+
+    async function refreshGoalCatalog() {
+      const query = $("goalPicker").value.trim();
+      const status = $("goalStatusFilter").value;
+      const url = encodeURIComponent($("apiUrl").value.trim());
+      const params = new URLSearchParams({ limit: "50", offset: "0" });
+      if (query) params.set("q", query);
+      if (status) params.set("status", status);
+      let apiGoals = [];
+      let hint = "";
+      if (goalCatalogAvailable) {
+        try {
+          const res = await fetch(`/api/proxy/creative/goals?api_url=${url}&${params}`);
+          if (res.status === 404) {
+            goalCatalogAvailable = false;
+            hint = "Platform listing unavailable — showing goals from this browser only.";
+          } else if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.detail || res.statusText);
+          } else {
+            const body = await res.json();
+            apiGoals = body.goals || [];
+            hint = body.total > apiGoals.length
+              ? `Showing ${apiGoals.length} of ${body.total} goals (newest first).`
+              : `${body.total} goal(s) on platform.`;
+          }
+        } catch (err) {
+          hint = `Could not load platform goals: ${err}`;
+        }
+      } else {
+        hint = "Platform listing unavailable — showing goals from this browser only.";
+      }
+      const merged = mergeGoalCatalog(apiGoals, loadRecentGoals(), query);
+      if (status) {
+        goalCatalogGoals = merged.filter((goal) => (goal.status || "").toLowerCase() === status);
+      } else {
+        goalCatalogGoals = merged;
+      }
+      if (!goalCatalogGoals.length && !hint) {
+        hint = "No matching goals. Dispatch a task or paste a goal id below.";
+      }
+      renderGoalPickerMenu(goalCatalogGoals, hint);
+    }
+
+    function scheduleGoalCatalogRefresh() {
+      if (goalPickerTimer) clearTimeout(goalPickerTimer);
+      goalPickerTimer = setTimeout(() => {
+        refreshGoalCatalog().catch((err) => {
+          renderGoalPickerMenu([], String(err));
+        });
+      }, 250);
+    }
+
+    function selectGoal(goalId, meta) {
+      if (!goalId) return;
+      $("goalId").value = goalId;
+      $("goalPickerMenu").hidden = true;
+      if (meta) saveRecentGoal(meta);
+      apiUrl = $("apiUrl").value.trim();
+      localStorage.setItem("agentswarm_api_url", apiUrl);
+      startPolling(goalId);
+    }
+
+    function rememberGoalFromTrace(trace) {
+      if (!trace || !trace.goal_id) return;
+      saveRecentGoal({
+        goal_id: trace.goal_id,
+        status: trace.status,
+        goal_kind: trace.goal_kind,
+        brief_preview: trace.brief,
+        created_at: trace.steps?.[0]?.created_at,
+      });
+    }
 
     function setGoalStatusBadge(el, status) {
       el.className = statusBadge(status);
@@ -661,13 +927,123 @@
       }
     }
 
+    async function loadOutcomeBundle(goalId) {
+      const url = encodeURIComponent($("apiUrl").value.trim());
+      const res = await fetch(`/api/goals/${goalId}/outcome?api_url=${url}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.detail || res.statusText);
+      lastOutcomeBundle = body;
+      renderOutcome(body);
+      return body;
+    }
+
+    function renderOutcome(bundle) {
+      $("outcomeSummary").textContent = bundle.summary || "";
+      const brief = bundle.brief || "";
+      const briefEl = $("outcomeBrief");
+      if (brief.trim()) {
+        briefEl.hidden = false;
+        briefEl.textContent = `Task: ${brief}`;
+      } else {
+        briefEl.hidden = true;
+      }
+      const list = $("outcomeList");
+      const items = bundle.deliverables || [];
+      if (!items.length) {
+        list.innerHTML = "<div class=\"subtitle\">No deliverables extracted yet — pipeline may still be running.</div>";
+        return;
+      }
+      list.innerHTML = items.map((item) => {
+        const actions = (item.actions || []).map((action) => {
+          const labels = {
+            view_text: "View text",
+            view_files: "View files",
+            download_zip: "Download zip",
+            verify: "Re-run tests",
+            view_blob: "Open artifact",
+            inspect_json: "Inspect",
+          };
+          return `<button type="button" class="secondary outcome-action" data-action="${escapeHtml(action)}" data-id="${escapeHtml(item.id)}">${labels[action] || action}</button>`;
+        }).join("");
+        return `<article class="outcome-card" data-outcome-id="${escapeHtml(item.id)}">
+          <div class="outcome-card-head">
+            <span class="outcome-label">${escapeHtml(item.label || item.kind)}</span>
+            <span class="outcome-kind">${escapeHtml(item.kind)}${item.source_step ? ` · ${escapeHtml(item.source_step)}` : ""}</span>
+          </div>
+          ${item.preview ? `<div class="outcome-preview">${escapeHtml(item.preview)}</div>` : ""}
+          ${item.ref ? `<div class="outcome-preview"><code>${escapeHtml(item.ref)}</code></div>` : ""}
+          <div class="outcome-actions">${actions}</div>
+        </article>`;
+      }).join("");
+    }
+
+    function runOutcomeAction(action, deliverableId) {
+      const bundle = lastOutcomeBundle;
+      const item = bundle?.deliverables?.find((entry) => entry.id === deliverableId);
+      if (!item) return;
+      if (action === "view_files") {
+        $("fileTree").scrollIntoView({ behavior: "smooth", block: "nearest" });
+        return;
+      }
+      if (action === "download_zip") {
+        downloadWorkspaceZip().catch((err) => {
+          $("replayOutput").hidden = false;
+          $("replayOutput").textContent = String(err);
+        });
+        return;
+      }
+      if (action === "verify") {
+        verifyLocally().catch((err) => {
+          $("replayOutput").hidden = false;
+          $("replayOutput").textContent = String(err);
+        });
+        return;
+      }
+      if (action === "view_blob" && item.ref) {
+        const url = encodeURIComponent($("apiUrl").value.trim());
+        fetch(`/api/proxy/artifacts/${encodeURIComponent(item.ref)}?api_url=${url}`)
+          .then((res) => {
+            if (!res.ok) throw new Error(res.statusText);
+            return res.json();
+          })
+          .then((body) => {
+            const text = atob(body.content_base64 || "");
+            $("taskModalTitle").textContent = item.ref;
+            $("taskModalBody").textContent = text;
+            offerModalDownload(`artifact-${item.ref.replace(/[^a-zA-Z0-9._-]+/g, "_")}.txt`, text);
+            $("taskModal").hidden = false;
+          })
+          .catch((err) => {
+            $("taskModalTitle").textContent = item.ref;
+            $("taskModalBody").textContent = String(err);
+            $("taskModal").hidden = false;
+          });
+        return;
+      }
+      if (action === "view_text") {
+        const text = item.detail?.text || item.preview || "";
+        $("taskModalTitle").textContent = item.label || "Text deliverable";
+        $("taskModalBody").textContent = text;
+        offerModalDownload("deliverable.txt", text);
+        $("taskModal").hidden = false;
+        return;
+      }
+      if (action === "inspect_json") {
+        $("taskModalTitle").textContent = item.label || "Deliverable detail";
+        $("taskModalBody").textContent = JSON.stringify(item.detail || item, null, 2);
+        $("taskModal").hidden = false;
+      }
+    }
+
     async function refreshReplayPanel(trace) {
       const goalId = trace.goal_id || watchGoalId;
       if (!goalId) {
         $("replayPanel").hidden = true;
         return;
       }
+      const hasSteps = Array.isArray(trace.steps) && trace.steps.length > 0;
       const canReplay =
+        hasSteps ||
         trace.goal_kind === "creative" ||
         trace.workspace_ref ||
         ["verified", "rejected"].includes(trace.status);
@@ -683,10 +1059,15 @@
         trace.workspace_ref ? `workspace_ref ${trace.workspace_ref}` : "",
         ws ? `mode ${mode}` : "",
       ].filter(Boolean).join(" · ");
+      try {
+        await loadOutcomeBundle(goalId);
+      } catch (err) {
+        $("outcomeSummary").textContent = `Could not load outcome bundle: ${err}`;
+        $("outcomeList").innerHTML = "";
+      }
       if (trace.goal_kind === "creative" && trace.artifact_text) {
         $("creativeArtifact").hidden = false;
         $("creativeArtifact").textContent = trace.artifact_text;
-        $("fileTree").innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>Creative deliverable above.</div>";
       } else {
         $("creativeArtifact").hidden = true;
         if (lastReplayGoalId !== goalId) {
@@ -875,6 +1256,7 @@
       if (cfg.docker_available === false) {
         verifyBtn.title = "Git goals re-run pytest on the local checkout; sandbox fixtures still need Docker";
       }
+      scheduleGoalCatalogRefresh();
     }
 
     async function fetchCapacity() {
@@ -907,6 +1289,7 @@
         setGoalStatusBadge($("runStatus"), trace.status);
         setGoalStatusBadge($("pipelineGoalStatus"), trace.status);
         maybeAppendLiveStatus(goalId, trace.status);
+        rememberGoalFromTrace(trace);
         if (["verified", "rejected"].includes(trace.status)) {
           stopPolling();
         }
@@ -936,13 +1319,19 @@
       const res = await fetch(`/api/runs/${runId}`);
       const body = await res.json();
       appendLog(body.logs);
-      if (body.goal_id) startPolling(body.goal_id);
+      if (body.goal_id) {
+        saveRecentGoal({
+          goal_id: body.goal_id,
+          status: "pending",
+          brief_preview: $("taskFile").value,
+        });
+        startPolling(body.goal_id);
+      }
       $("runStatus").className = statusBadge(body.status);
       $("runStatus").textContent = body.status;
       if (body.status !== "running") {
         activeRunId = null;
         $("startBtn").disabled = false;
-        if (body.goal_id) startPolling(body.goal_id);
         return;
       }
       setTimeout(() => pollRun(runId), 800);
@@ -1007,6 +1396,43 @@
       apiUrl = $("apiUrl").value.trim();
       localStorage.setItem("agentswarm_api_url", apiUrl);
       startPolling(goalId);
+    });
+
+    $("goalPicker").addEventListener("input", scheduleGoalCatalogRefresh);
+    $("goalPicker").addEventListener("focus", () => {
+      if (!goalCatalogGoals.length) scheduleGoalCatalogRefresh();
+      else $("goalPickerMenu").hidden = false;
+    });
+    $("goalStatusFilter").addEventListener("change", scheduleGoalCatalogRefresh);
+    $("apiUrl").addEventListener("change", () => {
+      goalCatalogAvailable = true;
+      scheduleGoalCatalogRefresh();
+    });
+    $("goalPickerMenu").addEventListener("click", (event) => {
+      const target = event.target;
+      const button = target instanceof HTMLElement
+        ? target.closest(".goal-picker-item")
+        : null;
+      if (!button) return;
+      const goalId = button.getAttribute("data-goal-id");
+      const meta = goalCatalogGoals.find((goal) => goal.goal_id === goalId);
+      selectGoal(goalId, meta);
+    });
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.closest(".goal-picker") || target.closest(".goal-picker-menu")) return;
+      $("goalPickerMenu").hidden = true;
+    });
+
+    $("outcomeList").addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.classList.contains("outcome-action")) {
+        return;
+      }
+      const action = target.getAttribute("data-action");
+      const deliverableId = target.getAttribute("data-id");
+      if (action && deliverableId) runOutcomeAction(action, deliverableId);
     });
 
     $("refreshTreeBtn").addEventListener("click", () => {

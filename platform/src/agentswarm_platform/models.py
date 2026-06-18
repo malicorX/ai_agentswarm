@@ -311,6 +311,24 @@ class CreativeGoalResponse(BaseModel):
     status: str
 
 
+class CreativeGoalSummary(BaseModel):
+    goal_id: str
+    status: str
+    goal_kind: str
+    brief_preview: str
+    created_at: str
+    resolved_at: str | None = None
+    workspace_ref: str | None = None
+    project_id: str = "default"
+
+
+class CreativeGoalListResponse(BaseModel):
+    goals: list[CreativeGoalSummary]
+    total: int
+    limit: int
+    offset: int
+
+
 class DispatchCapacityAgent(BaseModel):
     agent_id: str
     owner: str

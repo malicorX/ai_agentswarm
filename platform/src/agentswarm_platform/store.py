@@ -154,6 +154,7 @@ from agentswarm_platform.subjective_store import (
     insert_goal_appeal,
     insert_subjective_review,
     list_reviews_for_goal,
+    query_creative_goals,
     resolve_goal,
     resolve_goal_appeal,
     set_goal_artifact,
@@ -3544,6 +3545,33 @@ class Store:
         if appeal is not None:
             goal["appeal"] = appeal
         return goal
+
+    def list_creative_goals(
+        self,
+        *,
+        q: str | None = None,
+        status: str | None = None,
+        goal_kind: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        with self._conn() as conn:
+            goals, total = query_creative_goals(
+                conn,
+                q=q,
+                status=status,
+                goal_kind=goal_kind,
+                limit=limit,
+                offset=offset,
+            )
+        safe_limit = max(1, min(int(limit), 200))
+        safe_offset = max(0, int(offset))
+        return {
+            "goals": goals,
+            "total": total,
+            "limit": safe_limit,
+            "offset": safe_offset,
+        }
 
     def get_goal_replay_context(self, goal_id: str) -> dict[str, Any] | None:
         from agentswarm_platform.forge_store import (

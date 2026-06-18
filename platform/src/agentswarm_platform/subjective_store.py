@@ -196,6 +196,65 @@ def get_creative_goal(conn: sqlite3.Connection, goal_id: str) -> dict[str, Any] 
     }
 
 
+def query_creative_goals(
+    conn: sqlite3.Connection,
+    *,
+    q: str | None = None,
+    status: str | None = None,
+    goal_kind: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[dict[str, Any]], int]:
+    clauses: list[str] = []
+    params: list[Any] = []
+    if status:
+        clauses.append("status = ?")
+        params.append(status.strip().lower())
+    if goal_kind:
+        clauses.append("goal_kind = ?")
+        params.append(goal_kind.strip().lower())
+    if q:
+        needle = f"%{q.strip()}%"
+        clauses.append("(goal_id LIKE ? OR brief LIKE ?)")
+        params.extend([needle, needle])
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    count_row = conn.execute(
+        f"SELECT COUNT(*) AS total FROM creative_goals {where}",
+        params,
+    ).fetchone()
+    total = int(count_row["total"])
+    safe_limit = max(1, min(int(limit), 200))
+    safe_offset = max(0, int(offset))
+    rows = conn.execute(
+        f"""
+        SELECT goal_id, status, goal_kind, brief, created_at, resolved_at,
+               workspace_ref, project_id
+        FROM creative_goals
+        {where}
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+        """,
+        (*params, safe_limit, safe_offset),
+    ).fetchall()
+    goals: list[dict[str, Any]] = []
+    for row in rows:
+        brief = str(row["brief"] or "")
+        preview = brief[:120] + ("…" if len(brief) > 120 else "")
+        goals.append(
+            {
+                "goal_id": str(row["goal_id"]),
+                "status": str(row["status"]),
+                "goal_kind": str(row["goal_kind"] or "creative"),
+                "brief_preview": preview,
+                "created_at": str(row["created_at"]),
+                "resolved_at": row["resolved_at"],
+                "workspace_ref": row["workspace_ref"],
+                "project_id": str(row["project_id"] or "default"),
+            }
+        )
+    return goals, total
+
+
 def set_goal_deferred_pool_needs(
     conn: sqlite3.Connection,
     goal_id: str,
