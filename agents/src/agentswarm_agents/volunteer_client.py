@@ -5,6 +5,7 @@ import os
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from enum import Enum
 from typing import Any, Callable
 
@@ -14,9 +15,10 @@ from agentswarm_agents.capsule_executor import execute_capsule
 from agentswarm_agents.dispatch_client import CapsuleExecutor, DispatchClient
 from agentswarm_agents.docker_worker import (
     docker_available,
-    docker_capsule_executor,
+    resolve_docker_executor,
     verify_assignment_signature,
 )
+from agentswarm_agents.model_store import ensure_model_for_entry, model_status
 from agentswarm_agents.ollama_executor import ollama_available, ollama_capsule_executor
 from agentswarm_agents.identity import StoredIdentity, load_identity, save_identity
 from agentswarm_agents.model_allowlist import validate_model_id
@@ -95,15 +97,26 @@ def connect_dispatch_agent(config: VolunteerConfig) -> DispatchClient:
     return DispatchClient(url, agent_id, priv)
 
 
-def resolve_executor(config: VolunteerConfig, agent_id: str) -> CapsuleExecutor:
-    model = validate_model_id(config.model_id)
+def resolve_executor(
+    config: VolunteerConfig,
+    agent_id: str,
+    *,
+    model_path: Path | None = None,
+    model_entry: dict[str, Any] | None = None,
+) -> CapsuleExecutor:
+    model = model_entry or validate_model_id(config.model_id)
     runtime = str(model.get("runtime", "in-process"))
     if runtime == "docker":
         if not docker_available():
             raise RuntimeError(
                 "selected model requires Docker Desktop; build the worker image first"
             )
-        return docker_capsule_executor(agent_id, image=config.worker_image)
+        return resolve_docker_executor(
+            agent_id,
+            model_entry=model,
+            default_image=config.worker_image,
+            model_path=model_path,
+        )
     if runtime == "ollama":
         endpoint = str(model.get("endpoint", "http://127.0.0.1:11434"))
         if not ollama_available(endpoint):
@@ -201,9 +214,34 @@ class VolunteerClient:
         assert_dispatch_mode_config(platform_config)
         validate_model_id(self.config.model_id)
         assert_platform_model_allowlist_config(platform_config, self.config.model_id)
+        model_entry = validate_model_id(self.config.model_id)
+        runtime = str(model_entry.get("runtime", "in-process"))
+        model_path: Path | None = None
+        if runtime == "docker":
+            status = model_status(self.config.model_id)
+            if status.get("state") == "missing":
+                self._set_state(VolunteerState.CONNECTING, "downloading model weights")
+            else:
+                self._set_state(VolunteerState.CONNECTING, "preparing model weights")
+
+            def _progress(phase: str, done: int, total: int | None) -> None:
+                if phase == "downloading" and total:
+                    pct = min(100, int(done * 100 / total))
+                    self._log(f"download {pct}% ({done // (1024 * 1024)} MiB)")
+                elif phase == "ready":
+                    self._log("model weights ready")
+
+            model_path = ensure_model_for_entry(model_entry, on_progress=_progress)
+            if model_path is not None:
+                self._log(f"using weights at {model_path}")
         self._set_state(VolunteerState.CONNECTING, "registering agent")
         client = connect_dispatch_agent(self.config)
-        self._executor = resolve_executor(self.config, client.agent_id)
+        self._executor = resolve_executor(
+            self.config,
+            client.agent_id,
+            model_path=model_path,
+            model_entry=model_entry,
+        )
         self._client = client
         self._log(f"connected as {client.agent_id}")
         return client

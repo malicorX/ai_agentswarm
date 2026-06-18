@@ -18,5 +18,19 @@ $bash = Get-Command bash -ErrorAction SilentlyContinue
 if (-not $bash) {
     Write-Error "bash is required (Git Bash or WSL)."
 }
-& $bash.Source (Join-Path $Root "scripts\deploy_swarm_theebie.sh")
+$deploySh = "scripts/deploy_swarm_theebie.sh"
+$unixRoot = ($Root -replace '\\', '/')
+if ($unixRoot -match '^([A-Za-z]):') {
+    $drive = $Matches[1].ToLower()
+    $gitBash = Join-Path ${env:ProgramFiles} "Git\bin\bash.exe"
+    if (Test-Path $gitBash) {
+        $unixRoot = "/$drive" + $unixRoot.Substring(2)
+        & $gitBash -lc "cd '$unixRoot' && bash '$deploySh'"
+    } else {
+        $unixRoot = "/mnt/$drive" + $unixRoot.Substring(2)
+        & $bash.Source -lc "cd '$unixRoot' && bash '$deploySh'"
+    }
+} else {
+    & $bash.Source -lc "cd '$unixRoot' && bash '$deploySh'"
+}
 exit $LASTEXITCODE

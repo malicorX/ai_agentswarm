@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-coordinator-b992b5b5",
+  "agent_id": "agent_af0c9af6583c",
+  "public_key_b64": "H1_JTztHGvV-qdsuZX1ynLPjr3SeGAwYxHzqttbYGuc=",
+  "private_key_b64": "YEPmmz3xthiIOuVtZKlu_UDji3sNH5CCGNCZbb-5aBI=",
+  "owner": "chain-e2e-coordinator-80ea9639",
+  "capabilities": [
+    "coordinator"
+  ]
+}

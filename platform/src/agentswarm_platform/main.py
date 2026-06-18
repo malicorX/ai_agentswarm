@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query
 
 from agentswarm_platform.auth import OwnerAuth, resolve_owner_auth
 from agentswarm_platform.budgets import (
@@ -26,8 +26,10 @@ from agentswarm_platform.models import (
     AgentPresenceResponse,
     AgentRegisterRequest,
     AgentRegisterResponse,
-    AssignmentEnvelope,
     AgentCreditsResponse,
+    ArtifactFetchResponse,
+    ArtifactStoreResponse,
+    AssignmentEnvelope,
     AuditEvent,
     CheckpointRequest,
     ClaimRequest,
@@ -37,12 +39,17 @@ from agentswarm_platform.models import (
     CreativeGoalAppealResponse,
     CreativeGoalRequest,
     CreativeGoalResponse,
+    DispatchCapacityResponse,
+    GoalRealignDispatchRequest,
+    GoalRealignDispatchResponse,
+    GoalTraceResponse,
     GitArtifactEnvelope,
     GitPatchRequest,
     ReplicationGroupStatus,
     CredibilityImportRequest,
     DeployCreateRequest,
     DeployRequestEnvelope,
+    GoalDeployCreateRequest,
     GovernanceTemplateEnvelope,
     GovernanceTemplateSummary,
     PoolNeedRequest,
@@ -390,6 +397,7 @@ def record_agent_presence(agent_id: str, body: AgentPresenceRequest) -> AgentPre
 
 
 def _assignment_envelope(assignment: dict[str, object]) -> AssignmentEnvelope:
+    forge = assignment.get("forge_credentials")
     return AssignmentEnvelope(
         lease_id=str(assignment["lease_id"]),
         task_id=str(assignment["task_id"]),
@@ -400,6 +408,7 @@ def _assignment_envelope(assignment: dict[str, object]) -> AssignmentEnvelope:
         expires_at=str(assignment["expires_at"]),
         assignment_signature=str(assignment["assignment_signature"]),
         capsule=assignment.get("capsule") or {},
+        forge_credentials=forge if isinstance(forge, dict) else None,
     )
 
 
@@ -456,6 +465,13 @@ def request_pool_need(
     return PoolNeedResponse(**result)
 
 
+@app.get("/dispatch/capacity", response_model=DispatchCapacityResponse)
+def get_dispatch_capacity(
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> DispatchCapacityResponse:
+    return DispatchCapacityResponse(**store.get_dispatch_capacity())
+
+
 @app.post("/creative/goals", response_model=CreativeGoalResponse)
 def create_creative_goal(
     body: CreativeGoalRequest,
@@ -471,6 +487,9 @@ def create_creative_goal(
             pass_threshold=body.pass_threshold,
             difficulty=body.difficulty,
             dispatch_include_owners=body.dispatch_include_owners,
+            goal_kind=body.goal_kind,
+            verification_spec=body.verification_spec,
+            workspace=body.workspace,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -483,6 +502,88 @@ def get_creative_goal(goal_id: str) -> dict:
     if goal is None:
         raise HTTPException(status_code=404, detail="goal not found")
     return goal
+
+
+@app.get("/creative/goals/{goal_id}/trace", response_model=GoalTraceResponse)
+def get_goal_trace(goal_id: str) -> GoalTraceResponse:
+    trace = store.get_goal_trace(goal_id)
+    if trace is None:
+        raise HTTPException(status_code=404, detail="goal not found")
+    return GoalTraceResponse(**trace)
+
+
+@app.post("/artifacts", response_model=ArtifactStoreResponse)
+def store_artifact(
+    content: Annotated[bytes, Body(media_type="application/octet-stream")],
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> ArtifactStoreResponse:
+    try:
+        result = store.store_artifact_blob(content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ArtifactStoreResponse(**result)
+
+
+@app.get("/artifacts/{artifact_ref:path}", response_model=ArtifactFetchResponse)
+def fetch_artifact(
+    artifact_ref: str,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> ArtifactFetchResponse:
+    import base64
+
+    try:
+        content = store.load_artifact_blob(artifact_ref)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="artifact not found") from exc
+    from agentswarm_platform.artifact_store import normalize_digest_ref
+
+    normalized = normalize_digest_ref(artifact_ref)
+    return ArtifactFetchResponse(
+        artifact_ref=normalized,
+        bytes=len(content),
+        content_base64=base64.b64encode(content).decode("ascii"),
+    )
+
+
+@app.post("/creative/goals/{goal_id}/realign-dispatch", response_model=GoalRealignDispatchResponse)
+def realign_goal_dispatch(
+    goal_id: str,
+    body: GoalRealignDispatchRequest,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> GoalRealignDispatchResponse:
+    try:
+        result = store.realign_goal_dispatch(goal_id, include_owners=body.include_owners)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return GoalRealignDispatchResponse(**result)
+
+
+@app.post(
+    "/creative/goals/{goal_id}/deploy-request",
+    response_model=DeployRequestEnvelope,
+)
+def create_goal_deploy_request(
+    goal_id: str,
+    body: GoalDeployCreateRequest,
+    owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> DeployRequestEnvelope:
+    if owner.via_bootstrap and owner.owner_id is None:
+        raise HTTPException(status_code=400, detail="deploy requests require verified owner")
+    try:
+        request = store.create_deploy_request_for_goal(
+            goal_id=goal_id,
+            environment=body.environment,
+            artifact_ref=body.artifact_ref,
+            description=body.description,
+            owner_id=owner.owner_id or owner.github_login,
+            required_signoffs=body.required_signoffs,
+            min_credibility=body.min_credibility,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return DeployRequestEnvelope(**request)
 
 
 @app.post("/creative/goals/{goal_id}/appeal", response_model=CreativeGoalAppealResponse)
@@ -600,6 +701,7 @@ def create_deploy_request(
             owner_id=owner.owner_id or owner.github_login,
             required_signoffs=body.required_signoffs,
             min_credibility=body.min_credibility,
+            goal_id=body.goal_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -707,6 +809,10 @@ def submit_task(body: SubmitRequest) -> SubmitResponse:
             return store.complete_tester_submit(
                 body.claim_token, body.result, body.signature
             )
+        if task_type == "builder.compile":
+            return store.complete_builder_compile_submit(
+                body.claim_token, body.result, body.signature
+            )
         if task_type == "reviewer.approve":
             return store.complete_reviewer_submit(
                 body.claim_token, body.result, body.signature
@@ -735,6 +841,12 @@ def submit_task(body: SubmitRequest) -> SubmitResponse:
             return store.complete_coordinator_decompose_submit(
                 body.claim_token, body.result, body.signature
             )
+        if task_type == "codewriter.patch":
+            payload = store.get_task_payload_by_claim_token(body.claim_token) or {}
+            if payload.get("goal_id"):
+                return store.complete_codewriter_patch_goal_submit(
+                    body.claim_token, body.result, body.signature
+                )
         if task_type == "creative.text":
             return store.complete_creative_text_submit(
                 body.claim_token, body.result, body.signature

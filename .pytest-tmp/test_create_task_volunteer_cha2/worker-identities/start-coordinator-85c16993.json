@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-coordinator-85c16993",
+  "agent_id": "agent_e43837cde790",
+  "public_key_b64": "nXrcwnH4c0eYH_vPpmEbWF8R2bR2Zo6qnsUFKoir2tQ=",
+  "private_key_b64": "7CemHlPs9iQyfYDcxEitxmDzLLZRYdpSqQBwYx0MzEc=",
+  "owner": "sandbox-e2e-coordinator-c0d2dfcd",
+  "capabilities": [
+    "coordinator"
+  ]
+}

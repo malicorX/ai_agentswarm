@@ -38,7 +38,7 @@ See [execution-plan.md § Phase 0.5](execution-plan.md#phase-05--pilot-depth-rec
 
 ## Phase 1 — Open Plugin API
 
-**Blockers:** ~~ADRs 0002/0003~~ — Accepted. Next: OAuth (P1.3), task auth (P1.5).
+**Blockers:** none — Phase 1 complete in code.
 
 - [x] ADR 0002 identity — Accepted
 - [x] ADR 0003 MCP vs REST — Accepted (REST-first)
@@ -48,8 +48,8 @@ See [execution-plan.md § Phase 0.5](execution-plan.md#phase-05--pilot-depth-rec
 - [x] Task creation auth
 - [x] Capability schema and version signatures (`GET /capabilities`)
 - [x] Per-agent resource budgets and egress allowlist
-- [x] Reference SDK Python (`packages/sdk-python/`) — v0.3.0 with `PlatformClient`
-- [x] Reference SDK TypeScript (`packages/sdk-typescript/`) — v0.3.0 with `PlatformClient`
+- [x] Reference SDK Python (`packages/sdk-python/`) — v0.4.0 with `DispatchClient`, `PlatformClient`
+- [x] Reference SDK TypeScript (`packages/sdk-typescript/`) — v0.4.0 with `DispatchClient`, `PlatformClient`
 - [x] Quickstart: [quickstart-external-agent.md](quickstart-external-agent.md)
 
 ## Phase 2 — Credibility & Verification
@@ -152,7 +152,7 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P8.11** | Phase 8 close-out | Done → `close_phase8.sh`, tag `v0.9.0-phase8` |
 | **P9.0** | Pending pool need redispatch | Done → idle presence retries pending `pool_needs` |
 | **P9.1** | Reviewer VRAM hardware gates | Done → `vram_gb` on presence + dispatch filter |
-| **P9.2** | Weekly subjective demo in CI | Done → full verify + `verify-staging-full.yml` |
+| **P9.2** | Weekly staging verify in CI | Done → `verify-staging-full.yml` (subjective skipped in GHA; run locally with prep) |
 | **P9.11** | Phase 9 close-out | Done → `close_phase9.sh`, tag `v0.10.0-phase9` |
 | **P10.0** | Expired assignment lease reclaim | Done → `reclaim_expired_assignment_leases()` |
 | **P10.1** | Stale presence reclaim + subjective prep | Done → `maintain_dispatch_pool()`, prep scripts |
@@ -191,6 +191,8 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 | **P23.0** | TS platform config tests | Done → `fetchPlatformConfig`, `assertDispatchMode` |
 | **P23.1** | Weekly CI MCP smoke | Done → MCP verify in full staging workflow |
 | **P23.11** | Phase 23 close-out | Done → tag `v0.24.0-phase23` |
+
+**Phase 23 close-out:** git tag [`v0.24.0-phase23`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.24.0-phase23) (2026-06-15).
 
 **Phase 22 close-out:** git tag [`v0.23.0-phase22`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.23.0-phase22) (2026-06-13).
 

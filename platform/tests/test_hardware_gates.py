@@ -55,6 +55,37 @@ def test_agent_meets_reviewer_hardware_with_sufficient_vram(
     assert required_reviewer_vram_gb("llm-mock-v1") == 6.0
 
 
+def test_high_risk_constraints_raise_reviewer_vram_floor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from agentswarm_platform.hardware_gates import (
+        effective_reviewer_min_vram_gb,
+        high_risk_reviewer_min_vram_gb,
+        is_high_risk_goal,
+    )
+
+    monkeypatch.setenv("AGENTSWARM_HARDWARE_GATES_ENFORCE", "1")
+    assert high_risk_reviewer_min_vram_gb() == 12.0
+    goal = {
+        "verification_spec": {"risk_level": "high", "fixture": "primes"},
+    }
+    assert is_high_risk_goal(goal) is True
+    assert effective_reviewer_min_vram_gb(
+        model_id="llm-mock-v1",
+        constraints={"min_reviewer_vram_gb": 12.0},
+    ) == 12.0
+    assert agent_meets_reviewer_hardware(
+        model_id="llm-mock-v1",
+        vram_gb=8.0,
+        constraints={"min_reviewer_vram_gb": 12.0},
+    ) is False
+    assert agent_meets_reviewer_hardware(
+        model_id="llm-mock-v1",
+        vram_gb=12.0,
+        constraints={"min_reviewer_vram_gb": 12.0},
+    ) is True
+
+
 def test_presence_rejects_reviewer_without_vram_when_enforced(
     dispatch_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -129,9 +160,65 @@ def test_dispatcher_skips_low_vram_reviewer(
     assert weak_pending is None
 
 
+def test_dispatcher_respects_high_risk_min_vram_constraint(
+    dispatch_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("AGENTSWARM_HARDWARE_GATES_ENFORCE", "1")
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    medium_id, _ = register_agent(dispatch_client, ["reviewer"], owner="medium-reviewer")
+    strong_id, _ = register_agent(dispatch_client, ["reviewer"], owner="strong-reviewer")
+    dispatch_client.post(
+        f"/agents/{medium_id}/presence",
+        json={
+            "status": "idle",
+            "capabilities": ["reviewer"],
+            "model_id": "llm-mock-v1",
+            "vram_gb": 8.0,
+            "ttl_sec": 120,
+        },
+    )
+    dispatch_client.post(
+        f"/agents/{strong_id}/presence",
+        json={
+            "status": "idle",
+            "capabilities": ["reviewer"],
+            "model_id": "llm-mock-v1",
+            "vram_gb": 12.0,
+            "ttl_sec": 120,
+        },
+    )
+
+    need = dispatch_client.post(
+        "/pool/need",
+        json={
+            "role": "reviewer",
+            "capability_required": "reviewer",
+            "task_type": "reviewer.approve",
+            "payload": {"goal_id": "goal-high", "brief": "risky"},
+            "constraints": {
+                "exclude_owners": ["poster-owner"],
+                "min_reviewer_vram_gb": 12.0,
+            },
+        },
+    )
+    assert need.status_code == 200
+    assert need.json()["assigned"] is True
+    strong_pending = dispatch_client.get(
+        f"/agents/{strong_id}/assignments/pending"
+    ).json()
+    medium_pending = dispatch_client.get(
+        f"/agents/{medium_id}/assignments/pending"
+    ).json()
+    assert strong_pending is not None
+    assert medium_pending is None
+
+
 def test_platform_config_exposes_hardware(dispatch_client: TestClient) -> None:
     response = dispatch_client.get("/platform/config")
     assert response.status_code == 200
     hardware = response.json().get("hardware")
     assert isinstance(hardware, dict)
     assert hardware["reviewer_min_vram_gb"] == 6.0
+    assert hardware["high_risk_reviewer_min_vram_gb"] == 12.0
+    assert hardware["high_risk_reviewer_replication_slots"] == 2
+    assert hardware["high_risk_reviewer_replication_quorum"] == 2

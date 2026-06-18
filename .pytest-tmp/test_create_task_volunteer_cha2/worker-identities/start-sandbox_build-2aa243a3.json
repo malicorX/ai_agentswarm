@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-sandbox.build-2aa243a3",
+  "agent_id": "agent_06958926595d",
+  "public_key_b64": "Go7fHsMy4vAD1F_WunojVLZGJiJ5sMXevl5c4z7raHs=",
+  "private_key_b64": "E-bzFhCbT-1DIHYVlK6YzbXh46bs9Dk5Mc-1Ed3uFJA=",
+  "owner": "sandbox-e2e-builder-c0d2dfcd",
+  "capabilities": [
+    "sandbox.build"
+  ]
+}

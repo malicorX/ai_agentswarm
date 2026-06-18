@@ -37,6 +37,7 @@ platform/data/
 
 # Local agent identity (tests)
 .agentswarm-local/
+.agentswarm-git-workspaces/
 
 # Local review artifacts
 .roadmap_review/

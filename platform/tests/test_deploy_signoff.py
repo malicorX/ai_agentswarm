@@ -192,6 +192,38 @@ def test_deploy_approve_rejects_low_credibility_agent(
     assert claim.status_code == 400
 
 
+def test_deploy_approve_low_min_credibility_allows_initial_reviewer(
+    cred_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("agentswarm_platform.credibility.INITIAL_SCORE", 10.0)
+    monkeypatch.setattr("agentswarm_platform.credibility_ledger.INITIAL_SCORE", 10.0)
+
+    reviewer_id, priv = register_agent(cred_client, ["reviewer"])
+    created = cred_client.post(
+        "/deploy/requests",
+        json={
+            "environment": "staging",
+            "artifact_ref": "sha-low-floor",
+            "required_signoffs": 1,
+            "min_credibility": 0,
+        },
+    )
+    task_id = created.json()["approve_task_ids"][0]
+    claim = cred_client.post(f"/tasks/{task_id}/claim", json={"agent_id": reviewer_id})
+    assert claim.status_code == 200
+    result = {"decision": "approve"}
+    submit = cred_client.post(
+        "/tasks/submit",
+        json={
+            "claim_token": claim.json()["claim_token"],
+            "result": result,
+            "signature": sign_payload(priv, {"task_id": task_id, "result": result}),
+        },
+    )
+    assert submit.status_code == 200
+
+
 def test_deploy_request_executes_after_approval(
     cred_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

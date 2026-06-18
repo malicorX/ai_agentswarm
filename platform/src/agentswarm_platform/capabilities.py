@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-_REGISTRY_PATH = (
+_PACKAGE_REGISTRY = Path(__file__).resolve().parent / "data" / "capabilities.json"
+_REPO_REGISTRY = (
     Path(__file__).resolve().parents[3] / "docs" / "protocol" / "capabilities.json"
 )
 
@@ -12,6 +13,12 @@ _FALLBACK_CAPABILITIES = frozenset(
     {
         "codewriter",
         "tester",
+        "sandbox.linux",
+        "sandbox.build",
+        "sandbox.test",
+        "sandbox.windows",
+        "sandbox.windows.build",
+        "sandbox.windows.test",
         "reviewer",
         "summarizer",
         "scraper",
@@ -21,13 +28,24 @@ _FALLBACK_CAPABILITIES = frozenset(
         "orchestrator",
         "classifier",
         "moderator",
+        "creative",
+        "coordinator",
     }
 )
 
 
+def _registry_path() -> Path | None:
+    if _REPO_REGISTRY.is_file():
+        return _REPO_REGISTRY
+    if _PACKAGE_REGISTRY.is_file():
+        return _PACKAGE_REGISTRY
+    return None
+
+
 def load_capability_registry() -> dict[str, Any]:
-    if _REGISTRY_PATH.exists():
-        return json.loads(_REGISTRY_PATH.read_text(encoding="utf-8"))
+    path = _registry_path()
+    if path is not None:
+        return json.loads(path.read_text(encoding="utf-8"))
     return {
         "version": "1",
         "capabilities": [{"id": c, "task_types": []} for c in sorted(_FALLBACK_CAPABILITIES)],
@@ -37,6 +55,20 @@ def load_capability_registry() -> dict[str, Any]:
 def known_capability_ids() -> frozenset[str]:
     data = load_capability_registry()
     return frozenset(item["id"] for item in data.get("capabilities", []))
+
+
+def agent_satisfies_capability(agent_capabilities: list[str], required: str) -> bool:
+    """Whether an agent's advertised capabilities can claim a task need."""
+    if required in agent_capabilities:
+        return True
+    # Legacy single-worker hosts may still advertise only sandbox.linux.
+    if required in ("sandbox.build", "sandbox.test") and "sandbox.linux" in agent_capabilities:
+        return True
+    if required in ("sandbox.windows.build", "sandbox.windows.test") and (
+        "sandbox.windows" in agent_capabilities
+    ):
+        return True
+    return False
 
 
 def validate_capabilities(capabilities: list[str]) -> None:

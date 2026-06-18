@@ -1,0 +1,7 @@
+---
+goal_kind: engineering
+fixture: primes
+workspace_mode: git
+---
+Create a Python script that writes out the first 100 primes, one per line.
+Codewriter commits to agentswarm/goal-<id>; tester checks out workspace_ref and runs pytest.

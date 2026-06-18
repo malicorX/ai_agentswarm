@@ -14,8 +14,10 @@ import httpx
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "agents" / "src"))
 sys.path.insert(0, str(_ROOT / "platform" / "src"))
+sys.path.insert(0, str(_ROOT / "scripts"))
 
 from agentswarm_agents.identity import connect_agent
+from verify_http_retry import retry_transient
 
 
 def _clean_url(base_url: str) -> str:
@@ -47,12 +49,15 @@ def verify_agent_versioning_staging(base_url: str, *, timeout: float = 30.0) -> 
             raise RuntimeError(f"unexpected /health body: {health.json()!r}")
         result["health"] = "ok"
 
-        first = connect_agent(
-            agent_name=agent_name,
-            owner="version-verify",
-            capabilities=["reviewer"],
-            base_url=clean,
-            version_signature="reviewer-v1.0",
+        first = retry_transient(
+            lambda: connect_agent(
+                agent_name=agent_name,
+                owner="version-verify",
+                capabilities=["reviewer"],
+                base_url=clean,
+                version_signature="reviewer-v1.0",
+            ),
+            label="initial agent register",
         )
         agent_id = first.agent_id
         result["agent_id"] = agent_id
@@ -66,12 +71,15 @@ def verify_agent_versioning_staging(base_url: str, *, timeout: float = 30.0) -> 
             raise RuntimeError(f"expected one initial version entry, got {versions!r}")
         result["initial"] = versions[0]["version_signature"]
 
-        second = connect_agent(
-            agent_name=agent_name,
-            owner="version-verify",
-            capabilities=["reviewer"],
-            base_url=clean,
-            version_signature="reviewer-v1.1",
+        second = retry_transient(
+            lambda: connect_agent(
+                agent_name=agent_name,
+                owner="version-verify",
+                capabilities=["reviewer"],
+                base_url=clean,
+                version_signature="reviewer-v1.1",
+            ),
+            label="minor version register",
         )
         if second.agent_id != agent_id:
             raise RuntimeError("reconnect changed agent_id after minor bump")
@@ -88,12 +96,15 @@ def verify_agent_versioning_staging(base_url: str, *, timeout: float = 30.0) -> 
             raise RuntimeError(f"unexpected previous_version: {last.get('previous_version')!r}")
         result["minor_bump"] = last["version_signature"]
 
-        third = connect_agent(
-            agent_name=agent_name,
-            owner="version-verify",
-            capabilities=["reviewer"],
-            base_url=clean,
-            version_signature="reviewer-v2.0",
+        third = retry_transient(
+            lambda: connect_agent(
+                agent_name=agent_name,
+                owner="version-verify",
+                capabilities=["reviewer"],
+                base_url=clean,
+                version_signature="reviewer-v2.0",
+            ),
+            label="major version register",
         )
         if third.agent_id != agent_id:
             raise RuntimeError("reconnect changed agent_id after major bump")

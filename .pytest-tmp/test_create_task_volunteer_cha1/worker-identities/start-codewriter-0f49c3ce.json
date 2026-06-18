@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-codewriter-0f49c3ce",
+  "agent_id": "agent_8d3646d72b8d",
+  "public_key_b64": "Mz9trfBvzFqe7YrESOl7mYTWwqeLdZI3xj7GCozP0hA=",
+  "private_key_b64": "ki3FxhA-eDDT3Q1il6w_vujKz_XmNSsaB521k1k7Co8=",
+  "owner": "git-e2e-codewriter-7ffd552c",
+  "capabilities": [
+    "codewriter"
+  ]
+}

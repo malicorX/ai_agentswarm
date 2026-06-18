@@ -47,7 +47,7 @@ def _auth_headers() -> dict[str, str]:
         return headers
     bootstrap = os.environ.get("AGENTSWARM_BOOTSTRAP_TOKEN", "").strip()
     if bootstrap:
-        return {"X-Bootstrap-Token": bootstrap}
+        return {"X-Bootstrap-Token": bootstrap.replace("\r", "")}
     return {}
 
 
@@ -468,6 +468,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--wait-sec", type=float, default=60.0)
     parser.add_argument("--goal-timeout-sec", type=float, default=180.0)
+    parser.add_argument(
+        "--isolate-dispatch",
+        action="store_true",
+        help="Set dispatch_include_owners to demo volunteer owners only",
+    )
     return parser.parse_args()
 
 
@@ -482,6 +487,7 @@ def main() -> int:
             use_ollama=args.ollama,
             wait_timeout_sec=args.wait_sec,
             goal_timeout_sec=args.goal_timeout_sec,
+            isolate_dispatch=args.isolate_dispatch,
         )
     except (ValueError, RuntimeError, httpx.HTTPError) as exc:
         print(f"Volunteer subjective demo failed: {exc}", file=sys.stderr)

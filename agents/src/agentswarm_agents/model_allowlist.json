@@ -1,6 +1,6 @@
 {
-  "version": "2",
-  "description": "Curated local LLM runtimes for volunteer clients (ADR 0007)",
+  "version": "3",
+  "description": "Curated local LLM runtimes for volunteer clients (ADR 0007); v3 adds weight artifacts for docker runtime",
   "hardware": {
     "reviewer_min_vram_gb": 6.0
   },
@@ -13,13 +13,27 @@
     },
     {
       "id": "llm-docker-worker-v1",
-      "label": "Docker worker capsule",
+      "label": "Docker worker (mock LLM)",
       "runtime": "docker",
+      "worker_image": "agentswarm-worker:dev",
       "min_vram_gb": 0
     },
     {
+      "id": "docker/qwen2.5-coder-3b",
+      "label": "Qwen2.5 Coder 3B (Docker, Q4)",
+      "runtime": "docker",
+      "worker_image": "agentswarm-worker:dev",
+      "min_vram_gb": 6,
+      "weight": {
+        "format": "gguf",
+        "filename": "model.gguf",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main/qwen2.5-coder-3b-instruct-q4_k_m.gguf",
+        "size_bytes": 2104932800
+      }
+    },
+    {
       "id": "ollama/llama3.2",
-      "label": "Ollama llama3.2 (localhost)",
+      "label": "Ollama llama3.2 (localhost, dev)",
       "runtime": "ollama",
       "endpoint": "http://127.0.0.1:11434",
       "ollama_model": "llama3.2",

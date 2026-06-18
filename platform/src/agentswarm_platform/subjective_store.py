@@ -24,7 +24,10 @@ def ensure_subjective_schema(conn: sqlite3.Connection) -> None:
             aggregate_score REAL,
             created_at TEXT NOT NULL,
             resolved_at TEXT,
-            deferred_pool_needs_json TEXT
+            deferred_pool_needs_json TEXT,
+            dispatch_include_owners_json TEXT,
+            goal_kind TEXT NOT NULL DEFAULT 'creative',
+            verification_spec_json TEXT
         );
 
         CREATE TABLE IF NOT EXISTS subjective_reviews (
@@ -61,6 +64,22 @@ def ensure_subjective_schema(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE creative_goals ADD COLUMN dispatch_include_owners_json TEXT"
         )
+    if "goal_kind" not in columns:
+        conn.execute(
+            "ALTER TABLE creative_goals ADD COLUMN goal_kind TEXT NOT NULL DEFAULT 'creative'"
+        )
+    if "verification_spec_json" not in columns:
+        conn.execute(
+            "ALTER TABLE creative_goals ADD COLUMN verification_spec_json TEXT"
+        )
+    if "workspace_json" not in columns:
+        conn.execute("ALTER TABLE creative_goals ADD COLUMN workspace_json TEXT")
+    if "workspace_ref" not in columns:
+        conn.execute("ALTER TABLE creative_goals ADD COLUMN workspace_ref TEXT")
+    if "artifact_refs_json" not in columns:
+        conn.execute("ALTER TABLE creative_goals ADD COLUMN artifact_refs_json TEXT")
+    if "primary_artifact_ref" not in columns:
+        conn.execute("ALTER TABLE creative_goals ADD COLUMN primary_artifact_ref TEXT")
 
 
 def insert_creative_goal(
@@ -73,18 +92,26 @@ def insert_creative_goal(
     min_reviewers: int,
     pass_threshold: float,
     dispatch_include_owners: list[str] | None = None,
+    goal_kind: str = "creative",
+    verification_spec: dict[str, Any] | None = None,
+    workspace: dict[str, Any] | None = None,
 ) -> str:
     goal_id = f"goal-{uuid.uuid4().hex[:12]}"
     include_json = (
         json.dumps(dispatch_include_owners) if dispatch_include_owners else None
     )
+    verification_json = (
+        json.dumps(verification_spec) if verification_spec is not None else None
+    )
+    workspace_json = json.dumps(workspace) if workspace is not None else None
     conn.execute(
         """
         INSERT INTO creative_goals (
             goal_id, poster_agent_id, project_id, brief, rubric_json,
             min_reviewers, pass_threshold, status, created_at,
-            dispatch_include_owners_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+            dispatch_include_owners_json, goal_kind, verification_spec_json,
+            workspace_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
         """,
         (
             goal_id,
@@ -96,6 +123,9 @@ def insert_creative_goal(
             pass_threshold,
             utc_now_iso(),
             include_json,
+            goal_kind,
+            verification_json,
+            workspace_json,
         ),
     )
     return goal_id
@@ -132,6 +162,37 @@ def get_creative_goal(conn: sqlite3.Connection, goal_id: str) -> dict[str, Any] 
             and row["dispatch_include_owners_json"]
             else []
         ),
+        "goal_kind": (
+            row["goal_kind"]
+            if "goal_kind" in row.keys() and row["goal_kind"]
+            else "creative"
+        ),
+        "verification_spec": (
+            json.loads(row["verification_spec_json"])
+            if "verification_spec_json" in row.keys()
+            and row["verification_spec_json"]
+            else None
+        ),
+        "workspace": (
+            json.loads(row["workspace_json"])
+            if "workspace_json" in row.keys() and row["workspace_json"]
+            else None
+        ),
+        "workspace_ref": (
+            row["workspace_ref"]
+            if "workspace_ref" in row.keys() and row["workspace_ref"]
+            else None
+        ),
+        "artifact_refs": (
+            json.loads(row["artifact_refs_json"])
+            if "artifact_refs_json" in row.keys() and row["artifact_refs_json"]
+            else []
+        ),
+        "primary_artifact_ref": (
+            row["primary_artifact_ref"]
+            if "primary_artifact_ref" in row.keys() and row["primary_artifact_ref"]
+            else None
+        ),
     }
 
 
@@ -158,6 +219,36 @@ def clear_goal_deferred_pool_needs(conn: sqlite3.Connection, goal_id: str) -> No
         WHERE goal_id = ?
         """,
         (goal_id,),
+    )
+
+
+def set_goal_engineering_artifact(
+    conn: sqlite3.Connection,
+    goal_id: str,
+    artifact_text: str,
+) -> None:
+    conn.execute(
+        """
+        UPDATE creative_goals
+        SET artifact_text = ?, status = 'awaiting_verification'
+        WHERE goal_id = ?
+        """,
+        (artifact_text, goal_id),
+    )
+
+
+def set_goal_workspace_ref(
+    conn: sqlite3.Connection,
+    goal_id: str,
+    workspace_ref: str,
+) -> None:
+    conn.execute(
+        """
+        UPDATE creative_goals
+        SET workspace_ref = ?
+        WHERE goal_id = ?
+        """,
+        (workspace_ref, goal_id),
     )
 
 
@@ -274,6 +365,10 @@ def resolve_goal(
         """,
         (status, aggregate_score, utc_now_iso(), goal_id),
     )
+    if status == "verified":
+        from agentswarm_platform.goal_artifacts import snapshot_goal_artifact_refs
+
+        snapshot_goal_artifact_refs(conn, goal_id)
 
 
 def get_appeal_for_goal(conn: sqlite3.Connection, goal_id: str) -> dict[str, Any] | None:

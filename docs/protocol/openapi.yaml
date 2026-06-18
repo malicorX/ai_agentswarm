@@ -443,6 +443,14 @@ paths:
       responses:
         "200":
           description: Claimed
+  /dispatch/capacity:
+    get:
+      summary: Volunteer presence capacity by capability (owner auth)
+      responses:
+        "200":
+          description: Dispatch capacity summary
+        "401":
+          description: Owner authentication required
   /audit:
     get:
       summary: Read append-only audit log

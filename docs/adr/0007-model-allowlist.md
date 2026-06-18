@@ -10,7 +10,9 @@ Production volunteer clients must not call arbitrary LLM endpoints. The platform
 
 ## Decision
 
-### Allowlist format (version 2)
+### Allowlist format (version 3)
+
+Current `version` field: **`3`**. Version 2 entries remain valid; v3 adds optional **`weight`** artifacts for docker runtime models.
 
 Each entry in `model_allowlist.json`:
 
@@ -19,13 +21,26 @@ Each entry in `model_allowlist.json`:
 | `id` | yes | Stable identifier sent as `model_id` on presence heartbeats |
 | `label` | yes | Human-readable name for the volunteer GUI |
 | `runtime` | yes | `in-process`, `docker`, or `ollama` |
+| `worker_image` | docker | Docker image tag (e.g. `agentswarm-worker:dev`) |
+| `weight` | docker (optional) | GGUF download metadata (see below) |
 | `endpoint` | ollama only | Must be `http://127.0.0.1:*` or `http://localhost:*` |
-| `ollama_model` | ollama only | Model name passed to Ollama `/api/chat` (defaults to suffix of `id`) |
+| `ollama_model` | ollama only | Model name passed to Ollama `/api/chat` |
 | `local_only` | recommended for ollama | Documents that remote inference is forbidden |
+| `min_vram_gb` | recommended | Hardware gate hint for reviewers |
 
-See [volunteer-hardware.md](../volunteer-hardware.md) for VRAM/RAM guidance per allowlisted model.
+**`weight` object** (docker models with on-demand download):
 
-Bundled GGUF weights are **not** in v2; use `docker` runtime with a worker image that mounts local weights, or `ollama` with a localhost endpoint.
+| Field | Meaning |
+|-------|---------|
+| `format` | `gguf` |
+| `filename` | Local filename under `models/<id>/` (default `model.gguf`) |
+| `url` | HTTPS URL to download |
+| `size_bytes` | Expected size (UI progress) |
+| `sha256` | Optional; verified after download when set |
+
+See [volunteer-client.md](../volunteer-client.md) for app data paths and [volunteer-hardware.md](../volunteer-hardware.md) for VRAM/RAM guidance.
+
+Weights are **not** bundled in the client `.exe`; the volunteer client downloads them to a per-user data directory and mounts them read-only into the worker container.
 
 ### Publication
 
@@ -47,8 +62,8 @@ Default: platform enforcement **off** (staging/dev); production should set `AGEN
 | Runtime | Status |
 |---------|--------|
 | `in-process` | Mock/dev executor (`llm-mock-v1`) |
-| `docker` | Worker image (`llm-docker-worker-v1`) |
-| `ollama` | Local Ollama HTTP API (`ollama/llama3.2`); localhost endpoint only |
+| `docker` | Worker image + optional downloaded GGUF (`llm-docker-worker-v1`, `docker/qwen2.5-coder-3b`) |
+| `ollama` | Local Ollama HTTP API (`ollama/llama3.2`); localhost endpoint only; dev override |
 
 ## Consequences
 

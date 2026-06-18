@@ -24,6 +24,12 @@ PARALLEL_VERIFIER_SCORE = float(
 )
 
 
+def engineering_verify_reviewer_mint(current_score: float) -> float:
+    """Credibility boost so an engineering verifier can meet deploy sign-off floors."""
+    target = TIER_HIGH_MIN + STAKE_MAX
+    return max(0.0, target - max(0.0, current_score))
+
+
 def credibility_enabled() -> bool:
     return os.environ.get("AGENTSWARM_CREDIBILITY_ENABLED", "").lower() in (
         "1",

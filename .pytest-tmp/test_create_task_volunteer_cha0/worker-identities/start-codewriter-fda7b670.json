@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-codewriter-fda7b670",
+  "agent_id": "agent_ebb9dd682ced",
+  "public_key_b64": "kxfNGMMF_j1amY7OBifusEMFGYn926CmfdI6ZVT3YuY=",
+  "private_key_b64": "ePAxKaWB8flW9VJXlDh3k-82MPXntW8Vn28lzU5TAEk=",
+  "owner": "chain-e2e-codewriter-80ea9639",
+  "capabilities": [
+    "codewriter"
+  ]
+}

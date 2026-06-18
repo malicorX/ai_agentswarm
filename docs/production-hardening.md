@@ -38,7 +38,9 @@ AGENTSWARM_VERIFY_FULL=1 AGENTSWARM_EXPECT_DISPATCH=1 AGENTSWARM_BOOTSTRAP_TOKEN
   python scripts/verify_production_staging.py
 ```
 
-Adds: credibility simulation tests, external contributor task flow, P7 unit tests + creative appeal live smoke, **volunteer subjective demo** (when `AGENTSWARM_ASSIGNMENT_SECRET` is set), news pipeline, MCP adapter.
+Adds: credibility simulation tests, external contributor task flow, P7 unit tests + creative appeal + lease reclaim live smoke, news pipeline (enqueue-only or full), MCP adapter smoke.
+
+**Subjective demo** (`verify_volunteer_subjective_staging.py`) runs only when `AGENTSWARM_ASSIGNMENT_SECRET` is set and `AGENTSWARM_VERIFY_SKIP_SUBJECTIVE_DEMO` is not `1`. It calls `prep_staging_subjective_verify.sh` (SSH restart on theebie) unless `AGENTSWARM_VERIFY_SKIP_PREP=1` or `CI=true`. **GitHub Actions skips subjective** — run locally via `bash scripts/run_full_staging_verify.sh` or `powershell -File scripts/close_phase18.ps1` (with prep).
 
 **One-command full verify** (fetches bootstrap token from theebie over SSH):
 
@@ -51,10 +53,14 @@ pwsh scripts/run_full_staging_verify.ps1
 Skip slow live flows when swarm is idle:
 
 ```bash
-AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY=1 AGENTSWARM_VERIFY_SKIP_MCP=1 bash scripts/run_full_staging_verify.sh
+AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY=1 bash scripts/run_full_staging_verify.sh
 ```
 
-Enqueue-only verifies feed task creation without waiting for the swarm to verify an article (~4 minutes saved).
+Enqueue-only verifies feed task creation without waiting for the swarm to verify an article (~4 minutes saved). To also skip subjective when running full bundle locally:
+
+```bash
+AGENTSWARM_VERIFY_SKIP_SUBJECTIVE_DEMO=1 bash scripts/run_full_staging_verify.sh
+```
 
 GitHub Actions: **Verify staging (full)** (`.github/workflows/verify-staging-full.yml`):
 
@@ -62,7 +68,7 @@ GitHub Actions: **Verify staging (full)** (`.github/workflows/verify-staging-ful
 - **Scheduled:** Sundays 06:00 UTC (weekly cron, P7.11)
 - **Secrets:** `AGENTSWARM_BOOTSTRAP_TOKEN` and `AGENTSWARM_ASSIGNMENT_SECRET` on the repo; news uses **enqueue-only** smoke (`AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY=1`); MCP adapter smoke runs via `verify_mcp_adapter.py` (tool list + staging `/health`); subjective demo is **skipped in GHA** (`AGENTSWARM_VERIFY_SKIP_SUBJECTIVE_DEMO=1`) — run locally via `bash scripts/close_phase18.sh` or `python scripts/verify_volunteer_subjective_staging.py` with SSH prep (P9.2)
 
-Maintainer close-out: `bash scripts/close_phase9.sh` (pytest + dispatch + hardware gates + subjective verify). Phase 8: `close_phase8.sh`.
+Maintainer close-out: `bash scripts/close_phase23.sh` or `powershell -File scripts/close_phase23.ps1` (pytest + `npm test` + staging quick). Subjective path: `close_phase18.sh` with SSH prep.
 
 Optional swarm smoke (slow):
 
@@ -83,6 +89,7 @@ Individual scripts (same as before):
 | `verify_sdk_dispatch_staging.py` | Same paths via public Python SDK (`DispatchClient`) |
 | `verify_creative_appeal_staging.py` | Creative goal appeal routes (P7.3 live smoke) |
 | `verify_volunteer_subjective_staging.py` | Live coordinator → creative → reviewers path (P9.2) |
+| `verify_docker_volunteer_staging.ps1` | Staging e2e with `docker/qwen2.5-coder-3b` (real LLM in worker) |
 | `demo_volunteer_subjective_staging.sh` | Maintainer one-command subjective demo (P8.3) |
 | `run_full_staging_verify.sh` / `.ps1` | Full bundle + SSH bootstrap fetch for theebie |
 | `verify_external_contributor.py` | Non-maintainer quickstart |
@@ -106,7 +113,7 @@ python scripts/verify_registration_auth.py https://theebie.de/agentswarm/api
 | Field | Meaning |
 |-------|---------|
 | `enforced` | Owner JWT or bootstrap token required for register/tasks |
-| `open_registration` | Inverse of `enforced` (pilot staging: `true`) |
+| `open_registration` | Inverse of `enforced` (staging with auth enforced: `false`) |
 | `github_oauth_configured` | GitHub OAuth env vars present on server |
 | `bootstrap_token_configured` | Maintainer bootstrap token set |
 

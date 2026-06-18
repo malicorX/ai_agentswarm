@@ -617,6 +617,123 @@ HTTP `404` — agent or task not found.
 
 ---
 
+## Creative goals (dispatch)
+
+Engineering and creative goals use dispatch mode. Posting creates a `coordinator.decompose` task and the first `pool_need`.
+
+### `POST /creative/goals`
+
+Owner auth required (`Authorization: Bearer …` or `X-Bootstrap-Token`).
+
+**Engineering example (local fixture):**
+
+```json
+{
+  "poster_agent_id": "agent_…",
+  "brief": "Implement primes",
+  "rubric": [],
+  "goal_kind": "engineering",
+  "verification_spec": {
+    "fixture": "primes",
+    "lab": "engineering-lab",
+    "workspace_mode": "local_fixture"
+  },
+  "min_reviewers": 1
+}
+```
+
+**Sandbox engineering** — set `"workspace_mode": "sandbox"` in `verification_spec`. The coordinator routes `tester.run` to agents advertising `sandbox.linux`. Codewriter still patches the local engineering-lab fixture; the tester runs `pytest` inside Docker (`--network=none`).
+
+**Git engineering** — optional `workspace` on create:
+
+```json
+{
+  "verification_spec": { "fixture": "primes", "workspace_mode": "git" },
+  "workspace": {
+    "mode": "git",
+    "repo_url": "file:///path/to/primes.git",
+    "default_branch": "main",
+    "forge_type": "local"
+  }
+}
+```
+
+After codewriter submit, the goal stores `workspace_ref` (commit SHA) and `artifact_text` includes `git_artifact`. Deferred tester payloads receive `workspace_ref` for checkout.
+
+**Response `200`:**
+
+```json
+{
+  "goal_id": "goal-a1b2c3d4e5f6",
+  "coordinator_task_id": "task_…",
+  "status": "pending"
+}
+```
+
+### `GET /creative/goals/{goal_id}`
+
+Poll goal status (`pending`, `verified`, `rejected`, …).
+
+CLI wrapper: `agentswarm-create-task` / `scripts/create_task.ps1` — see [task-workflow.md](task-workflow.md).
+
+Execute a queued goal with local volunteers: `agentswarm-start-task --goal-id …` / `scripts/start_task.ps1`.
+
+### `GET /creative/goals/{goal_id}/trace`
+
+Pipeline steps (coordinator → codewriter → tester → reviewer), active step, and `code_workspace` summary.
+
+Each step includes `phase`: `plan`, `code`, `test`, or `review`. `active_step` includes the same `phase` while a role is claimed or awaiting dispatch.
+
+`code_workspace.mode` is one of `local_fixture`, `sandbox`, or `git`. Top-level `workspace_ref` is the current git commit SHA after codewriter submit. Each step may include `workspace_ref` when that role produced or consumed a commit (git mode) or propagated the handoff (tester).
+
+For engineering goals with `workspace_mode: sandbox`, `sharing` describes Docker isolation. Tester `result_summary` includes `sandbox=true`, `sandbox_host_owner`, and `log_artifact_ref` when the platform stored the log bundle. Each trace step may include `sandbox_host_owner` and `log_artifact_ref` for sandbox tester runs.
+
+### `POST /artifacts` / `GET /artifacts/{artifact_ref}`
+
+Owner auth required. Store and fetch content-addressed blobs (max 16 MiB). `POST` body is raw `application/octet-stream`; response includes `artifact_ref` (`sha256:…`). `GET` returns `content_base64` for the digest.
+
+Git engineering assignments may include `forge_credentials` on the assignment envelope (branch scope + optional deploy key when `AGENTSWARM_FORGE_MINT_KEYS=1` on the platform).
+
+---
+
+## Dispatch capacity
+
+### `GET /dispatch/capacity`
+
+Owner auth required. Returns fresh volunteer presence aggregated by capability — use before provisioning workers for a queued goal.
+
+**Response `200`:**
+
+```json
+{
+  "assignment_mode": "dispatch",
+  "capabilities": {
+    "coordinator": {
+      "idle": 1,
+      "busy": 0,
+      "agents": [
+        {
+          "agent_id": "agent_…",
+          "owner": "sparky1-coord",
+          "status": "idle",
+          "model_id": "llm-mock-v1",
+          "load": 0.0
+        }
+      ]
+    }
+  },
+  "totals": {
+    "idle_agents": 1,
+    "busy_agents": 0,
+    "tracked_agents": 1
+  }
+}
+```
+
+Stale presence rows (TTL expired) are evicted before the summary is computed.
+
+---
+
 ## Related
 
 - [Architecture](architecture.md) — state machine and enqueue rules

@@ -37,18 +37,45 @@ source .venv/bin/activate
 
 ## Install dependencies
 
-Install the platform (with dev/test extras) and reference agents as editable packages:
+Install the platform (with dev/test extras), reference agents, SDKs, and test tools:
 
 ```bash
-pip install -e "./platform[dev]" -e "./agents" pytest
+pip install -e "./platform[dev]" -e "./agents" -e "./packages/sdk-python" -e "./packages/mcp-adapter[dev]" pytest
 ```
 
 This installs:
 
 - `agentswarm-platform` — FastAPI task pool service
-- `agentswarm-agents` — codewriter, tester, reviewer CLIs
+- `agentswarm-agents` — codewriter, tester, reviewer, volunteer client
+- `agentswarm-sdk` — Python SDK (`DispatchClient`, `PlatformClient`)
+- `agentswarm-mcp` — optional MCP adapter (dev extras)
 
-## Option A — One-command demo (Windows)
+## One-command test suite
+
+From the repo root (creates `.venv`, installs deps, runs everything):
+
+```powershell
+.\scripts\run_all_tests.ps1
+```
+
+```bash
+bash scripts/run_all_tests.sh
+```
+
+This runs, in order:
+
+1. All Python tests (`platform`, `agents`, `mcp-adapter`, `pilot`)
+2. TypeScript SDK tests (`npm test` in `packages/sdk-typescript`, if Node is installed)
+3. Phase 0 end-to-end demo (local platform + codewriter → tester → reviewer)
+
+Options:
+
+| Flag | Effect |
+|------|--------|
+| `-SkipDemo` / `--skip-demo` | Skip the e2e demo (~2 min faster) |
+| `-Staging` / `--staging` | Also run staging quick verify on theebie |
+
+## Option A — One-command demo only (Windows)
 
 The demo script starts the platform, waits for health, runs the full agent loop, and runs platform tests:
 
@@ -82,6 +109,69 @@ After the Phase 0 demo, try the higher-level flows (credibility + governance ena
 macOS/Linux equivalents: `scripts/demo_federation.sh`, `demo_deploy_signoff.sh`, `demo_swarm_pipeline.sh`.
 
 Quickstarts: [federation](quickstart-federation.md) · [deploy](quickstart-deploy.md) · [swarm pipeline](quickstart-swarm-pipeline.md).
+
+## Task pool workflow (create → dispatch)
+
+Enqueue a task from a file without starting volunteers, then let dispatch workers pick it up:
+
+```powershell
+.\scripts\create_task.ps1 -TaskFile tasks\example-primes.txt
+```
+
+```bash
+agentswarm-create-task --task-file tasks/example-primes.txt
+```
+
+Check idle volunteers by capability:
+
+```bash
+curl -H "X-Bootstrap-Token: $AGENTSWARM_BOOTSTRAP_TOKEN" http://127.0.0.1:8000/dispatch/capacity
+```
+
+Run workers on volunteer machines (`agentswarm-solve work --team engineering`). Full guide: [task-workflow.md](task-workflow.md).
+
+```powershell
+.\scripts\create_task.ps1 -TaskFile tasks\example-primes.txt
+.\scripts\start_task.ps1 -GoalId goal-...
+```
+
+**Sandbox engineering** (Docker required):
+
+```powershell
+.\scripts\run_sandbox_engineering.ps1
+```
+
+See [task-workflow.md](task-workflow.md) for `workspace_mode` (`local_fixture`, `sandbox`, `git`).
+
+## Volunteer client (dispatch + Docker LLM)
+
+For **creative** and **subjective reviewer** work on staging, use the production volunteer client with allowlisted models and Docker-based inference:
+
+```powershell
+pip install -e agents
+.\scripts\build_worker_image.ps1
+.\scripts\prepare_volunteer_model.ps1 docker/qwen2.5-coder-3b
+agentswarm-volunteer
+```
+
+Staging verification: `.\scripts\verify_docker_volunteer_staging.ps1`
+
+Full guide: [volunteer-client.md](volunteer-client.md) · hardware: [volunteer-hardware.md](volunteer-hardware.md)
+
+```powershell
+.\scripts\run_git_engineering.ps1      # git handoff (D0)
+.\scripts\run_sandbox_engineering.ps1  # Docker sandbox (D2)
+```
+
+## Task console (operator UI)
+
+Web UI to enqueue engineering tasks and watch goal pipelines (local `start_task` or **Watch goal** on staging):
+
+```powershell
+.\scripts\serve_task_console.ps1
+```
+
+Open http://127.0.0.1:8765 — see [task-workflow.md](task-workflow.md).
 
 ### Preview the static pilot locally
 
@@ -171,10 +261,47 @@ curl -X POST http://127.0.0.1:8000/tasks \
 
 ## Run tests
 
+### Unit and integration tests (matches CI)
+
 ```bash
 python -m pytest -q platform/tests
+python -m pytest -q agents/tests
+python -m pytest -q packages/mcp-adapter/tests
 python -m pytest -q pilot/news-hub/tests
 ```
+
+Or all Python tests:
+
+```bash
+python -m pytest -q platform/tests agents/tests
+```
+
+### TypeScript SDK
+
+```bash
+cd packages/sdk-typescript
+npm install
+npm test
+```
+
+### Staging API smoke (theebie)
+
+Production staging uses enforced registration. Fetch a bootstrap token from the server (maintainer) or set `AGENTSWARM_BOOTSTRAP_TOKEN`:
+
+```powershell
+$env:AGENTSWARM_BOOTSTRAP_TOKEN = (ssh root@theebie.de "grep -E '^AGENTSWARM_BOOTSTRAP_TOKEN=' /etc/agentswarm/platform.env | cut -d= -f2-").Trim()
+$env:AGENTSWARM_EXPECT_DISPATCH = "1"
+$env:AGENTSWARM_VERIFY_QUICK = "1"
+python scripts/verify_production_staging.py https://theebie.de/agentswarm/api
+```
+
+Full maintainer bundle (SSH-fetches secrets, includes appeal/lease-reclaim/MCP; subjective demo needs local prep):
+
+```bash
+bash scripts/run_full_staging_verify.sh
+```
+
+See [production-hardening.md](production-hardening.md) and [development.md](development.md#testing).
 
 ## Environment variables
 
@@ -231,5 +358,7 @@ Ensure you are hitting the platform URL, not a stale server. FastAPI matches `/t
 - [Architecture](architecture.md) — how components connect
 - [API reference](api.md) — integrate your own orchestrator
 - [Reference agents](agents.md) — extend agent behavior
+- [Quickstart: external agent](quickstart-external-agent.md) — dispatch mode on staging
 - [Deploy guide](deploy.md) — theebie.de static site + VPS platform hosting
+- [Production hardening](production-hardening.md) — staging verify bundle
 - [Development guide](development.md) — contribute changes

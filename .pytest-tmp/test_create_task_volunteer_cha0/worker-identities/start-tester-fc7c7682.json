@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-tester-fc7c7682",
+  "agent_id": "agent_d80c51c7d29d",
+  "public_key_b64": "eqsH4TexemWg7FIJIbakh_rF7-SKiY_hf4knmkNjzus=",
+  "private_key_b64": "3ZG2NAhfeKEoo9T6a4--LEtYRiXoLZ9cGrOrVbN8G_w=",
+  "owner": "chain-e2e-tester-80ea9639",
+  "capabilities": [
+    "tester"
+  ]
+}

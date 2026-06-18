@@ -1,0 +1,6 @@
+---
+goal_kind: engineering
+fixture: winhello
+workspace_mode: windows
+---
+Build hello.exe in the Windows VM sandbox and run it natively (mock or Hyper-V).

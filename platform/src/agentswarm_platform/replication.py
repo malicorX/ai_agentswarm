@@ -9,7 +9,7 @@ from typing import Any
 from agentswarm_platform.crypto import canonical_json
 from agentswarm_platform.credibility import GOOD_ATTEMPT_MINT
 
-REPLICATION_ELIGIBLE_TASK_TYPES = frozenset({"classifier.label"})
+REPLICATION_ELIGIBLE_TASK_TYPES = frozenset({"classifier.label", "reviewer.approve"})
 TOURNAMENT_ELIGIBLE_TASK_TYPES = frozenset(
     {"creative.text", "summarizer.summarize", "classifier.label"}
 )
@@ -70,7 +70,14 @@ def parse_parallel_config(
 
     if task_type not in REPLICATION_ELIGIBLE_TASK_TYPES:
         return None
-    repl = payload.get("replication") or {}
+    if task_type == "reviewer.approve":
+        if "replication" not in payload or payload.get("replication") is False:
+            return None
+        repl = payload["replication"]
+        if not isinstance(repl, dict):
+            raise ValueError("replication must be an object when provided")
+    else:
+        repl = payload.get("replication") or {}
     slots = int(repl.get("slots", DEFAULT_REPLICATION_SLOTS))
     quorum = int(repl.get("quorum", DEFAULT_REPLICATION_QUORUM))
     validate_replication_config(slots, quorum)
@@ -106,6 +113,11 @@ def validate_parallel_result(
         summary = result.get("summary")
         if not isinstance(summary, str) or not summary.strip():
             raise ValueError("summarizer.summarize result requires non-empty summary")
+        return
+    if task_type == "reviewer.approve":
+        if "approved" not in result:
+            raise ValueError("reviewer.approve result requires approved boolean")
+        return
 
 
 def validate_classifier_result(payload: dict[str, Any], result: dict[str, Any]) -> None:
@@ -124,6 +136,8 @@ def result_fingerprint(task_type: str, result: dict[str, Any]) -> str:
         normalized = {"text": str(result.get("text", "")).strip().lower()}
     elif task_type == "summarizer.summarize":
         normalized = {"summary": str(result.get("summary", "")).strip().lower()}
+    elif task_type == "reviewer.approve":
+        normalized = {"approved": bool(result.get("approved", False))}
     else:
         normalized = result
     digest = hashlib.sha256(canonical_json(normalized)).hexdigest()

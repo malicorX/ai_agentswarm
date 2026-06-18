@@ -84,6 +84,54 @@ def test_coordinator_plan_emits_pool_needs(dispatch_client: TestClient) -> None:
     assert creative_assignment["task_type"] == "creative.text"
 
 
+def test_coordinator_assignment_cleared_after_submit(dispatch_client: TestClient) -> None:
+    from agentswarm_platform import main as platform_main
+
+    poster_id, _ = register_agent(dispatch_client, ["codewriter"], owner="poster-lease")
+    coordinator_id, coord_priv = register_agent(
+        dispatch_client, ["coordinator"], owner="coord-lease"
+    )
+    _presence(dispatch_client, coordinator_id, ["coordinator"])
+
+    goal_id = dispatch_client.post(
+        "/creative/goals",
+        json={
+            "poster_agent_id": poster_id,
+            "brief": "Write a haiku",
+            "rubric": RUBRIC,
+            "min_reviewers": 1,
+        },
+    ).json()["goal_id"]
+    plan = build_default_creative_goal_plan(
+        {
+            "goal_id": goal_id,
+            "brief": "Write a haiku",
+            "rubric": RUBRIC,
+            "min_reviewers": 1,
+        }
+    )
+
+    coord_assignment = dispatch_client.get(
+        f"/agents/{coordinator_id}/assignments/pending"
+    ).json()
+    assert coord_assignment is not None
+    _submit(dispatch_client, coordinator_id, coord_priv, coord_assignment, plan)
+
+    repeat = dispatch_client.get(f"/agents/{coordinator_id}/assignments/pending").json()
+    assert repeat is None
+
+    with platform_main.store._conn() as conn:
+        need = conn.execute(
+            """
+            SELECT status FROM pool_needs
+            WHERE task_id = ?
+            """,
+            (coord_assignment["task_id"],),
+        ).fetchone()
+    assert need is not None
+    assert need["status"] == "fulfilled"
+
+
 def test_coordinator_rejects_invalid_plan(dispatch_client: TestClient) -> None:
     poster_id, _ = register_agent(dispatch_client, ["codewriter"], owner="poster-bad-plan")
     coordinator_id, coord_priv = register_agent(

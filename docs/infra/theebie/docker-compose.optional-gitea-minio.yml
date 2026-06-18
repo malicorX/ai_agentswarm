@@ -1,0 +1,27 @@
+# Optional Gitea + MinIO for AgentSwarm demos on theebie (D3).
+# Default engineering/git path uses bare repos + platform POST /artifacts — this stack is optional.
+
+services:
+  gitea:
+    image: gitea/gitea:1.22-rootless
+    restart: unless-stopped
+    environment:
+      GITEA__server__ROOT_URL: http://127.0.0.1:3000/
+      GITEA__server__HTTP_PORT: "3000"
+    volumes:
+      - ${AGENTSWARM_OPTIONAL_FORGE_DATA:-/var/lib/agentswarm/optional-forge}/gitea:/data
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: agentswarm
+      MINIO_ROOT_PASSWORD: change-me-on-first-boot
+    volumes:
+      - ${AGENTSWARM_OPTIONAL_FORGE_DATA:-/var/lib/agentswarm/optional-forge}/minio:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"

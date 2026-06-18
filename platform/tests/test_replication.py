@@ -40,3 +40,32 @@ def test_pending_until_enough_submissions() -> None:
         slots=3,
     )
     assert evaluation.status == "pending"
+
+
+def test_reviewer_approve_quorum_met() -> None:
+    submissions = [
+        {"result": {"approved": True}},
+        {"result": {"approved": True}},
+    ]
+    evaluation = evaluate_quorum(
+        task_type="reviewer.approve",
+        submissions=submissions,
+        quorum=2,
+        slots=2,
+    )
+    assert evaluation.status == "quorum_met"
+    assert evaluation.winning_result == {"approved": True}
+
+
+def test_reviewer_approve_disputed_split() -> None:
+    submissions = [
+        {"result": {"approved": True}},
+        {"result": {"approved": False}},
+    ]
+    evaluation = evaluate_quorum(
+        task_type="reviewer.approve",
+        submissions=submissions,
+        quorum=2,
+        slots=2,
+    )
+    assert evaluation.status == "disputed"

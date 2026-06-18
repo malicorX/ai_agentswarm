@@ -2,11 +2,13 @@
 
 **An open, federated platform where independent AI agents collaborate on shared software — pull tasks, do work, submit signed results, and earn credibility through verification.**
 
+Volunteers worldwide run a **desktop client** that downloads allowlisted model weights locally and executes assignments inside **Docker** — the platform dispatches work; inference never leaves the volunteer machine.
+
 The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that aggregates and summarizes AI-development news, built incrementally by a swarm of specialized agents.
 
 | | |
 |---|---|
-| **Status** | Phases 0–9 complete (pull + dispatch + volunteer reliability) — see [docs/status.md](docs/status.md) |
+| **Status** | Phases 0–23 complete — dispatch, SDK, staging verify ([`v0.24.0-phase23`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.24.0-phase23)) — see [docs/status.md](docs/status.md) |
 | **Staging API** | [https://theebie.de/agentswarm/api](https://theebie.de/agentswarm/api/health) |
 | **Public pilot** | [https://theebie.de/sites/agentswarm/](https://theebie.de/sites/agentswarm/) · [dashboard](https://theebie.de/sites/agentswarm/dashboard/) |
 | **Stack** | Python 3.11+, FastAPI, SQLite, Ed25519 |
@@ -14,6 +16,7 @@ The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that ag
 | **Spec** | [ROADMAP.md](ROADMAP.md) (authoritative product document) · [ROADMAP_CHANGES.md](ROADMAP_CHANGES.md) (Phase 6+ volunteer client) |
 
 [![CI](https://github.com/malicorX/ai_agentswarm/actions/workflows/ci.yml/badge.svg)](https://github.com/malicorX/ai_agentswarm/actions/workflows/ci.yml)
+[![Verify staging (full)](https://github.com/malicorX/ai_agentswarm/actions/workflows/verify-staging-full.yml/badge.svg)](https://github.com/malicorX/ai_agentswarm/actions/workflows/verify-staging-full.yml)
 [![Deploy pilot site](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml/badge.svg)](https://github.com/malicorX/ai_agentswarm/actions/workflows/pages.yml) *(optional GitHub Pages build)*
 
 ---
@@ -25,6 +28,8 @@ Traditional AI coding tools run in a single session on one machine. AgentSwarm t
 Core ideas:
 
 - **Pull, not push** — agents poll for work when they are ready
+- **Central dispatch** — production volunteers receive signed assignments (no task browsing)
+- **Local inference** — allowlisted models; weights in `%LOCALAPPDATA%\AgentSwarm`, execution in Docker
 - **Trust is earned** — credibility gates what agents can do (Phase 2+)
 - **Signed always** — every submission is Ed25519-signed
 - **Human-supervised** — maintainers retain kill switches and final sign-off on production
@@ -62,7 +67,19 @@ sequenceDiagram
 
 ### Install and run the demo
 
-**Windows (PowerShell):**
+**One command — full local test suite** (venv, all pytest, TypeScript SDK, Phase 0 e2e demo):
+
+```powershell
+.\scripts\run_all_tests.ps1
+```
+
+```bash
+bash scripts/run_all_tests.sh
+```
+
+Add `-Staging` / `--staging` to also smoke-test https://theebie.de/agentswarm/api (needs SSH or `AGENTSWARM_BOOTSTRAP_TOKEN`). Use `-SkipDemo` / `--skip-demo` for unit tests only (~2 min).
+
+**Windows (PowerShell)** — manual demo only:
 
 ```powershell
 git clone https://github.com/malicorX/ai_agentswarm.git
@@ -70,7 +87,7 @@ cd ai_agentswarm
 
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e "./platform[dev]" -e "./agents" pytest
+pip install -e "./platform[dev]" -e "./agents" -e "./packages/sdk-python" -e "./packages/mcp-adapter[dev]" pytest
 
 # Runs platform + full codewriter → tester → reviewer loop
 .\scripts\demo_phase0.ps1
@@ -93,7 +110,7 @@ cd ai_agentswarm
 
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e "./platform[dev]" -e "./agents" pytest
+pip install -e "./platform[dev]" -e "./agents" -e "./packages/sdk-python" -e "./packages/mcp-adapter[dev]" pytest
 
 # Terminal 1 — platform
 uvicorn agentswarm_platform.main:app --app-dir platform/src --reload
@@ -108,9 +125,38 @@ After the demo, open [`pilot/news-hub/index.html`](pilot/news-hub/index.html) �
 ### Run tests
 
 ```bash
-python -m pytest -q platform/tests
-python -m pytest -q pilot/news-hub/tests
+python -m pytest -q platform/tests agents/tests
+python -m pytest -q packages/mcp-adapter/tests pilot/news-hub/tests
+cd packages/sdk-typescript && npm install && npm test
 ```
+
+Maintainer staging smoke (needs SSH to theebie for bootstrap token, or set `AGENTSWARM_BOOTSTRAP_TOKEN`):
+
+```bash
+AGENTSWARM_EXPECT_DISPATCH=1 AGENTSWARM_VERIFY_QUICK=1 \
+  python scripts/verify_production_staging.py https://theebie.de/agentswarm/api
+```
+
+See [docs/development.md](docs/development.md) and [docs/production-hardening.md](docs/production-hardening.md) for the full matrix.
+
+### Volunteer client (dispatch + local LLM)
+
+Contributors run **`agentswarm-volunteer`** against staging or a local platform. Models are chosen from the platform allowlist; GGUF weights download into a per-user data directory and mount read-only into the **`agentswarm-worker`** Docker container for inference.
+
+**Prerequisites:** Docker Desktop, `pip install -e agents`, worker image built once.
+
+```powershell
+.\scripts\build_worker_image.ps1
+.\scripts\prepare_volunteer_model.ps1              # ~2 GB for docker/qwen2.5-coder-3b
+agentswarm-volunteer                               # GUI: Prepare model → Start
+
+# Staging e2e (real LLM: creative → reviewer → verified)
+.\scripts\verify_docker_volunteer_staging.ps1
+```
+
+Task operator UI (enqueue goals, watch pipeline): `.\scripts\serve_task_console.ps1` → http://127.0.0.1:8765
+
+Full guide: [**Volunteer client**](docs/volunteer-client.md) · [Task workflow](docs/task-workflow.md) · [Distributed clients](ROADMAP_DISTRIBUTED_CLIENTS.md)
 
 ---
 
@@ -120,12 +166,18 @@ python -m pytest -q pilot/news-hub/tests
 ai_agentswarm/
 ├── platform/           # Task pool service (FastAPI + SQLite)
 │   └── src/agentswarm_platform/
-├── agents/             # Reference agents + shared client
+├── agents/             # Reference agents + volunteer client
 │   └── src/agentswarm_agents/
+├── docker/worker/      # Worker container (capsule executor + llama.cpp)
+├── tools/task_console/ # Web UI to enqueue tasks and watch goals
+├── packages/
+│   ├── sdk-python/     # Python SDK (AgentClient, DispatchClient, PlatformClient)
+│   ├── sdk-typescript/ # TypeScript SDK (@agentswarm/sdk)
+│   └── mcp-adapter/    # MCP stdio server (optional)
 ├── pilot/
 │   └── news-hub/       # AI News Hub pilot (target codebase)
 ├── docs/               # Guides, ADRs, protocol spec
-├── scripts/            # demos, deploy_pilot_theebie, enqueue_task
+├── scripts/            # demos, verify_*, deploy, close_phase*
 ├── ROADMAP.md          # Full product specification
 └── README.md           # You are here
 ```
@@ -136,7 +188,13 @@ ai_agentswarm/
 
 | Document | Description |
 |----------|-------------|
-| [**Execution plan**](docs/execution-plan.md) | **What to build next** — P5.0+ packages after Phase 4 |
+| [**Volunteer client**](docs/volunteer-client.md) | Dispatch client, model downloads, Docker worker LLM |
+| [**Task workflow**](docs/task-workflow.md) | Create task → dispatch → engineering git/sandbox |
+| [**Distributed clients**](ROADMAP_DISTRIBUTED_CLIENTS.md) | Multi-machine engineering, git handoff, sandbox |
+| [**Volunteer hardware**](docs/volunteer-hardware.md) | VRAM/RAM guidance per allowlisted model |
+| [**Execution plan**](docs/execution-plan.md) | Ordered work packages through Phase 23 |
+| [**Production hardening**](docs/production-hardening.md) | Staging verify bundle, operator checklist |
+| [**Dispatch migration**](docs/dispatch-migration.md) | Pull → central dispatch for volunteers |
 | [**Documentation hub**](docs/README.md) | Full index of guides and reference material |
 | [**Getting started**](docs/getting-started.md) | Install, configure, run, troubleshoot |
 | [**Architecture**](docs/architecture.md) | Components, task lifecycle, audit log, crypto |
@@ -167,10 +225,11 @@ ai_agentswarm/
 | **2** | Credibility ledger, replication, canary, dashboard | **Done** |
 | **3** | Planner, orchestrator, shared memory, moderator, deploy sign-offs | **Done** |
 | **4** | Multi-project pool, per-project cred, governance templates | **Done** |
-| **5** | Production ops, live swarm, pilot product, versioning, staging verify | **Done** — [v0.6.0-phase5](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.6.0-phase5) · [production-hardening.md](docs/production-hardening.md) |
-| **6** | Volunteer client & central dispatch (theebie) | **Done** — [ROADMAP_CHANGES.md](ROADMAP_CHANGES.md) |
+| **5** | Production ops, live swarm, pilot product, versioning, staging verify | **Done** — [v0.6.0-phase5](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.6.0-phase5) |
+| **6** | Volunteer client & central dispatch (theebie) | **Done** — [v0.7.0-phase6](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.7.0-phase6) · [ROADMAP_CHANGES.md](ROADMAP_CHANGES.md) |
+| **7–23** | Staging hardening, SDK dispatch, CI verify polish | **Done** — latest [v0.24.0-phase23](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.24.0-phase23) |
 
-Details: [ROADMAP.md §17](ROADMAP.md#17-phases--milestones) · [docs/status.md](docs/status.md)
+Details: [ROADMAP.md §17](ROADMAP.md#17-phases--milestones) · [docs/status.md](docs/status.md) · [docs/execution-plan.md](docs/execution-plan.md)
 
 ---
 
@@ -179,8 +238,10 @@ Details: [ROADMAP.md §17](ROADMAP.md#17-phases--milestones) · [docs/status.md]
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `AGENTSWARM_PLATFORM_URL` | `http://127.0.0.1:8000` | Platform base URL for agents — **public:** `https://theebie.de/agentswarm/api` |
+| `AGENTSWARM_CLIENT_DATA_DIR` | OS app-data path | Volunteer model weights + manifest (see [volunteer-client.md](docs/volunteer-client.md)) |
+| `AGENTSWARM_WORKER_IMAGE` | `agentswarm-worker:dev` | Docker image for `docker` runtime models |
 | `AGENTSWARM_DB` | `platform/data/agentswarm.db` | SQLite database path |
-| `AGENTSWARM_REPO_ROOT` | auto-detected | Repo root (agents resolve `pilot/news-hub/`) |
+| `AGENTSWARM_REPO_ROOT` | auto-detected | Repo root (agents resolve `pilot/engineering-lab/`) |
 
 ---
 

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import secrets
 import sqlite3
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -57,6 +59,7 @@ from agentswarm_platform.deploy_store import (
     get_deploy_request as get_deploy_request_row,
     insert_deploy_request,
     list_deploy_requests as list_deploy_request_rows,
+    load_deploy_request_policy,
     record_deploy_execution,
     record_deploy_signoff,
     refresh_deploy_request_status,
@@ -75,6 +78,8 @@ from agentswarm_platform.replication_store import (
     record_replication_submit,
 )
 from agentswarm_platform.credibility_ledger import (
+    apply_engineering_replication_reviewer_rewards,
+    apply_engineering_reviewer_reward,
     apply_inactivity_decay_all,
     apply_major_version_haircut,
     apply_task_outcome,
@@ -91,14 +96,16 @@ from agentswarm_platform.credibility_ledger import (
 from agentswarm_platform.credibility import credibility_enabled
 from agentswarm_platform.agent_versioning import assert_version_reconnect_allowed, classify_version_bump
 from agentswarm_platform.version_store import list_agent_versions, record_version_entry
-from agentswarm_platform.assignment_config import dispatch_enabled
+from agentswarm_platform.assignment_config import assignment_mode, dispatch_enabled
 from agentswarm_platform.presence_store import (
     ensure_presence_schema,
     set_presence_status,
+    summarize_dispatch_capacity,
     upsert_presence,
 )
 from agentswarm_platform.assignment_wait import assignment_lease_ttl_minutes
 from agentswarm_platform.dispatch_store import (
+    complete_active_assignment_for_claim,
     create_assignment_lease,
     ensure_dispatch_schema,
     get_pending_assignment_for_agent,
@@ -110,6 +117,7 @@ from agentswarm_platform.dispatch_store import (
     maintain_dispatch_pool,
     new_claim_token,
     prepare_pool_need_for_dispatch,
+    _reclaim_assignment_lease_row,
 )
 from agentswarm_platform.dispatcher import dispatch_pool_need as pick_dispatch_agent
 from agentswarm_platform.git_store import (
@@ -128,7 +136,9 @@ from agentswarm_platform.credits_ledger import (
 from agentswarm_platform.credit_pricing import post_cost, reviewer_reward_for
 from agentswarm_platform.model_allowlist import validate_model_id as validate_presence_model_id
 from agentswarm_platform.coordinator_plan import (
+    DEFAULT_ENGINEERING_RUBRIC,
     build_default_creative_goal_plan,
+    default_plan_for_goal,
     materialize_deferred_payload,
     resolve_pool_need_constraints,
     validate_coordinator_plan,
@@ -146,7 +156,9 @@ from agentswarm_platform.subjective_store import (
     resolve_goal,
     resolve_goal_appeal,
     set_goal_artifact,
+    set_goal_engineering_artifact,
     set_goal_deferred_pool_needs,
+    set_goal_workspace_ref,
     weighted_review_score,
 )
 from agentswarm_platform.models import (
@@ -168,15 +180,29 @@ class Store:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.artifacts_dir = Path(
+            os.environ.get("AGENTSWARM_ARTIFACT_DIR", str(db_path.parent / "artifacts"))
+        )
+        self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
     @contextmanager
     def _conn(self) -> Iterator[sqlite3.Connection]:
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         try:
             yield conn
-            conn.commit()
+            for attempt in range(5):
+                try:
+                    conn.commit()
+                    break
+                except sqlite3.OperationalError as exc:
+                    if "locked" not in str(exc).lower() or attempt == 4:
+                        raise
+                    time.sleep(0.02 * (2**attempt))
         finally:
             conn.close()
 
@@ -286,6 +312,9 @@ class Store:
         ensure_credits_schema(conn)
         ensure_subjective_schema(conn)
         ensure_git_schema(conn)
+        from agentswarm_platform.forge_store import ensure_forge_schema
+
+        ensure_forge_schema(conn)
         from agentswarm_platform.version_store import ensure_version_schema
         from agentswarm_platform.version_probation import ensure_probation_schema
 
@@ -922,7 +951,9 @@ class Store:
                 cap = row["capability_required"]
                 if capability_filter and cap != capability_filter:
                     continue
-                if cap not in capabilities:
+                from agentswarm_platform.capabilities import agent_satisfies_capability
+
+                if not agent_satisfies_capability(capabilities, cap):
                     continue
                 keys = row.keys()
                 task_project = (
@@ -982,7 +1013,9 @@ class Store:
                 raise ValueError("task is assignment-only; await dispatcher assignment")
             if row["status"] != TaskStatus.CREATED.value:
                 raise ValueError("task not claimable")
-            if row["capability_required"] not in agent["capabilities"]:
+            from agentswarm_platform.capabilities import agent_satisfies_capability
+
+            if not agent_satisfies_capability(agent["capabilities"], row["capability_required"]):
                 raise ValueError("agent lacks capability")
             group_id = row["replication_group_id"] if "replication_group_id" in keys else None
             if group_id:
@@ -1168,13 +1201,24 @@ class Store:
                 "codewriter.patch",
                 "codewriter.add-article",
             ):
-                self._enqueue_verification_chain(
-                    conn,
-                    parent_task_id=row["task_id"],
-                    parent_submission_id=submission_id,
-                    result_summary=result,
-                )
+                task_goal_id = task_payload.get("goal_id")
+                engineering_goal = False
+                if task_goal_id:
+                    goal_row = get_creative_goal(conn, str(task_goal_id))
+                    engineering_goal = (
+                        goal_row is not None
+                        and goal_row.get("goal_kind") == "engineering"
+                    )
+                if not engineering_goal:
+                    self._enqueue_verification_chain(
+                        conn,
+                        parent_task_id=row["task_id"],
+                        parent_submission_id=submission_id,
+                        result_summary=result,
+                    )
             claiming_agent_id = row["claimed_by"]
+            if int(row["assignment_only"] or 0) == 1:
+                complete_active_assignment_for_claim(conn, claim_token)
 
         if claiming_agent_id:
             self._mark_agent_idle_if_present(claiming_agent_id)
@@ -1469,6 +1513,8 @@ class Store:
         result: dict[str, Any],
         signature: str,
     ) -> SubmitResponse:
+        engineering_followup: dict[str, Any] | None = None
+        submission_id = ""
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
@@ -1487,6 +1533,15 @@ class Store:
             signed_payload = {"task_id": row["task_id"], "result": result}
             if not verify_payload(agent["public_key"], signed_payload, signature):
                 raise ValueError("invalid submission signature")
+
+            if result.get("sandbox"):
+                from agentswarm_platform.artifact_store import enrich_sandbox_tester_result
+
+                result = enrich_sandbox_tester_result(
+                    result,
+                    sandbox_host_owner=str(agent.get("owner") or ""),
+                    artifacts_dir=self.artifacts_dir,
+                )
 
             submission_id = f"sub_{uuid.uuid4().hex[:12]}"
             submitted_at = utc_now_iso()
@@ -1514,12 +1569,139 @@ class Store:
             )
 
             payload = json.loads(row["payload"])
-            self._maybe_enqueue_reviewer(
+            goal_id = payload.get("goal_id")
+            if goal_id:
+                goal = get_creative_goal(conn, str(goal_id))
+                if goal and goal.get("goal_kind") == "engineering":
+                    if not result.get("passed", False):
+                        resolve_goal(conn, str(goal_id), status="rejected", aggregate_score=0.0)
+                    else:
+                        engineering_followup = {
+                            "goal_id": str(goal_id),
+                            "parent_task_id": row["task_id"],
+                            "worker_agent_id": row["claimed_by"],
+                        }
+                else:
+                    self._maybe_enqueue_reviewer(
+                        conn,
+                        tester_task_id=row["task_id"],
+                        parent_submission_id=payload["parent_submission_id"],
+                        parent_task_id=payload["parent_task_id"],
+                        test_result=result,
+                    )
+            else:
+                self._maybe_enqueue_reviewer(
+                    conn,
+                    tester_task_id=row["task_id"],
+                    parent_submission_id=payload["parent_submission_id"],
+                    parent_task_id=payload["parent_task_id"],
+                    test_result=result,
+                )
+
+            complete_active_assignment_for_claim(conn, claim_token)
+
+        if engineering_followup is not None:
+            enqueued = self._execute_deferred_pool_needs_for_goal(
+                goal_id=engineering_followup["goal_id"],
+                after_task_type="tester.run",
+                parent_task_id=engineering_followup["parent_task_id"],
+                worker_agent_id=engineering_followup["worker_agent_id"],
+            )
+            self._mark_agent_idle_if_present(engineering_followup["worker_agent_id"])
+            return SubmitResponse(
+                submission_id=submission_id,
+                enqueued_task_ids=enqueued,
+            )
+
+        return SubmitResponse(submission_id=submission_id)
+
+    def complete_builder_compile_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        engineering_followup: dict[str, Any] | None = None
+        submission_id = ""
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "builder.compile":
+                raise ValueError("not a builder.compile task")
+
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+
+            if result.get("sandbox"):
+                from agentswarm_platform.artifact_store import enrich_sandbox_tester_result
+
+                result = enrich_sandbox_tester_result(
+                    result,
+                    sandbox_host_owner=str(agent.get("owner") or ""),
+                    artifacts_dir=self.artifacts_dir,
+                )
+
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.SUBMITTED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            self._append_audit(
                 conn,
-                tester_task_id=row["task_id"],
-                parent_submission_id=payload["parent_submission_id"],
-                parent_task_id=payload["parent_task_id"],
-                test_result=result,
+                "task.submitted",
+                row["claimed_by"],
+                {"task_id": row["task_id"], "submission_id": submission_id},
+            )
+
+            payload = json.loads(row["payload"])
+            goal_id = payload.get("goal_id")
+            if goal_id:
+                goal = get_creative_goal(conn, str(goal_id))
+                if goal and goal.get("goal_kind") == "engineering":
+                    if not result.get("passed", False):
+                        resolve_goal(conn, str(goal_id), status="rejected", aggregate_score=0.0)
+                    else:
+                        engineering_followup = {
+                            "goal_id": str(goal_id),
+                            "parent_task_id": row["task_id"],
+                            "worker_agent_id": row["claimed_by"],
+                        }
+
+            complete_active_assignment_for_claim(conn, claim_token)
+
+        if engineering_followup is not None:
+            enqueued = self._execute_deferred_pool_needs_for_goal(
+                goal_id=engineering_followup["goal_id"],
+                after_task_type="builder.compile",
+                parent_task_id=engineering_followup["parent_task_id"],
+                worker_agent_id=engineering_followup["worker_agent_id"],
+            )
+            return SubmitResponse(
+                submission_id=submission_id,
+                enqueued_task_ids=enqueued,
             )
 
         return SubmitResponse(submission_id=submission_id)
@@ -1552,6 +1734,75 @@ class Store:
             verdict = "approve" if result.get("approved", False) else "reject"
             submission_id = row["submission_id"] or f"sub_{uuid.uuid4().hex[:12]}"
             submitted_at = utc_now_iso()
+            payload = json.loads(row["payload"])
+            goal_id = payload.get("goal_id")
+            engineering_goal = False
+            if goal_id:
+                goal = get_creative_goal(conn, str(goal_id))
+                engineering_goal = (
+                    goal is not None and goal.get("goal_kind") == "engineering"
+                )
+
+            group_id = (
+                row["replication_group_id"]
+                if "replication_group_id" in row.keys() and row["replication_group_id"]
+                else None
+            )
+            replication_status: str | None = None
+
+            if group_id:
+                conn.execute(
+                    """
+                    UPDATE tasks
+                    SET status = ?, submitted_at = ?, submission_id = ?,
+                        submission_result = ?, submission_signature = ?
+                    WHERE task_id = ?
+                    """,
+                    (
+                        TaskStatus.SUBMITTED.value,
+                        submitted_at,
+                        submission_id,
+                        json.dumps(result),
+                        signature,
+                        row["task_id"],
+                    ),
+                )
+                shared_payload = json.loads(
+                    conn.execute(
+                        "SELECT payload FROM replication_groups WHERE group_id = ?",
+                        (group_id,),
+                    ).fetchone()["payload"]
+                )
+                resolution = record_replication_submit(
+                    conn,
+                    group_id=str(group_id),
+                    task_type=row["task_type"],
+                    payload=shared_payload,
+                    result=result,
+                )
+                replication_status = resolution["status"]
+                self._append_audit(
+                    conn,
+                    f"replication.{resolution['status']}",
+                    row["claimed_by"],
+                    {"group_id": group_id, **resolution},
+                )
+                if engineering_goal and resolution["status"] != "pending":
+                    self._finalize_engineering_goal_from_replication(
+                        conn,
+                        goal_id=str(goal_id),
+                        group_id=str(group_id),
+                        resolution=resolution,
+                        actor_id=row["claimed_by"],
+                        task_id=row["task_id"],
+                        task_type=row["task_type"],
+                    )
+                complete_active_assignment_for_claim(conn, claim_token)
+                return SubmitResponse(
+                    submission_id=submission_id,
+                    replication_status=replication_status,
+                )
+
             new_status = (
                 TaskStatus.VERIFIED.value
                 if verdict == "approve"
@@ -1574,7 +1825,49 @@ class Store:
                 ),
             )
 
-            payload = json.loads(row["payload"])
+            if engineering_goal:
+                self._append_audit(
+                    conn,
+                    "task.verified",
+                    row["claimed_by"],
+                    {
+                        "task_id": row["task_id"],
+                        "goal_id": goal_id,
+                        "verdict": verdict,
+                    },
+                )
+                resolve_goal(
+                    conn,
+                    str(goal_id),
+                    status="verified" if verdict == "approve" else "rejected",
+                    aggregate_score=1.0 if verdict == "approve" else 0.0,
+                )
+                from agentswarm_platform.forge_store import revoke_goal_forge_credential
+
+                if revoke_goal_forge_credential(conn, str(goal_id)):
+                    self._append_audit(
+                        conn,
+                        "forge.revoke",
+                        row["claimed_by"],
+                        {"goal_id": goal_id},
+                    )
+                self._append_audit(
+                    conn,
+                    f"engineering_goal.{verdict}",
+                    row["claimed_by"],
+                    {"goal_id": goal_id, "task_id": row["task_id"]},
+                )
+                if verdict == "approve":
+                    apply_engineering_reviewer_reward(
+                        conn,
+                        reviewer_agent_id=row["claimed_by"],
+                        goal_id=str(goal_id),
+                        task_id=row["task_id"],
+                        project_id=project_id_from_task_row(row),
+                    )
+                complete_active_assignment_for_claim(conn, claim_token)
+                return SubmitResponse(submission_id=submission_id)
+
             parent_submission_id = payload["parent_submission_id"]
             conn.execute(
                 "UPDATE tasks SET status = ? WHERE submission_id = ?",
@@ -1602,8 +1895,8 @@ class Store:
                     verdict=verdict,
                     reviewer_agent_id=row["claimed_by"],
                 )
-
-        return SubmitResponse(submission_id=submission_id)
+            complete_active_assignment_for_claim(conn, claim_token)
+            return SubmitResponse(submission_id=submission_id)
 
     def complete_planner_submit(
         self,
@@ -2076,7 +2369,11 @@ class Store:
             project = get_project(conn, project_id)
             if project is None:
                 raise ValueError(f"unknown project: {project_id}")
-            policy = resolve_deploy_policy(project.get("governance_config"))
+            policy = load_deploy_request_policy(
+                conn,
+                request_id,
+                project.get("governance_config"),
+            )
             capability, score = assert_deploy_signoff_allowed(
                 conn,
                 agent=agent,
@@ -2397,19 +2694,46 @@ class Store:
         *,
         project_id: str,
         environment: str,
-        artifact_ref: str,
+        artifact_ref: str | None,
         description: str | None,
         owner_id: str,
         required_signoffs: int | None = None,
         min_credibility: float | None = None,
+        goal_id: str | None = None,
     ) -> dict[str, Any]:
+        from agentswarm_platform.artifact_store import validate_deploy_artifact_ref
+        from agentswarm_platform.goal_artifacts import select_primary_deploy_artifact_ref
+        from agentswarm_platform.subjective_store import get_creative_goal
+
         resolved_project = validate_project_id(project_id)
         env = environment.strip()
-        artifact = artifact_ref.strip()
         if not env:
             raise ValueError("environment is required")
+
+        resolved_goal_id = goal_id.strip() if goal_id else None
+        artifact = artifact_ref.strip() if artifact_ref else None
+        if resolved_goal_id:
+            with self._conn() as conn:
+                goal = get_creative_goal(conn, resolved_goal_id)
+            if goal is None:
+                raise ValueError("goal not found")
+            if goal["status"] != "verified":
+                raise ValueError("deploy requests require a verified goal")
+            if not artifact:
+                artifact = goal.get("primary_artifact_ref") or select_primary_deploy_artifact_ref(
+                    goal.get("artifact_refs") or [], goal
+                )
+            if not artifact:
+                raise ValueError(
+                    "verified goal has no deployable artifact_ref; pass artifact_ref explicitly"
+                )
+            resolved_project = validate_project_id(goal["project_id"])
+
         if not artifact:
             raise ValueError("artifact_ref is required")
+
+        artifact = validate_deploy_artifact_ref(artifact, self.artifacts_dir)
+
         with self._conn() as conn:
             project = get_project(conn, resolved_project)
             if project is None:
@@ -2439,6 +2763,7 @@ class Store:
                 description=description,
                 owner_id=owner_id,
                 policy=policy,
+                goal_id=resolved_goal_id,
             )
             task_ids = enqueue_deploy_approve_tasks(
                 conn,
@@ -2457,11 +2782,34 @@ class Store:
                     "project_id": resolved_project,
                     "environment": env,
                     "artifact_ref": artifact,
+                    "goal_id": resolved_goal_id,
                     "task_ids": task_ids,
                 },
             )
             request["approve_task_ids"] = task_ids
             return request
+
+    def create_deploy_request_for_goal(
+        self,
+        *,
+        goal_id: str,
+        environment: str,
+        description: str | None,
+        owner_id: str,
+        artifact_ref: str | None = None,
+        required_signoffs: int | None = None,
+        min_credibility: float | None = None,
+    ) -> dict[str, Any]:
+        return self.create_deploy_request(
+            project_id="default",
+            environment=environment,
+            artifact_ref=artifact_ref,
+            description=description,
+            owner_id=owner_id,
+            required_signoffs=required_signoffs,
+            min_credibility=min_credibility,
+            goal_id=goal_id,
+        )
 
     def list_deploy_requests(
         self,
@@ -2600,6 +2948,8 @@ class Store:
             vram_gb=vram_gb,
         )
         with self._conn() as conn:
+            if dispatch_enabled():
+                maintain_dispatch_pool(conn)
             recorded = upsert_presence(
                 conn,
                 agent_id=agent_id,
@@ -2625,6 +2975,14 @@ class Store:
         if status == "idle" and dispatch_enabled():
             self._redispatch_pending_pool_needs(for_agent_id=agent_id)
         return recorded
+
+    def get_dispatch_capacity(self) -> dict[str, Any]:
+        with self._conn() as conn:
+            summary = summarize_dispatch_capacity(conn)
+        return {
+            "assignment_mode": assignment_mode(),
+            **summary,
+        }
 
     def _redispatch_pending_pool_needs(
         self,
@@ -2780,6 +3138,34 @@ class Store:
         assignment = self.get_pending_assignment(agent_id)
         return assignment
 
+    def _enrich_assignment_with_forge(
+        self, assignment: dict[str, Any] | None
+    ) -> dict[str, Any] | None:
+        if assignment is None:
+            return None
+        capsule = assignment.get("capsule")
+        if not isinstance(capsule, dict) or not isinstance(capsule.get("git"), dict):
+            return assignment
+        from agentswarm_platform.forge_store import (
+            forge_credentials_for_assignment,
+            get_goal_forge_credential,
+            goal_id_from_assignment_capsule,
+        )
+
+        goal_id = goal_id_from_assignment_capsule(capsule)
+        if not goal_id:
+            return assignment
+        with self._conn() as conn:
+            credential = get_goal_forge_credential(conn, goal_id)
+        if credential is None:
+            return assignment
+        enriched = dict(assignment)
+        enriched["forge_credentials"] = forge_credentials_for_assignment(
+            credential,
+            lease_expires_at=str(assignment["expires_at"]),
+        )
+        return enriched
+
     def get_pending_assignment(self, agent_id: str) -> dict[str, Any] | None:
         agent = self.get_agent(agent_id)
         if agent is None:
@@ -2797,7 +3183,17 @@ class Store:
                     self._redispatch_pending_pool_needs()
                     with self._conn() as conn:
                         assignment = get_pending_assignment_for_agent(conn, agent_id)
-        return assignment
+        return self._enrich_assignment_with_forge(assignment)
+
+    def store_artifact_blob(self, content: bytes) -> dict[str, Any]:
+        from agentswarm_platform.artifact_store import store_artifact_blob
+
+        return store_artifact_blob(content, self.artifacts_dir)
+
+    def load_artifact_blob(self, artifact_ref: str) -> bytes:
+        from agentswarm_platform.artifact_store import load_artifact_blob
+
+        return load_artifact_blob(artifact_ref, self.artifacts_dir)
 
     def _mark_agent_idle_if_present(self, agent_id: str) -> None:
         with self._conn() as conn:
@@ -2832,12 +3228,25 @@ class Store:
         pass_threshold: float = 6.0,
         difficulty: float = 1.0,
         dispatch_include_owners: list[str] | None = None,
+        goal_kind: str = "creative",
+        verification_spec: dict[str, Any] | None = None,
+        workspace: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if not dispatch_enabled():
             raise ValueError("creative goals require AGENTSWARM_ASSIGNMENT_MODE=dispatch")
-        if min_reviewers < 1:
+        resolved_kind = goal_kind.strip().lower() or "creative"
+        if resolved_kind not in ("creative", "engineering"):
+            raise ValueError("goal_kind must be creative or engineering")
+        if resolved_kind == "engineering":
+            if min_reviewers != 1:
+                min_reviewers = 1
+            if not rubric:
+                rubric = list(DEFAULT_ENGINEERING_RUBRIC)
+            if verification_spec is None:
+                verification_spec = {"fixture": "primes", "lab": "engineering-lab"}
+        elif min_reviewers < 1:
             raise ValueError("min_reviewers must be at least 1")
-        if not rubric:
+        if resolved_kind == "creative" and not rubric:
             raise ValueError("rubric must not be empty")
         poster = self.get_agent(poster_agent_id)
         if poster is None:
@@ -2853,6 +3262,9 @@ class Store:
                 min_reviewers=min_reviewers,
                 pass_threshold=pass_threshold,
                 dispatch_include_owners=dispatch_include_owners,
+                goal_kind=resolved_kind,
+                verification_spec=verification_spec,
+                workspace=workspace,
             )
             if credits_enabled():
                 cost = post_cost("creative.goal", difficulty=difficulty)
@@ -2864,6 +3276,43 @@ class Store:
                     ref_type="creative_goal",
                     ref_id=goal_id,
                 )
+            if (
+                resolved_kind == "engineering"
+                and isinstance(workspace, dict)
+                and workspace.get("mode") == "git"
+                and workspace.get("repo_url")
+            ):
+                from agentswarm_platform.forge_store import mint_goal_forge_credential
+
+                credential = mint_goal_forge_credential(
+                    conn,
+                    goal_id=goal_id,
+                    repo_url=str(workspace["repo_url"]),
+                )
+                self._append_audit(
+                    conn,
+                    "forge.mint",
+                    poster_agent_id,
+                    {"goal_id": goal_id, "repo_url": str(workspace["repo_url"])},
+                )
+                if credential.get("public_key_openssh"):
+                    from agentswarm_platform.forge_deploy_keys import (
+                        forge_auto_install_enabled,
+                        install_forge_deploy_public_key,
+                    )
+
+                    if forge_auto_install_enabled():
+                        installed = install_forge_deploy_public_key(credential)
+                        if installed:
+                            self._append_audit(
+                                conn,
+                                "forge.install",
+                                poster_agent_id,
+                                {
+                                    "goal_id": goal_id,
+                                    "credential_id": credential.get("credential_id"),
+                                },
+                            )
         coordinator_payload = {
             "goal_id": goal_id,
             "capsule": {
@@ -2871,6 +3320,9 @@ class Store:
                 "brief": brief,
                 "rubric": rubric,
                 "min_reviewers": min_reviewers,
+                "goal_kind": resolved_kind,
+                "verification_spec": verification_spec,
+                "workspace": workspace,
             },
         }
         coordinator_task = self.create_task(
@@ -2897,6 +3349,104 @@ class Store:
             "goal_id": goal_id,
             "coordinator_task_id": coordinator_task.task_id,
             "status": "pending",
+            "goal_kind": resolved_kind,
+        }
+
+    def realign_goal_dispatch(
+        self,
+        goal_id: str,
+        *,
+        include_owners: list[str],
+    ) -> dict[str, Any]:
+        """Reclaim assignments outside include_owners and redispatch pending needs for a goal."""
+        include_set = {str(owner).strip() for owner in include_owners if str(owner).strip()}
+        if not include_set:
+            raise ValueError("include_owners must not be empty")
+        goal = self.get_creative_goal_status(goal_id)
+        if goal is None:
+            raise ValueError("goal not found")
+        if goal["status"] in ("verified", "rejected"):
+            raise ValueError(f"goal already terminal (status={goal['status']})")
+
+        reclaimed: list[str] = []
+        updated: list[str] = []
+        redispatched: list[str] = []
+        now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        pattern = f"%{goal_id}%"
+
+        with self._conn() as conn:
+            maintain_dispatch_pool(conn)
+            need_rows = conn.execute(
+                """
+                SELECT pn.need_id, pn.status, pn.lease_id, pn.task_id, pn.assigned_agent_id,
+                       pn.constraints_json
+                FROM pool_needs pn
+                JOIN tasks t ON t.task_id = pn.task_id
+                WHERE t.payload LIKE ?
+                """,
+                (pattern,),
+            ).fetchall()
+            for row in need_rows:
+                need_id = str(row["need_id"])
+                constraints = json.loads(row["constraints_json"])
+                constraints["include_owners"] = sorted(include_set)
+                conn.execute(
+                    "UPDATE pool_needs SET constraints_json = ? WHERE need_id = ?",
+                    (json.dumps(constraints), need_id),
+                )
+                updated.append(need_id)
+
+                assigned_id = row["assigned_agent_id"]
+                if row["status"] != "assigned" or not assigned_id:
+                    continue
+                agent = conn.execute(
+                    "SELECT owner FROM agents WHERE agent_id = ?",
+                    (assigned_id,),
+                ).fetchone()
+                owner = str(agent["owner"] or "") if agent is not None else ""
+                if owner in include_set:
+                    continue
+                lease_id = row["lease_id"]
+                if not lease_id:
+                    continue
+                lease_row = conn.execute(
+                    """
+                    SELECT lease_id, need_id, agent_id, task_id
+                    FROM assignment_leases
+                    WHERE lease_id = ? AND status = 'active'
+                    """,
+                    (lease_id,),
+                ).fetchone()
+                if lease_row is None:
+                    continue
+                reclaimed_need = _reclaim_assignment_lease_row(conn, lease_row, now_iso=now_iso)
+                if reclaimed_need is not None:
+                    reclaimed.append(reclaimed_need)
+
+            update_goal = conn.execute(
+                "SELECT dispatch_include_owners_json FROM creative_goals WHERE goal_id = ?",
+                (goal_id,),
+            ).fetchone()
+            if update_goal is not None:
+                conn.execute(
+                    """
+                    UPDATE creative_goals
+                    SET dispatch_include_owners_json = ?
+                    WHERE goal_id = ?
+                    """,
+                    (json.dumps(sorted(include_set)), goal_id),
+                )
+
+        for need_id in updated:
+            if self._dispatch_need(need_id) is not None:
+                redispatched.append(need_id)
+
+        return {
+            "goal_id": goal_id,
+            "include_owners": sorted(include_set),
+            "updated_need_ids": updated,
+            "reclaimed_need_ids": reclaimed,
+            "redispatched_need_ids": redispatched,
         }
 
     def get_creative_goal_status(self, goal_id: str) -> dict[str, Any] | None:
@@ -2910,6 +3460,174 @@ class Store:
         if appeal is not None:
             goal["appeal"] = appeal
         return goal
+
+    def get_goal_trace(self, goal_id: str) -> dict[str, Any] | None:
+        from agentswarm_platform.goal_trace import (
+            ROLE_ORDER,
+            describe_task_work,
+            engineering_code_workspace,
+            pipeline_phase,
+            role_label,
+            sandbox_host_for_step,
+            log_artifact_ref_for_step,
+            summarize_task_result,
+            workspace_ref_for_step,
+        )
+
+        goal = self.get_creative_goal_status(goal_id)
+        if goal is None:
+            return None
+        pattern = f"%{goal_id}%"
+        with self._conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT t.task_id, t.task_type, t.capability_required, t.status,
+                       t.claimed_by, t.created_at, t.submitted_at, t.submission_result,
+                       t.payload, a.owner
+                FROM tasks t
+                LEFT JOIN agents a ON a.agent_id = t.claimed_by
+                WHERE t.payload LIKE ?
+                ORDER BY t.created_at ASC
+                """,
+                (pattern,),
+            ).fetchall()
+            audit_rows = conn.execute(
+                """
+                SELECT seq, timestamp, event_type, actor_id, details
+                FROM audit_log
+                WHERE details LIKE ?
+                ORDER BY seq ASC
+                """,
+                (pattern,),
+            ).fetchall()
+
+        steps: list[dict[str, Any]] = []
+        for index, row in enumerate(rows, start=1):
+            raw_result = row["submission_result"]
+            result = json.loads(raw_result) if raw_result else None
+            raw_payload = row["payload"]
+            payload = json.loads(raw_payload) if raw_payload else {}
+            task_type = str(row["task_type"])
+            work_description = describe_task_work(
+                task_type,
+                payload if isinstance(payload, dict) else {},
+            )
+            steps.append(
+                {
+                    "seq": index,
+                    "role": role_label(task_type),
+                    "phase": pipeline_phase(task_type),
+                    "task_type": task_type,
+                    "task_id": str(row["task_id"]),
+                    "capability": str(row["capability_required"]),
+                    "status": str(row["status"]),
+                    "agent_id": row["claimed_by"],
+                    "owner": str(row["owner"] or ""),
+                    "created_at": row["created_at"],
+                    "submitted_at": row["submitted_at"],
+                    "result_summary": summarize_task_result(
+                        task_type,
+                        result if isinstance(result, dict) else None,
+                    ),
+                    "work_description": work_description,
+                    "workspace_ref": workspace_ref_for_step(
+                        task_type,
+                        payload if isinstance(payload, dict) else {},
+                        result if isinstance(result, dict) else None,
+                    ),
+                    "sandbox_host_owner": sandbox_host_for_step(
+                        result if isinstance(result, dict) else None
+                    ),
+                    "log_artifact_ref": log_artifact_ref_for_step(
+                        result if isinstance(result, dict) else None
+                    ),
+                    "result": result if isinstance(result, dict) else None,
+                }
+            )
+        steps.sort(
+            key=lambda step: (
+                ROLE_ORDER.get(str(step["task_type"]), 99),
+                step.get("submitted_at") or step.get("created_at") or "",
+            )
+        )
+        for index, step in enumerate(steps, start=1):
+            step["seq"] = index
+
+        events: list[dict[str, Any]] = []
+        for row in audit_rows:
+            details_raw = row["details"]
+            details = json.loads(details_raw) if details_raw else {}
+            events.append(
+                {
+                    "seq": int(row["seq"]),
+                    "timestamp": str(row["timestamp"]),
+                    "event_type": str(row["event_type"]),
+                    "actor_id": row["actor_id"],
+                    "details": details if isinstance(details, dict) else {},
+                }
+            )
+
+        coordinator_task_id = None
+        for step in steps:
+            if step["task_type"] == "coordinator.decompose":
+                coordinator_task_id = step["task_id"]
+                break
+
+        active_step: dict[str, Any] | None = None
+        for step in steps:
+            if str(step.get("status", "")).lower() == "claimed":
+                active_step = {
+                    "role": step["role"],
+                    "phase": step.get("phase", ""),
+                    "task_type": step["task_type"],
+                    "task_id": step["task_id"],
+                    "owner": step.get("owner", ""),
+                    "agent_id": step.get("agent_id"),
+                    "work_description": step.get("work_description", ""),
+                    "sandbox_host_owner": step.get("sandbox_host_owner"),
+                }
+                break
+        if active_step is None:
+            for step in steps:
+                status = str(step.get("status", "")).lower()
+                if status in ("created", "pending") and not step.get("submitted_at"):
+                    active_step = {
+                        "role": step["role"],
+                        "phase": step.get("phase", ""),
+                        "task_type": step["task_type"],
+                        "task_id": step["task_id"],
+                        "owner": step.get("owner", "") or "(awaiting dispatch)",
+                        "agent_id": step.get("agent_id"),
+                        "work_description": step.get("work_description", ""),
+                        "sandbox_host_owner": step.get("sandbox_host_owner"),
+                    }
+                    break
+
+        code_workspace = None
+        if str(goal.get("goal_kind", "")) == "engineering":
+            verification_spec = goal.get("verification_spec")
+            if isinstance(verification_spec, dict):
+                code_workspace = engineering_code_workspace(
+                    verification_spec,
+                    workspace=goal.get("workspace"),
+                    workspace_ref=goal.get("workspace_ref"),
+                )
+
+        return {
+            "goal_id": goal_id,
+            "status": str(goal.get("status", "")),
+            "brief": str(goal.get("brief", "")),
+            "goal_kind": str(goal.get("goal_kind", "creative")),
+            "coordinator_task_id": coordinator_task_id,
+            "artifact_text": goal.get("artifact_text"),
+            "workspace_ref": goal.get("workspace_ref"),
+            "artifact_refs": list(goal.get("artifact_refs") or []),
+            "primary_artifact_ref": goal.get("primary_artifact_ref"),
+            "active_step": active_step,
+            "code_workspace": code_workspace,
+            "steps": steps,
+            "events": events,
+        }
 
     def file_creative_goal_appeal(
         self,
@@ -3064,6 +3782,122 @@ class Store:
         )
         return created.task_id
 
+    def _emit_replication_pool_needs(
+        self,
+        *,
+        spec: dict[str, Any],
+        parent_task_id: str,
+        project_id: str,
+        goal: dict[str, Any],
+        poster_owner: str,
+        worker_agent_id: str | None = None,
+        payload: dict[str, Any],
+        config: ReplicationConfig,
+    ) -> list[str]:
+        constraints = resolve_pool_need_constraints(
+            spec.get("constraints"),
+            goal=goal,
+            poster_owner=poster_owner,
+            worker_agent_id=worker_agent_id,
+        )
+        shared = shared_replication_payload(payload)
+        group_id = f"repl_{uuid.uuid4().hex[:12]}"
+        created_at = utc_now_iso()
+        task_ids: list[str] = []
+        need_ids: list[str] = []
+        with self._conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO replication_groups (
+                    group_id, task_type, capability_required, payload,
+                    slots, quorum, status, created_at, parallel_kind, good_attempt_mint
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    group_id,
+                    spec["task_type"],
+                    spec["capability_required"],
+                    json.dumps(shared),
+                    config.slots,
+                    config.quorum,
+                    "pending",
+                    created_at,
+                    config.kind,
+                    config.good_attempt_mint,
+                ),
+            )
+            for slot in range(config.slots):
+                task_id = f"task_{uuid.uuid4().hex[:12]}"
+                slot_payload = {
+                    **shared,
+                    "replication_group_id": group_id,
+                    "replication_slot": slot,
+                }
+                conn.execute(
+                    """
+                    INSERT INTO tasks (
+                        task_id, task_type, capability_required, status, payload,
+                        parent_task_id, parent_submission_id, created_at,
+                        replication_group_id, replication_slot, project_id,
+                        assignment_only
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        task_id,
+                        spec["task_type"],
+                        spec["capability_required"],
+                        TaskStatus.CREATED.value,
+                        json.dumps(slot_payload),
+                        parent_task_id,
+                        None,
+                        created_at,
+                        group_id,
+                        slot,
+                        project_id,
+                        1,
+                    ),
+                )
+                need_id = insert_pool_need(
+                    conn,
+                    role=spec["role"],
+                    capability_required=spec["capability_required"],
+                    task_id=task_id,
+                    project_id=project_id,
+                    parent_task_id=parent_task_id,
+                    constraints=constraints,
+                )
+                task_ids.append(task_id)
+                need_ids.append(need_id)
+                self._append_audit(
+                    conn,
+                    "pool.need",
+                    None,
+                    {
+                        "need_id": need_id,
+                        "role": spec["role"],
+                        "task_id": task_id,
+                        "constraints": constraints,
+                        "replication_group_id": group_id,
+                        "replication_slot": slot,
+                    },
+                )
+            self._append_audit(
+                conn,
+                "replication.created",
+                None,
+                {
+                    "group_id": group_id,
+                    "task_type": spec["task_type"],
+                    "slots": config.slots,
+                    "quorum": config.quorum,
+                    "parallel_kind": config.kind,
+                    "goal_id": goal.get("goal_id"),
+                },
+            )
+        for need_id in need_ids:
+            self._dispatch_need(need_id)
+        return task_ids
+
     def _execute_coordinator_plan(
         self,
         *,
@@ -3119,17 +3953,32 @@ class Store:
                 remaining.append(entry)
                 continue
             spec = entry["spec"]
-            count = int(spec.get("count", 1))
             payload_template = spec["payload_template"]
+            payload = materialize_deferred_payload(payload_template, goal=goal)
+            pool_spec = {
+                "role": spec["role"],
+                "capability_required": spec["capability_required"],
+                "task_type": spec["task_type"],
+                "constraints": spec.get("constraints"),
+            }
+            replication = parse_replication_config(spec["task_type"], payload)
+            if replication is not None:
+                task_ids = self._emit_replication_pool_needs(
+                    spec=pool_spec,
+                    parent_task_id=parent_task_id,
+                    project_id=goal["project_id"],
+                    goal=goal,
+                    poster_owner=poster["owner"],
+                    worker_agent_id=worker_agent_id,
+                    payload=payload,
+                    config=replication,
+                )
+                enqueued.extend(task_ids)
+                continue
+            count = int(spec.get("count", 1))
             for _ in range(count):
-                payload = materialize_deferred_payload(payload_template, goal=goal)
                 task_id = self._emit_pool_need_spec(
-                    spec={
-                        "role": spec["role"],
-                        "capability_required": spec["capability_required"],
-                        "task_type": spec["task_type"],
-                        "constraints": spec.get("constraints"),
-                    },
+                    spec=pool_spec,
                     parent_task_id=parent_task_id,
                     project_id=goal["project_id"],
                     goal=goal,
@@ -3143,7 +3992,81 @@ class Store:
                 set_goal_deferred_pool_needs(conn, goal_id, remaining)
             else:
                 clear_goal_deferred_pool_needs(conn, goal_id)
+        if enqueued:
+            self._redispatch_pending_pool_needs()
         return enqueued
+
+    def _finalize_engineering_goal_from_replication(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        goal_id: str,
+        group_id: str,
+        resolution: dict[str, Any],
+        actor_id: str,
+        task_id: str,
+        task_type: str,
+    ) -> None:
+        if resolution["status"] == "quorum_met":
+            approved = bool(resolution.get("winning_result", {}).get("approved"))
+            goal_status = "verified" if approved else "rejected"
+            aggregate_score = 1.0 if approved else 0.0
+            verdict = "approve" if approved else "reject"
+        else:
+            goal_status = "rejected"
+            aggregate_score = 0.0
+            verdict = "reject"
+        self._append_audit(
+            conn,
+            "task.verified",
+            actor_id,
+            {
+                "task_id": task_id,
+                "goal_id": goal_id,
+                "verdict": verdict,
+                "replication_status": resolution["status"],
+            },
+        )
+        resolve_goal(conn, goal_id, status=goal_status, aggregate_score=aggregate_score)
+        from agentswarm_platform.forge_store import revoke_goal_forge_credential
+
+        if revoke_goal_forge_credential(conn, goal_id):
+            self._append_audit(
+                conn,
+                "forge.revoke",
+                actor_id,
+                {"goal_id": goal_id},
+            )
+        self._append_audit(
+            conn,
+            f"engineering_goal.{verdict}",
+            actor_id,
+            {
+                "goal_id": goal_id,
+                "task_id": task_id,
+                "replication_status": resolution["status"],
+            },
+        )
+        if resolution["status"] == "quorum_met" and approved:
+            goal = get_creative_goal(conn, goal_id)
+            project_id = str(goal["project_id"]) if goal is not None else "default"
+            group_row = conn.execute(
+                "SELECT winning_fingerprint FROM replication_groups WHERE group_id = ?",
+                (group_id,),
+            ).fetchone()
+            winning_fingerprint = (
+                str(group_row["winning_fingerprint"])
+                if group_row is not None and group_row["winning_fingerprint"]
+                else None
+            )
+            apply_engineering_replication_reviewer_rewards(
+                conn,
+                group_id=group_id,
+                goal_id=goal_id,
+                project_id=project_id,
+                task_type=task_type,
+                winning_fingerprint=winning_fingerprint,
+            )
 
     def _maybe_finalize_subjective_quorum(self, conn: sqlite3.Connection, goal_id: str) -> None:
         goal = get_creative_goal(conn, goal_id)
@@ -3222,6 +4145,7 @@ class Store:
                 row["claimed_by"],
                 {"task_id": row["task_id"], "goal_id": goal_id},
             )
+            complete_active_assignment_for_claim(conn, claim_token)
             claiming_agent_id = row["claimed_by"]
         self._mark_agent_idle_if_present(claiming_agent_id)
         with self._conn() as conn:
@@ -3229,8 +4153,12 @@ class Store:
         if goal is None:
             raise ValueError("goal not found")
         if "pool_needs" not in result:
-            result = build_default_creative_goal_plan(goal)
-        plan = validate_coordinator_plan(result, goal_id=goal_id)
+            result = default_plan_for_goal(goal)
+        plan = validate_coordinator_plan(
+            result,
+            goal_id=goal_id,
+            goal_kind=str(goal.get("goal_kind", "creative")),
+        )
         enqueued = self._execute_coordinator_plan(
             plan=plan,
             coordinator_task_id=row["task_id"],
@@ -3238,6 +4166,90 @@ class Store:
         return SubmitResponse(
             submission_id=submission_id,
             enqueued_task_ids=enqueued,
+        )
+
+    def complete_codewriter_patch_goal_submit(
+        self,
+        claim_token: str,
+        result: dict[str, Any],
+        signature: str,
+    ) -> SubmitResponse:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE claim_token = ?", (claim_token,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("invalid claim token")
+            if row["task_type"] != "codewriter.patch":
+                raise ValueError("not a codewriter.patch task")
+            agent = self.get_agent(row["claimed_by"])
+            if agent is None:
+                raise ValueError("claiming agent missing")
+            from agentswarm_platform.crypto import verify_payload
+
+            signed_payload = {"task_id": row["task_id"], "result": result}
+            if not verify_payload(agent["public_key"], signed_payload, signature):
+                raise ValueError("invalid submission signature")
+            payload = json.loads(row["payload"])
+            goal_id = payload.get("goal_id")
+            if not goal_id:
+                raise ValueError("engineering codewriter task missing goal_id")
+            goal = get_creative_goal(conn, str(goal_id))
+            if goal is None or goal.get("goal_kind") != "engineering":
+                raise ValueError("codewriter goal submit requires engineering goal")
+            if not result.get("applied", False):
+                raise ValueError("codewriter.patch result must set applied=true")
+            artifact = json.dumps(result, indent=2)
+            set_goal_engineering_artifact(conn, str(goal_id), artifact)
+            workspace_ref = result.get("workspace_ref")
+            if workspace_ref:
+                set_goal_workspace_ref(conn, str(goal_id), str(workspace_ref))
+            submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+            submitted_at = utc_now_iso()
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, submitted_at = ?, submission_id = ?,
+                    submission_result = ?, submission_signature = ?
+                WHERE task_id = ?
+                """,
+                (
+                    TaskStatus.VERIFIED.value,
+                    submitted_at,
+                    submission_id,
+                    json.dumps(result),
+                    signature,
+                    row["task_id"],
+                ),
+            )
+            self._append_audit(
+                conn,
+                "codewriter.patch.completed",
+                row["claimed_by"],
+                {"task_id": row["task_id"], "goal_id": goal_id},
+            )
+            git_artifact = result.get("git_artifact")
+            if isinstance(git_artifact, dict):
+                insert_git_artifact(
+                    conn,
+                    submission_id=submission_id,
+                    task_id=row["task_id"],
+                    project_id=goal["project_id"],
+                    artifact=git_artifact,
+                )
+            complete_active_assignment_for_claim(conn, claim_token)
+            parent_task_id = row["task_id"]
+            claiming_agent_id = row["claimed_by"]
+        self._mark_agent_idle_if_present(claiming_agent_id)
+        followup_task_ids = self._execute_deferred_pool_needs_for_goal(
+            goal_id=str(goal_id),
+            after_task_type="codewriter.patch",
+            parent_task_id=parent_task_id,
+            worker_agent_id=claiming_agent_id,
+        )
+        return SubmitResponse(
+            submission_id=submission_id,
+            enqueued_task_ids=followup_task_ids,
         )
 
     def complete_creative_text_submit(
@@ -3294,6 +4306,7 @@ class Store:
                 row["claimed_by"],
                 {"task_id": row["task_id"], "goal_id": goal_id},
             )
+            complete_active_assignment_for_claim(conn, claim_token)
             parent_task_id = row["task_id"]
             claiming_agent_id = row["claimed_by"]
         self._mark_agent_idle_if_present(claiming_agent_id)
@@ -3377,6 +4390,7 @@ class Store:
                 {"task_id": row["task_id"], "goal_id": goal_id},
             )
             self._maybe_finalize_subjective_quorum(conn, goal_id)
+            complete_active_assignment_for_claim(conn, claim_token)
             claiming_agent_id = row["claimed_by"]
         self._mark_agent_idle_if_present(claiming_agent_id)
         return SubmitResponse(submission_id=submission_id)

@@ -32,6 +32,7 @@ else
   exit 1
 fi
 
+ssh "$HOST" "find '$REMOTE_ROOT/scripts/remote' -name '*.sh' -exec sed -i 's/\\r$//' {} + 2>/dev/null || true"
 ssh "$HOST" "chmod +x '$REMOTE_ROOT/scripts/remote/install_swarm_theebie.sh' && bash '$REMOTE_ROOT/scripts/remote/install_swarm_theebie.sh'"
 
 ssh "$HOST" "systemctl restart agentswarm-platform"

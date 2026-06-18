@@ -76,3 +76,14 @@ def resolve_deploy_policy_for_environment(
         min_credibility=max(0.0, min_cred),
         signoff_capabilities=caps or ("reviewer", "deployer"),
     )
+
+
+def deploy_approve_stake_tier(min_credibility: float) -> str:
+    """Align deploy.approve claim tier with the request credibility floor."""
+    from agentswarm_platform.credibility import TIER_HIGH_MIN, TIER_MEDIUM_MIN
+
+    if min_credibility >= TIER_HIGH_MIN:
+        return "high"
+    if min_credibility >= TIER_MEDIUM_MIN:
+        return "medium"
+    return "low"

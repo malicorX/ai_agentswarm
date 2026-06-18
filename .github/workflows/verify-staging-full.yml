@@ -40,5 +40,9 @@ jobs:
           AGENTSWARM_VERIFY_NEWS_ENQUEUE_ONLY: "1"
           AGENTSWARM_VERIFY_SKIP_PREP: "1"
           AGENTSWARM_VERIFY_SKIP_SUBJECTIVE_DEMO: "1"
+          AGENTSWARM_VERIFY_SKIP_ENGINEERING_DEMO: "0"
+          AGENTSWARM_VERIFY_ENGINEERING_FIXTURE: "primes"
           AGENTSWARM_VERIFY_SUBJECTIVE_MIN_REVIEWERS: "1"
+          AGENTSWARM_VERIFY_DEPLOY_FROM_GOAL: "1"
+          AGENTSWARM_VERIFY_DEPLOY_SIGNOFF_CHAIN: "1"
         run: python scripts/verify_production_staging.py https://theebie.de/agentswarm/api

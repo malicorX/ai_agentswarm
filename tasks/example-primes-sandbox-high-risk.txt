@@ -1,0 +1,8 @@
+---
+goal_kind: engineering
+fixture: primes
+workspace_mode: sandbox
+risk_level: high
+---
+Create a Python script that writes out the first 100 primes, one per line.
+Sandbox execution with elevated reviewer VRAM gate (12 GB minimum when hardware gates are enforced).

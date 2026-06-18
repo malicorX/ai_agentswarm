@@ -53,6 +53,8 @@ _P7_UNIT_TESTS = (
     "platform/tests/test_hardware_gates.py",
     "platform/tests/test_creative_appeal.py",
     "platform/tests/test_assignment_long_poll.py",
+    "platform/tests/test_engineering_goal.py",
+    "platform/tests/test_coordinator_plan.py",
 )
 
 
@@ -164,6 +166,12 @@ def verify_production_staging(
         expect_enforced=expect_hardware,
     )
 
+    if results["platform"].get("assignment_mode") == "dispatch":
+        goal_deploy_mod = _load_script_module(
+            "verify_goal_deploy_staging", scripts / "verify_goal_deploy_staging.py"
+        )
+        results["goal_deploy"] = goal_deploy_mod.verify_goal_deploy_staging(clean)
+
     external_mod = _load_script_module(
         "verify_external_contributor", scripts / "verify_external_contributor.py"
     )
@@ -181,6 +189,8 @@ def verify_production_staging(
     if results["platform"].get("assignment_mode") == "dispatch":
         _run_pytest("platform/tests/test_dispatch.py")
         results["unit_dispatch"] = "passed"
+        _run_pytest("platform/tests/test_goal_deploy_bridge.py")
+        results["unit_goal_deploy"] = "passed"
 
     if not quick:
         for relative in _P7_UNIT_TESTS:
@@ -220,6 +230,24 @@ def verify_production_staging(
                     )
                 else:
                     results["volunteer_subjective"] = "skipped_no_assignment_secret"
+
+            if not _env_flag("AGENTSWARM_VERIFY_SKIP_ENGINEERING_DEMO", default=False):
+                if os.environ.get("AGENTSWARM_ASSIGNMENT_SECRET", "").strip():
+                    engineering_mod = _load_script_module(
+                        "verify_engineering_goal_staging",
+                        scripts / "verify_engineering_goal_staging.py",
+                    )
+                    fixture = os.environ.get(
+                        "AGENTSWARM_VERIFY_ENGINEERING_FIXTURE", "primes"
+                    )
+                    results["engineering_goal"] = engineering_mod.verify_engineering_goal_staging(
+                        clean,
+                        fixture=fixture,
+                    )
+                else:
+                    results["engineering_goal"] = "skipped_no_assignment_secret"
+            else:
+                results["engineering_goal"] = "skipped"
 
         if not _env_flag("AGENTSWARM_VERIFY_SKIP_NEWS", default=False):
             news_mod = _load_script_module(

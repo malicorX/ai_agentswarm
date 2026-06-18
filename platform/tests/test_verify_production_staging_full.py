@@ -101,6 +101,15 @@ def test_verify_production_staging_full_orchestration() -> None:
                     },
                 ),
                 type(
+                    "GoalDeployMod",
+                    (),
+                    {
+                        "verify_goal_deploy_staging": staticmethod(
+                            lambda url, **kwargs: {"deploy_from_goal": "ok"}
+                        )
+                    },
+                ),
+                type(
                     "ExternalMod",
                     (),
                     {
@@ -135,6 +144,19 @@ def test_verify_production_staging_full_orchestration() -> None:
                         )
                     },
                 ),
+                type(
+                    "EngineeringMod",
+                    (),
+                    {
+                        "verify_engineering_goal_staging": staticmethod(
+                            lambda url, **kwargs: {
+                                "goal_status": "verified",
+                                "goal_id": "goal-eng-ci",
+                                "fixture": kwargs.get("fixture", "primes"),
+                            }
+                        )
+                    },
+                ),
             ],
         ),
         patch.dict(os.environ, {"AGENTSWARM_ASSIGNMENT_SECRET": "test-secret"}),
@@ -156,7 +178,9 @@ def test_verify_production_staging_full_orchestration() -> None:
     assert result["creative_appeal"]["get_missing_goal"] == "404"
     assert result["lease_reclaim"]["stale_reclaim"] == "ok"
     assert result["volunteer_subjective"]["goal_status"] == "verified"
+    assert result["engineering_goal"]["goal_status"] == "verified"
+    assert result["goal_deploy"]["deploy_from_goal"] == "ok"
     assert result["news_pipeline"] == "skipped"
     assert result["mcp_adapter"] == "passed"
     assert appeal_calls == ["https://theebie.de/agentswarm/api"]
-    assert mock_pytest.call_count == 10
+    assert mock_pytest.call_count == 13

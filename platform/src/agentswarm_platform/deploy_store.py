@@ -7,7 +7,11 @@ from typing import Any, Callable
 
 from agentswarm_platform.credibility import credibility_enabled
 from agentswarm_platform.credibility_ledger import get_balance
-from agentswarm_platform.deploy_policy import DeployPolicy
+from agentswarm_platform.deploy_policy import (
+    DeployPolicy,
+    deploy_approve_stake_tier,
+    resolve_deploy_policy_for_environment,
+)
 from agentswarm_platform.models import TaskStatus, utc_now_iso
 
 
@@ -60,6 +64,8 @@ def ensure_deploy_schema(conn: sqlite3.Connection) -> None:
     ):
         if column not in request_columns:
             conn.execute(ddl)
+    if "goal_id" not in request_columns:
+        conn.execute("ALTER TABLE deploy_requests ADD COLUMN goal_id TEXT")
 
 
 def reject_deploy_request(
@@ -84,6 +90,33 @@ def reject_deploy_request(
         WHERE request_id = ?
         """,
         ("rejected", f"\nRejected: {reason}", request_id),
+    )
+
+
+def load_deploy_request_policy(
+    conn: sqlite3.Connection,
+    request_id: str,
+    governance_config: dict[str, Any] | None,
+) -> DeployPolicy:
+    """Resolve effective deploy policy for an existing request."""
+    row = conn.execute(
+        """
+        SELECT environment, required_signoffs, min_credibility
+        FROM deploy_requests
+        WHERE request_id = ?
+        """,
+        (request_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError("deploy request not found")
+    base_policy = resolve_deploy_policy_for_environment(
+        governance_config,
+        str(row["environment"]),
+    )
+    return DeployPolicy(
+        required_signoffs=int(row["required_signoffs"]),
+        min_credibility=float(row["min_credibility"]),
+        signoff_capabilities=base_policy.signoff_capabilities,
     )
 
 
@@ -126,6 +159,7 @@ def insert_deploy_request(
     description: str | None,
     owner_id: str,
     policy: DeployPolicy,
+    goal_id: str | None = None,
 ) -> dict[str, Any]:
     ensure_deploy_schema(conn)
     request_id = f"deploy_{uuid.uuid4().hex[:12]}"
@@ -135,8 +169,8 @@ def insert_deploy_request(
         INSERT INTO deploy_requests (
             request_id, project_id, environment, artifact_ref, description,
             status, required_signoffs, min_credibility, created_at,
-            created_by_owner_id, approved_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            created_by_owner_id, approved_at, goal_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             request_id,
@@ -150,6 +184,7 @@ def insert_deploy_request(
             created_at,
             owner_id,
             None,
+            goal_id,
         ),
     )
     return get_deploy_request(conn, request_id) or {}
@@ -172,7 +207,7 @@ def enqueue_deploy_approve_tasks(
         task_id = f"task_{uuid.uuid4().hex[:12]}"
         payload = {
             "request_id": request_id,
-            "stake_tier": "high",
+            "stake_tier": deploy_approve_stake_tier(policy.min_credibility),
             "slot": slot,
         }
         conn.execute(
@@ -461,6 +496,7 @@ def get_deploy_request(conn: sqlite3.Connection, request_id: str) -> dict[str, A
         ),
         "execution_result": execution_result,
         "execute_task_id": row["execute_task_id"] if "execute_task_id" in keys else None,
+        "goal_id": row["goal_id"] if "goal_id" in keys and row["goal_id"] else None,
     }
 
 

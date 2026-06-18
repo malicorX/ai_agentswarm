@@ -30,7 +30,7 @@ def test_client_and_platform_allowlists_match() -> None:
 
 def test_public_parameters_include_allowlist() -> None:
     params = public_parameters()
-    assert params["version"] == "2"
+    assert params["version"] == "3"
     assert params["enforced"] is False
     assert any(item["id"] == "llm-mock-v1" for item in params["allowlist"])
 
@@ -54,7 +54,7 @@ def test_platform_config_exposes_models_allowlist(dispatch_client: TestClient) -
     assert response.status_code == 200
     models = response.json().get("models")
     assert isinstance(models, dict)
-    assert models["version"] == "2"
+    assert models["version"] == "3"
     assert "llm-mock-v1" in allowed_model_ids()
 
 

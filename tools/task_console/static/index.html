@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentSwarm Task Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #3fb950;
+      --accent-dim: #238636;
+      --warn: #d29922;
+      --danger: #f85149;
+      --role-coord: #58a6ff;
+      --role-code: #3fb950;
+      --role-test: #d29922;
+      --role-review: #bc8cff;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+      --sans: "IBM Plex Sans", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(1200px 600px at 10% -10%, #1f3d2a 0%, transparent 55%),
+                  radial-gradient(900px 500px at 100% 0%, #1a2a44 0%, transparent 50%),
+                  var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.5;
+    }
+    header {
+      padding: 1.25rem 1.5rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      background: #0d1117cc;
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin: 0.25rem 0 0; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(280px, 340px) 1fr;
+      gap: 1rem;
+      padding: 1rem 1.5rem 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    .panel h2 {
+      margin: 0 0 0.75rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    input, select, button, textarea {
+      font: inherit;
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0d1117;
+      color: var(--text);
+      padding: 0.45rem 0.6rem;
+    }
+    textarea { min-height: 72px; resize: vertical; font-family: var(--mono); font-size: 0.8rem; }
+    .field { margin-bottom: 0.75rem; }
+    .row { display: flex; gap: 0.5rem; align-items: center; }
+    .row > * { flex: 1; }
+    button {
+      cursor: pointer;
+      font-weight: 600;
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
+      border: none;
+      color: #041007;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: #21262d;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .badge.phase {
+      background: #1c2128;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.65rem;
+    }
+    .badge.ok { color: var(--accent); border-color: var(--accent-dim); }
+    .badge.warn { color: var(--warn); }
+    .badge.bad { color: var(--danger); }
+    .goal-line {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      word-break: break-all;
+      margin-top: 0.5rem;
+    }
+    .pipeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-top: 0.5rem;
+    }
+    .step {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 0.75rem;
+      position: relative;
+      padding-bottom: 1rem;
+    }
+    .step:not(:last-child)::before {
+      content: "";
+      position: absolute;
+      left: 13px;
+      top: 28px;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .step-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: #0d1117;
+      z-index: 1;
+    }
+    .step.done .step-dot { border-color: var(--accent); color: var(--accent); }
+    .step.active .step-dot {
+      border-color: var(--warn);
+      color: var(--warn);
+      box-shadow: 0 0 0 3px #d2992233;
+    }
+    .step.failed .step-dot { border-color: var(--danger); color: var(--danger); }
+    .step-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 0.75rem;
+      background: #0d1117;
+    }
+    .step-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.75rem;
+      align-items: baseline;
+      margin-bottom: 0.35rem;
+    }
+    .role {
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .role-coordinator { color: var(--role-coord); }
+    .role-codewriter { color: var(--role-code); }
+    .role-tester { color: var(--role-test); }
+    .role-reviewer { color: var(--role-review); }
+    .role-creative { color: #79c0ff; }
+    .client {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .summary { font-size: 0.88rem; }
+    details {
+      margin-top: 0.4rem;
+      font-size: 0.78rem;
+    }
+    details pre {
+      margin: 0.35rem 0 0;
+      padding: 0.5rem;
+      background: #010409;
+      border-radius: 6px;
+      overflow: auto;
+      max-height: 200px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      border: 1px solid var(--border);
+    }
+    #log {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      background: #010409;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem;
+      max-height: 280px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 1.5rem 0;
+      text-align: center;
+    }
+    .env-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 6px;
+      background: #0d1117;
+      border: 1px dashed var(--border);
+    }
+    .env-hint.ok { border-color: var(--accent-dim); color: #7ee787; }
+    .env-hint.bad { border-color: #6e2a2a; color: #ffa198; }
+    .live-panel {
+      margin-bottom: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--warn);
+      background: linear-gradient(90deg, #d2992218 0%, transparent 100%);
+    }
+    .live-panel.idle {
+      border-color: var(--border);
+      background: #0d1117;
+    }
+    .live-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .live-main { font-size: 1rem; font-weight: 600; }
+    .live-detail { font-size: 0.85rem; color: var(--muted); margin-top: 0.35rem; }
+    .workspace-note {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.75rem;
+      padding: 0.6rem;
+      border-radius: 6px;
+      background: #010409;
+      border: 1px solid var(--border);
+    }
+    .deploy-note {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      padding: 0.6rem;
+      border-radius: 6px;
+      background: #0d1f12;
+      border: 1px solid var(--accent-dim);
+    }
+    .deploy-note code { font-family: var(--mono); font-size: 0.75rem; }
+    .deploy-note a { color: #7ee787; }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: #010409cc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 1rem;
+    }
+    .modal-backdrop[hidden] { display: none; }
+    .modal {
+      width: min(720px, 100%);
+      max-height: 85vh;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-head h3 { margin: 0; font-size: 0.95rem; }
+    .modal-body {
+      padding: 1rem;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .modal-actions { padding: 0 1rem 1rem; }
+    .task-file-row { display: flex; gap: 0.5rem; align-items: stretch; }
+    .task-file-row select { flex: 1; }
+    .task-file-row button { width: auto; flex: 0 0 auto; padding: 0.45rem 0.75rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AgentSwarm Task Console</h1>
+    <p class="subtitle">Start an engineering task and watch coordinator → codewriter → tester → reviewer in order.</p>
+  </header>
+
+  <main>
+    <section class="panel" id="controlsPanel">
+      <h2>Run</h2>
+      <div class="field">
+        <label for="apiUrl">Platform API URL</label>
+        <input id="apiUrl" type="url" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="taskFile">Task file</label>
+        <div class="task-file-row">
+          <select id="taskFile"></select>
+          <button id="viewTaskBtn" type="button" class="secondary" title="View task file">View</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="goalId">Goal ID (watch existing)</label>
+        <input id="goalId" type="text" placeholder="goal-… (optional)" spellcheck="false" />
+      </div>
+      <div class="row">
+        <button id="startBtn" type="button">Start task</button>
+        <button id="watchBtn" type="button" class="secondary">Watch goal</button>
+      </div>
+      <div id="envHint" class="env-hint">Checking local worker env…</div>
+      <div class="goal-line" id="goalLine" hidden></div>
+      <p class="subtitle" style="margin-top:0.75rem">Status: <span id="runStatus" class="badge">idle</span></p>
+    </section>
+
+    <section>
+      <div class="panel" id="livePanel" hidden>
+        <div class="live-panel idle" id="liveBox">
+          <div class="live-title">Active worker</div>
+          <div class="live-main" id="liveMain">—</div>
+          <div class="live-detail" id="liveDetail"></div>
+        </div>
+        <div class="workspace-note" id="workspaceNote" hidden></div>
+        <div class="deploy-note" id="deployNote" hidden></div>
+      </div>
+
+      <div class="panel">
+        <h2>Pipeline</h2>
+        <div id="pipeline" class="pipeline">
+          <div class="empty">Start a task or watch a goal to see the role sequence.</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:1rem">
+        <h2>Run log</h2>
+        <div id="log">Waiting…</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="taskModal" hidden>
+    <div class="modal" role="dialog" aria-labelledby="taskModalTitle">
+      <div class="modal-head">
+        <h3 id="taskModalTitle">Task file</h3>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+          <a id="downloadTaskModal" href="#" download class="secondary" style="width:auto;display:none">Download</a>
+          <button id="closeTaskModal" type="button" class="secondary" style="width:auto">Close</button>
+        </div>
+      </div>
+      <div class="modal-body" id="taskModalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const EXPECTED_ROLES = ["coordinator", "codewriter", "tester", "reviewer"];
+
+    let activeRunId = null;
+    let pollTimer = null;
+    let watchGoalId = null;
+    let apiUrl = "";
+    let modalDownloadRevoke = null;
+
+    function hideModalDownload() {
+      const dl = $("downloadTaskModal");
+      dl.style.display = "none";
+      if (modalDownloadRevoke) {
+        URL.revokeObjectURL(modalDownloadRevoke);
+        modalDownloadRevoke = null;
+      }
+    }
+
+    function offerModalDownload(filename, text) {
+      hideModalDownload();
+      const dl = $("downloadTaskModal");
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      modalDownloadRevoke = url;
+      dl.href = url;
+      dl.download = filename;
+      dl.style.display = "inline-block";
+    }
+
+    function roleClass(role) {
+      return `role role-${role}`;
+    }
+
+    function statusBadge(status) {
+      const s = (status || "").toLowerCase();
+      if (s === "verified" || s === "completed") return "badge ok";
+      if (s === "failed" || s === "rejected") return "badge bad";
+      if (s === "running" || s === "claimed" || s === "pending") return "badge warn";
+      return "badge";
+    }
+
+    function stepState(step, goalStatus) {
+      const st = (step.status || "").toLowerCase();
+      if (st === "verified" || st === "submitted") return "done";
+      if (st === "rejected" || st === "failed") return "failed";
+      if (st === "claimed") return "active";
+      if (goalStatus === "verified" && st) return "done";
+      return "";
+    }
+
+    function renderLive(trace, capacity) {
+      $("livePanel").hidden = false;
+      const box = $("liveBox");
+      const active = trace.active_step;
+      if (active && (active.owner || active.agent_id)) {
+        box.classList.remove("idle");
+        const who = active.owner && active.owner !== "(awaiting dispatch)"
+          ? `client ${active.owner}`
+          : (active.agent_id ? `agent ${active.agent_id}` : "dispatching…");
+        const sandboxHost = active.sandbox_host_owner
+          ? ` · sandbox host ${active.sandbox_host_owner}`
+          : "";
+        $("liveMain").innerHTML =
+          `<span class="badge phase">${escapeHtml(active.phase || active.role)}</span> ` +
+          `<span class="${roleClass(active.role)}">${active.role}</span> — ${escapeHtml(who)}`;
+        $("liveDetail").textContent = (active.work_description || "") + sandboxHost;
+      } else if (capacity && capacity.capabilities) {
+        const busy = [];
+        for (const [cap, bucket] of Object.entries(capacity.capabilities)) {
+          for (const agent of bucket.agents || []) {
+            if (agent.status === "busy") {
+              busy.push(`${cap} (${agent.owner || agent.agent_id})`);
+            }
+          }
+        }
+        if (busy.length) {
+          box.classList.remove("idle");
+          $("liveMain").textContent = "Workers busy";
+          $("liveDetail").textContent = busy.join(" · ");
+        } else {
+          box.classList.add("idle");
+          $("liveMain").textContent = "Waiting for next assignment";
+          $("liveDetail").textContent = "All team workers idle or goal finished.";
+        }
+      } else {
+        box.classList.add("idle");
+        $("liveMain").textContent = trace.status === "verified" ? "Goal complete" : "Starting…";
+        $("liveDetail").textContent = "";
+      }
+
+      const ws = trace.code_workspace;
+      const note = $("workspaceNote");
+      if (ws && ws.sharing) {
+        note.hidden = false;
+        const goalRef = trace.workspace_ref ? ` Goal ref: ${trace.workspace_ref}.` : "";
+        note.textContent = `Code workspace: ${ws.mode} @ ${ws.path || "—"}.${goalRef} ${ws.sharing}`;
+      } else {
+        note.hidden = true;
+      }
+
+      const deployNote = $("deployNote");
+      if (trace.status === "verified" && (trace.primary_artifact_ref || (trace.artifact_refs || []).length)) {
+        deployNote.hidden = false;
+        const primary = trace.primary_artifact_ref || "";
+        const refs = trace.artifact_refs || [];
+        const primaryLink = primary
+          ? `<a href="#" class="log-artifact" data-ref="${escapeHtml(primary)}">primary artifact</a>`
+          : "—";
+        const refList = refs.length
+          ? refs.map((r) => `<code>${escapeHtml(r)}</code>`).join(" ")
+          : "none";
+        deployNote.innerHTML = `
+          <strong>Deploy (D5)</strong> — verified goal artifact chain.
+          Primary: ${primaryLink}.
+          All refs: ${refList}.
+          <div style="margin-top:0.35rem">Operator: <code>POST /creative/goals/${escapeHtml(trace.goal_id)}/deploy-request</code>
+          or <code>scripts/request_deploy_from_goal.ps1 -GoalId ${escapeHtml(trace.goal_id)}</code></div>`;
+      } else {
+        deployNote.hidden = true;
+      }
+    }
+
+    function renderPipeline(trace) {
+      const root = $("pipeline");
+      const steps = trace.steps || [];
+      if (!steps.length) {
+        root.innerHTML = '<div class="empty">No task steps yet — workers may still be starting.</div>';
+        return;
+      }
+      root.innerHTML = steps.map((step) => {
+        const state = stepState(step, trace.status);
+        const owner = step.owner || step.agent_id || "—";
+        const clientLabel = step.owner
+          ? `client ${step.owner}`
+          : (step.agent_id ? `agent ${step.agent_id}` : "unassigned");
+        const resultJson = step.result
+          ? JSON.stringify(step.result, null, 2)
+          : "(no submission yet)";
+        return `
+          <article class="step ${state}" data-role="${step.role}">
+            <div class="step-dot">${step.seq}</div>
+            <div class="step-card">
+              <div class="step-head">
+                <span class="${roleClass(step.role)}">${step.role}</span>
+                ${step.phase ? `<span class="badge phase">${escapeHtml(step.phase)}</span>` : ""}
+                <span class="badge">${step.task_type}</span>
+                <span class="${statusBadge(step.status)}">${step.status}</span>
+              </div>
+              <div class="client">${clientLabel}</div>
+              <div class="summary">${escapeHtml(step.work_description || step.result_summary || "Waiting for this role…")}</div>
+              ${step.workspace_ref
+                ? `<div class="client">workspace_ref: <code>${escapeHtml(step.workspace_ref)}</code></div>` : ""}
+              ${step.sandbox_host_owner
+                ? `<div class="client">sandbox host: <code>${escapeHtml(step.sandbox_host_owner)}</code></div>` : ""}
+              ${step.log_artifact_ref
+                ? `<div class="client"><a href="#" class="log-artifact" data-ref="${escapeHtml(step.log_artifact_ref)}">sandbox log bundle</a></div>` : ""}
+              ${step.result_summary && step.work_description && step.result_summary !== step.work_description
+                ? `<div class="client">Result: ${escapeHtml(step.result_summary)}</div>` : ""}
+              <details>
+                <summary>Full result</summary>
+                <pre>${escapeHtml(resultJson)}</pre>
+              </details>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function appendLog(lines) {
+      const log = $("log");
+      log.textContent = (lines || []).join("\n") || "—";
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function loadConfig() {
+      const res = await fetch("/api/config");
+      const cfg = await res.json();
+      apiUrl = localStorage.getItem("agentswarm_api_url") || cfg.default_api_url;
+      $("apiUrl").value = apiUrl;
+      const select = $("taskFile");
+      select.innerHTML = (cfg.task_files || []).map((f) =>
+        `<option value="${f}">${f}</option>`
+      ).join("");
+      const hint = $("envHint");
+      if (cfg.has_bootstrap_token && cfg.has_assignment_secret) {
+        hint.textContent = "Worker env OK (bootstrap token + assignment secret loaded).";
+        hint.className = "env-hint ok";
+      } else {
+        hint.textContent = "Run scripts/serve_task_console.ps1 so staging secrets load via SSH.";
+        hint.className = "env-hint bad";
+      }
+    }
+
+    async function fetchCapacity() {
+      const url = encodeURIComponent($("apiUrl").value.trim());
+      try {
+        const res = await fetch(`/api/proxy/dispatch/capacity?api_url=${url}`);
+        if (!res.ok) return null;
+        return res.json();
+      } catch {
+        return null;
+      }
+    }
+
+    async function fetchTrace(goalId) {
+      const url = encodeURIComponent($("apiUrl").value.trim());
+      const res = await fetch(`/api/proxy/goals/${goalId}/trace?api_url=${url}`);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function pollTrace(goalId) {
+      try {
+        const [trace, capacity] = await Promise.all([
+          fetchTrace(goalId),
+          fetchCapacity(),
+        ]);
+        renderLive(trace, capacity);
+        renderPipeline(trace);
+        $("runStatus").className = statusBadge(trace.status);
+        $("runStatus").textContent = trace.status;
+        if (["verified", "rejected"].includes(trace.status)) {
+          stopPolling();
+        }
+      } catch (err) {
+        console.warn("trace poll failed", err);
+      }
+    }
+
+    function startPolling(goalId) {
+      watchGoalId = goalId;
+      $("goalLine").hidden = false;
+      $("goalLine").textContent = `goal_id=${goalId}`;
+      stopPolling();
+      pollTrace(goalId);
+      pollTimer = setInterval(() => pollTrace(goalId), 1500);
+    }
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    async function pollRun(runId) {
+      const res = await fetch(`/api/runs/${runId}`);
+      const body = await res.json();
+      appendLog(body.logs);
+      if (body.goal_id) startPolling(body.goal_id);
+      $("runStatus").className = statusBadge(body.status);
+      $("runStatus").textContent = body.status;
+      if (body.status !== "running") {
+        activeRunId = null;
+        $("startBtn").disabled = false;
+        if (body.goal_id) await pollTrace(body.goal_id);
+        return;
+      }
+      setTimeout(() => pollRun(runId), 800);
+    }
+
+    async function showTaskFileModal() {
+      hideModalDownload();
+      const path = $("taskFile").value;
+      const res = await fetch(`/api/task-files/${encodeURIComponent(path)}`);
+      if (!res.ok) {
+        $("taskModalBody").textContent = await res.text();
+      } else {
+        const body = await res.json();
+        $("taskModalTitle").textContent = body.path;
+        $("taskModalBody").textContent = body.content;
+      }
+      $("taskModal").hidden = false;
+    }
+
+    $("viewTaskBtn").addEventListener("click", () => {
+      showTaskFileModal().catch((err) => {
+        $("taskModalBody").textContent = String(err);
+        $("taskModal").hidden = false;
+      });
+    });
+    $("closeTaskModal").addEventListener("click", () => {
+      $("taskModal").hidden = true;
+      hideModalDownload();
+    });
+    $("taskModal").addEventListener("click", (event) => {
+      if (event.target === $("taskModal")) $("taskModal").hidden = true;
+    });
+
+    $("startBtn").addEventListener("click", async () => {
+      apiUrl = $("apiUrl").value.trim();
+      localStorage.setItem("agentswarm_api_url", apiUrl);
+      $("startBtn").disabled = true;
+      $("runStatus").className = "badge warn";
+      $("runStatus").textContent = "starting";
+      appendLog(["Starting local worker team…"]);
+      const res = await fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_url: apiUrl,
+          task_file: $("taskFile").value,
+        }),
+      });
+      if (!res.ok) {
+        appendLog([`Error: ${await res.text()}`]);
+        $("startBtn").disabled = false;
+        return;
+      }
+      const body = await res.json();
+      activeRunId = body.run_id;
+      pollRun(activeRunId);
+    });
+
+    $("watchBtn").addEventListener("click", () => {
+      const goalId = $("goalId").value.trim() || watchGoalId;
+      if (!goalId) return;
+      apiUrl = $("apiUrl").value.trim();
+      localStorage.setItem("agentswarm_api_url", apiUrl);
+      startPolling(goalId);
+    });
+
+    $("pipeline").addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.classList.contains("log-artifact")) {
+        return;
+      }
+      event.preventDefault();
+      const ref = target.getAttribute("data-ref");
+      if (!ref) return;
+      const url = encodeURIComponent($("apiUrl").value.trim());
+      try {
+        const res = await fetch(`/api/proxy/artifacts/${encodeURIComponent(ref)}?api_url=${url}`);
+        if (!res.ok) throw new Error(await res.text());
+        const body = await res.json();
+        const text = atob(body.content_base64 || "");
+        $("taskModalTitle").textContent = ref;
+        $("taskModalBody").textContent = text;
+        const shortRef = ref.replace(/^sha256:/, "").slice(0, 12);
+        offerModalDownload(`sandbox-log-${shortRef}.txt`, text);
+        $("taskModal").hidden = false;
+      } catch (err) {
+        $("taskModalTitle").textContent = "Log artifact";
+        $("taskModalBody").textContent = String(err);
+        $("taskModal").hidden = false;
+      }
+    });
+
+    loadConfig().catch((err) => {
+      $("envHint").textContent = `Config error: ${err}`;
+      $("envHint").className = "env-hint bad";
+    });
+  </script>
+</body>
+</html>

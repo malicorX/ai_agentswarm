@@ -1,0 +1,6 @@
+---
+goal_kind: engineering
+fixture: primes
+workspace_mode: windows
+---
+Implement primes in the Windows VM sandbox (mock or Hyper-V).

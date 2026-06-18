@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-codewriter-4fca5345",
+  "agent_id": "agent_54966fb97e3e",
+  "public_key_b64": "jkxRJ_-CTPsYdL_lA4gVGO7bA7Dao9WIM8zBk5iErf8=",
+  "private_key_b64": "69FCaDC0hUbadI55NtlrHBsW97HbV6SlvaA3hHdE_c0=",
+  "owner": "sandbox-e2e-codewriter-c0d2dfcd",
+  "capabilities": [
+    "codewriter"
+  ]
+}

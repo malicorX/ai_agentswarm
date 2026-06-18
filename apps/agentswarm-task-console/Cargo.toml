@@ -1,0 +1,19 @@
+[package]
+name = "agentswarm-task-console"
+version = "0.1.0"
+edition = "2021"
+description = "Native Windows shell for the AgentSwarm task console"
+
+[[bin]]
+name = "agentswarm-task-console"
+path = "src/main.rs"
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+tao = "0.30"
+wry = "0.49"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

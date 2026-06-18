@@ -1,0 +1,5 @@
+---
+goal_kind: engineering
+fixture: primes
+---
+Create a Python script that writes out the first 100 primes, one per line.

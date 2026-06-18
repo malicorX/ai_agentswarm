@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-tester-83dd6ec0",
+  "agent_id": "agent_5e981ea80378",
+  "public_key_b64": "HeCIsyUVpstUKsRA5eZr3NieectGFeX-MZefPGebU8o=",
+  "private_key_b64": "gjo-au-rEDyOqe6tGWgGzChWN7sv_tjIuN19xkJZ7lA=",
+  "owner": "git-e2e-tester-7ffd552c",
+  "capabilities": [
+    "tester"
+  ]
+}

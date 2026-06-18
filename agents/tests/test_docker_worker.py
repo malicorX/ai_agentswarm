@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,6 +11,7 @@ from agentswarm_agents.docker_worker import (
     assignment_signature_payload,
     build_worker_input,
     docker_capsule_executor,
+    resolve_docker_executor,
     run_capsule_in_docker,
     verify_assignment_signature,
 )
@@ -61,13 +63,47 @@ def test_run_capsule_in_docker_invokes_container(
     mock_proc.stderr = b""
 
     with patch("agentswarm_agents.docker_worker.subprocess.run", return_value=mock_proc) as run:
-        result = run_capsule_in_docker(signed, agent_id="agent-42", image="agentswarm-worker:test")
+        result = run_capsule_in_docker(
+            signed,
+            agent_id="agent-42",
+            image="agentswarm-worker:test",
+        )
 
     assert result == {"text": "from container"}
     args, kwargs = run.call_args
-    assert args[0][:4] == ["docker", "run", "--rm", "-i"]
-    assert args[0][-1] == "agentswarm-worker:test"
+    docker_args = args[0]
+    assert docker_args[:4] == ["docker", "run", "--rm", "-i"]
+    assert docker_args[-1] == "agentswarm-worker:test"
     assert json.loads(kwargs["input"].decode()) == expected_input
+
+
+def test_run_capsule_in_docker_mounts_model_weights(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("AGENTSWARM_ASSIGNMENT_SECRET", "test-secret")
+    signed = _signed_assignment("agent-42")
+    model_file = tmp_path / "model.gguf"
+    model_file.write_bytes(b"weights")
+    mock_proc = MagicMock()
+    mock_proc.returncode = 0
+    mock_proc.stdout = json.dumps({"text": "llm"}).encode()
+    mock_proc.stderr = b""
+
+    with patch("agentswarm_agents.docker_worker.subprocess.run", return_value=mock_proc) as run:
+        run_capsule_in_docker(
+            signed,
+            agent_id="agent-42",
+            image="agentswarm-worker:test",
+            model_path=model_file,
+            model_entry={"id": "docker/qwen2.5-coder-3b"},
+        )
+
+    docker_args = run.call_args.args[0]
+    mount = next(arg for arg in docker_args if isinstance(arg, str) and ":ro" in arg and "model.gguf" in arg)
+    assert str(model_file.resolve()) in mount
+    assert "AGENTSWARM_MODEL_PATH=/models/weights/model.gguf" in docker_args
+    assert "AGENTSWARM_ENGINEERING_LLM=1" in docker_args
 
 
 def test_docker_capsule_executor_factory(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -77,6 +113,11 @@ def test_docker_capsule_executor_factory(monkeypatch: pytest.MonkeyPatch) -> Non
         "agentswarm_agents.docker_worker.run_capsule_in_docker",
         return_value={"text": "ok"},
     ) as run:
-        executor = docker_capsule_executor("agent-99")
+        executor = resolve_docker_executor(
+            "agent-99",
+            model_entry={"id": "llm-docker-worker-v1", "runtime": "docker"},
+            default_image="agentswarm-worker:dev",
+            model_path=None,
+        )
         assert executor(signed) == {"text": "ok"}
         run.assert_called_once()

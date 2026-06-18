@@ -226,9 +226,16 @@ agentswarm-volunteer --headless --loops 1 --base-url "$AGENTSWARM_PLATFORM_URL"
 
 Or: `.\scripts\demo_connect_staging.ps1`
 
-**Hardware:** see [volunteer-hardware.md](volunteer-hardware.md) for VRAM/RAM guidance by `model_id`.
+**Hardware:** see [volunteer-hardware.md](volunteer-hardware.md) for VRAM/RAM guidance by `model_id`.  
+**Setup:** see [volunteer-client.md](volunteer-client.md) for Docker worker image, model downloads, and GUI.
 
-**Subjective volunteer demo (P8.3):**
+**Docker LLM staging e2e** (real Qwen in worker container — creative → reviewer → verified):
+
+```powershell
+.\scripts\verify_docker_volunteer_staging.ps1
+```
+
+**Subjective volunteer demo (P8.3)** — mock or optional Ollama:
 
 ```bash
 bash scripts/demo_volunteer_subjective_staging.sh

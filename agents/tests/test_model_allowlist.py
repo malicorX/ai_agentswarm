@@ -30,6 +30,14 @@ def test_get_model_entry_docker_runtime() -> None:
     entry = get_model_entry("llm-docker-worker-v1")
     assert entry is not None
     assert entry["runtime"] == "docker"
+    assert entry.get("worker_image")
+
+
+def test_get_model_entry_docker_weighted_model() -> None:
+    entry = get_model_entry("docker/qwen2.5-coder-3b")
+    assert entry is not None
+    assert entry["runtime"] == "docker"
+    assert entry["weight"]["format"] == "gguf"
 
 
 def test_allowlist_documents_ollama_localhost() -> None:

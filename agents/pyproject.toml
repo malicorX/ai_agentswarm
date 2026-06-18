@@ -29,6 +29,9 @@ agentswarm-demo = "agentswarm_agents.demo:main"
 agentswarm-demo-federation = "agentswarm_agents.federation_demo:main"
 agentswarm-deploy-demo = "agentswarm_agents.deploy_demo:main"
 agentswarm-volunteer = "agentswarm_agents.volunteer_gui:main"
+agentswarm-solve = "agentswarm_agents.solve:main"
+agentswarm-create-task = "agentswarm_agents.create_task:main"
+agentswarm-start-task = "agentswarm_agents.start_task:main"
 
 [tool.setuptools.package-data]
 agentswarm_agents = ["model_allowlist.json"]

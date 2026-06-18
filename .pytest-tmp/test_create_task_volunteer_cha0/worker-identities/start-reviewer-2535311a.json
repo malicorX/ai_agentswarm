@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-reviewer-2535311a",
+  "agent_id": "agent_2104187a4772",
+  "public_key_b64": "VMIu5e1rAKB8GKP6TCg2dKgUfEzJz3fkoFyHnXCitLo=",
+  "private_key_b64": "lwFQvHmIJS_kPofAgqHrRQxYBOxMvqQ4hB8z3R56Wck=",
+  "owner": "chain-e2e-reviewer-80ea9639",
+  "capabilities": [
+    "reviewer"
+  ]
+}

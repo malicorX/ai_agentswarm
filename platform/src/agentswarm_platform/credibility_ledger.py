@@ -553,6 +553,85 @@ def apply_task_outcome(
         )
 
 
+def apply_engineering_reviewer_reward(
+    conn: sqlite3.Connection,
+    *,
+    reviewer_agent_id: str,
+    goal_id: str,
+    task_id: str,
+    project_id: str,
+) -> float:
+    """Mint reviewer credibility after a successful engineering goal verification."""
+    if not credibility_enabled():
+        return 0.0
+    from agentswarm_platform.credibility import engineering_verify_reviewer_mint
+
+    score = get_balance(conn, reviewer_agent_id, "reviewer", project_id)
+    delta = engineering_verify_reviewer_mint(score)
+    if delta <= 0:
+        return 0.0
+    _apply_delta(
+        conn,
+        agent_id=reviewer_agent_id,
+        capability="reviewer",
+        project_id=project_id,
+        delta=delta,
+        reason="mint.engineering_verify",
+        ref_type="goal",
+        ref_id=goal_id,
+        details={"task_id": task_id, "project_id": project_id, "mint": delta},
+    )
+    return delta
+
+
+def apply_engineering_replication_reviewer_rewards(
+    conn: sqlite3.Connection,
+    *,
+    group_id: str,
+    goal_id: str,
+    project_id: str,
+    task_type: str,
+    winning_fingerprint: str | None,
+) -> int:
+    """Mint engineering verify rewards for all quorum-matching replication reviewers."""
+    if not credibility_enabled():
+        return 0
+    from agentswarm_platform.replication import result_fingerprint
+
+    rows = conn.execute(
+        """
+        SELECT task_id, claimed_by, submission_result
+        FROM tasks
+        WHERE replication_group_id = ?
+          AND claimed_by IS NOT NULL
+          AND submission_result IS NOT NULL
+        """,
+        (group_id,),
+    ).fetchall()
+    rewarded: set[str] = set()
+    count = 0
+    for row in rows:
+        agent_id = str(row["claimed_by"])
+        if agent_id in rewarded:
+            continue
+        result = json.loads(row["submission_result"])
+        if not result.get("approved"):
+            continue
+        if winning_fingerprint is not None:
+            if result_fingerprint(task_type, result) != winning_fingerprint:
+                continue
+        apply_engineering_reviewer_reward(
+            conn,
+            reviewer_agent_id=agent_id,
+            goal_id=goal_id,
+            task_id=str(row["task_id"]),
+            project_id=project_id,
+        )
+        rewarded.add(agent_id)
+        count += 1
+    return count
+
+
 def apply_good_attempt_reward(
     conn: sqlite3.Connection,
     *,

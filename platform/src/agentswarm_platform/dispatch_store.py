@@ -10,6 +10,7 @@ from typing import Any
 from agentswarm_platform.assignment_signing import sign_assignment
 from agentswarm_platform.assignment_wait import pool_need_max_age_hours
 from agentswarm_platform.hardware_gates import agent_meets_reviewer_hardware
+from agentswarm_platform.replication_store import agent_already_in_group
 from agentswarm_platform.presence_store import (
     evict_stale_presence,
     presence_is_fresh,
@@ -113,11 +114,13 @@ def list_pending_need_ids_for_agent(
     if agent is None:
         return []
     owner = str(agent["owner"] or "")
-    capabilities = set(json.loads(presence["capabilities"]))
+    capabilities = json.loads(presence["capabilities"])
     matched: list[str] = []
+    from agentswarm_platform.capabilities import agent_satisfies_capability
+
     for need in list_pending_pool_needs(conn):
         capability_required = str(need["capability_required"])
-        if capability_required not in capabilities:
+        if not agent_satisfies_capability(capabilities, capability_required):
             continue
         constraints = json.loads(need["constraints_json"])
         include_owners = {str(item) for item in constraints.get("include_owners") or []}
@@ -142,8 +145,22 @@ def list_pending_need_ids_for_agent(
         if capability_required == "reviewer" and not agent_meets_reviewer_hardware(
             model_id=presence["model_id"],
             vram_gb=presence["vram_gb"],
+            constraints=constraints,
         ):
             continue
+        task_id = need["task_id"]
+        if task_id:
+            task_row = conn.execute(
+                "SELECT replication_group_id FROM tasks WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
+            group_id = (
+                str(task_row["replication_group_id"])
+                if task_row is not None and task_row["replication_group_id"]
+                else None
+            )
+            if group_id and agent_already_in_group(conn, group_id, agent_id):
+                continue
         need_id = str(need["need_id"])
         if not include_owners:
             continue
@@ -151,6 +168,36 @@ def list_pending_need_ids_for_agent(
         if len(matched) >= limit:
             break
     return matched[:limit]
+
+
+def complete_active_assignment_for_claim(
+    conn: sqlite3.Connection,
+    claim_token: str,
+) -> bool:
+    """Close the active dispatch lease after a successful assignment submit."""
+    row = conn.execute(
+        """
+        SELECT lease_id, need_id
+        FROM assignment_leases
+        WHERE claim_token = ? AND status = 'active'
+        """,
+        (claim_token,),
+    ).fetchone()
+    if row is None:
+        return False
+    conn.execute(
+        "UPDATE assignment_leases SET status = 'completed' WHERE lease_id = ?",
+        (row["lease_id"],),
+    )
+    conn.execute(
+        """
+        UPDATE pool_needs
+        SET status = 'fulfilled', assigned_agent_id = NULL, lease_id = NULL
+        WHERE need_id = ? AND status = 'assigned'
+        """,
+        (row["need_id"],),
+    )
+    return True
 
 
 def mark_need_assigned(

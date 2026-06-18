@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-sandbox.test-c4ad9743",
+  "agent_id": "agent_8327ec70a4ad",
+  "public_key_b64": "nMCWxAHfaS-zqr4cMeMthsDp2HjfNcykmfcyZNmvUEg=",
+  "private_key_b64": "gFKOOR2f2JtgTBO4XwgdBFM7uAU9Il55N0jmhBvEQ-Y=",
+  "owner": "sandbox-e2e-tester-c0d2dfcd",
+  "capabilities": [
+    "sandbox.test"
+  ]
+}

@@ -5,7 +5,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import agentswarm_platform.credibility as credibility
-from agentswarm_platform.credibility import min_credibility_for_tier
+from agentswarm_platform.credibility import (
+    engineering_verify_reviewer_mint,
+    min_credibility_for_tier,
+)
 from test_task_flow import register_agent
 
 
@@ -13,6 +16,11 @@ def test_min_credibility_for_tier_defaults() -> None:
     assert min_credibility_for_tier(1) == 0.0
     assert min_credibility_for_tier(2) == 25.0
     assert min_credibility_for_tier(3) == 50.0
+
+
+def test_engineering_verify_reviewer_mint_reaches_high_tier_floor() -> None:
+    assert engineering_verify_reviewer_mint(10.0) == 50.0
+    assert engineering_verify_reviewer_mint(60.0) == 0.0
 
 
 def test_high_tier_claim_rejected_for_new_agent(cred_client: TestClient) -> None:

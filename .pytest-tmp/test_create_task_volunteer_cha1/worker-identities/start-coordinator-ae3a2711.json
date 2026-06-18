@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-coordinator-ae3a2711",
+  "agent_id": "agent_d29b27e4ff18",
+  "public_key_b64": "Knv2v0fyofvGNMuee125JIVTRfk1TLvl4prpqVh3ZI8=",
+  "private_key_b64": "USF0DW39yH_JR0nvHJfVLktXtM95XAKg8E1sOgdcPyw=",
+  "owner": "git-e2e-coordinator-7ffd552c",
+  "capabilities": [
+    "coordinator"
+  ]
+}

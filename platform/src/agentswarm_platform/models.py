@@ -191,7 +191,16 @@ class CredibilityImportRequest(BaseModel):
 class DeployCreateRequest(BaseModel):
     project_id: str = "default"
     environment: str
-    artifact_ref: str
+    artifact_ref: str | None = None
+    goal_id: str | None = None
+    description: str | None = None
+    required_signoffs: int | None = None
+    min_credibility: float | None = None
+
+
+class GoalDeployCreateRequest(BaseModel):
+    environment: str
+    artifact_ref: str | None = None
     description: str | None = None
     required_signoffs: int | None = None
     min_credibility: float | None = None
@@ -210,6 +219,7 @@ class DeployRequestEnvelope(BaseModel):
     signoffs: list[dict[str, Any]] = Field(default_factory=list)
     approve_task_ids: list[str] | None = None
     execute_task_id: str | None = None
+    goal_id: str | None = None
     created_at: str
     created_by_owner_id: str
     approved_at: str | None = None
@@ -278,6 +288,7 @@ class AssignmentEnvelope(BaseModel):
     expires_at: str
     assignment_signature: str
     capsule: dict[str, Any] = Field(default_factory=dict)
+    forge_credentials: dict[str, Any] | None = None
 
 
 class CreativeGoalRequest(BaseModel):
@@ -289,12 +300,53 @@ class CreativeGoalRequest(BaseModel):
     pass_threshold: float = 6.0
     difficulty: float = Field(default=1.0, ge=0.1, le=10.0)
     dispatch_include_owners: list[str] | None = None
+    goal_kind: str = "creative"
+    verification_spec: dict[str, Any] | None = None
+    workspace: dict[str, Any] | None = None
 
 
 class CreativeGoalResponse(BaseModel):
     goal_id: str
     coordinator_task_id: str
     status: str
+
+
+class DispatchCapacityAgent(BaseModel):
+    agent_id: str
+    owner: str
+    status: str
+    model_id: str | None = None
+    load: float = 0.0
+
+
+class DispatchCapabilityCapacity(BaseModel):
+    idle: int = 0
+    busy: int = 0
+    agents: list[DispatchCapacityAgent] = Field(default_factory=list)
+
+
+class DispatchCapacityTotals(BaseModel):
+    idle_agents: int = 0
+    busy_agents: int = 0
+    tracked_agents: int = 0
+
+
+class DispatchCapacityResponse(BaseModel):
+    assignment_mode: str
+    capabilities: dict[str, DispatchCapabilityCapacity]
+    totals: DispatchCapacityTotals
+
+
+class GoalRealignDispatchRequest(BaseModel):
+    include_owners: list[str] = Field(min_length=1)
+
+
+class GoalRealignDispatchResponse(BaseModel):
+    goal_id: str
+    include_owners: list[str]
+    updated_need_ids: list[str]
+    reclaimed_need_ids: list[str]
+    redispatched_need_ids: list[str]
 
 
 class CreativeGoalAppealRequest(BaseModel):
@@ -311,6 +363,80 @@ class CreativeGoalAppealResponse(BaseModel):
     appeal_id: str
     goal_id: str
     status: str
+
+
+class GoalTraceStep(BaseModel):
+    seq: int
+    role: str
+    phase: str = ""
+    task_type: str
+    task_id: str
+    capability: str
+    status: str
+    agent_id: str | None = None
+    owner: str = ""
+    created_at: str | None = None
+    submitted_at: str | None = None
+    result_summary: str = ""
+    work_description: str = ""
+    workspace_ref: str | None = None
+    sandbox_host_owner: str | None = None
+    log_artifact_ref: str | None = None
+    result: dict[str, Any] | None = None
+
+
+class GoalTraceActiveStep(BaseModel):
+    role: str
+    phase: str = ""
+    task_type: str
+    task_id: str
+    owner: str = ""
+    agent_id: str | None = None
+    work_description: str = ""
+    sandbox_host_owner: str | None = None
+
+
+class GoalTraceCodeWorkspace(BaseModel):
+    mode: str
+    path: str = ""
+    sharing: str = ""
+
+
+class GoalTraceEvent(BaseModel):
+    seq: int
+    timestamp: str
+    event_type: str
+    actor_id: str | None = None
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class GoalTraceResponse(BaseModel):
+    goal_id: str
+    status: str
+    brief: str
+    goal_kind: str
+    coordinator_task_id: str | None = None
+    artifact_text: str | None = None
+    workspace_ref: str | None = None
+    artifact_refs: list[str] = Field(default_factory=list)
+    primary_artifact_ref: str | None = None
+    active_step: GoalTraceActiveStep | None = None
+    code_workspace: GoalTraceCodeWorkspace | None = None
+    steps: list[GoalTraceStep] = Field(default_factory=list)
+    events: list[GoalTraceEvent] = Field(default_factory=list)
+
+
+class ArtifactStoreResponse(BaseModel):
+    artifact_ref: str
+    bytes: int
+    sha256: str
+    cached: bool = False
+
+
+class ArtifactFetchResponse(BaseModel):
+    artifact_ref: str
+    bytes: int
+    content_base64: str
 
 
 class AgentCreditsResponse(BaseModel):

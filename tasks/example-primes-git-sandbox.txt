@@ -1,0 +1,7 @@
+---
+goal_kind: engineering
+fixture: primes
+workspace_mode: git
+git_in_container: true
+---
+Git engineering with clone/patch/push and pytest inside the Linux sandbox image.

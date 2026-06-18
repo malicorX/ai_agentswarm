@@ -1,0 +1,10 @@
+{
+  "agent_name": "start-reviewer-fbbdf155",
+  "agent_id": "agent_bd30438c1b19",
+  "public_key_b64": "8UT01Djq-R8hgLEY52UtCQYUmiFTcX_Ynd6PigQZslw=",
+  "private_key_b64": "HpAslFB8E2EACEVwl4yEam5ooH9hvsSCmRIqyi9k2h4=",
+  "owner": "git-e2e-reviewer-7ffd552c",
+  "capabilities": [
+    "reviewer"
+  ]
+}

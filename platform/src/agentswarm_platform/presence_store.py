@@ -141,7 +141,9 @@ def list_idle_agents_for_capability(
         if not _is_fresh(row["last_seen_at"], int(row["ttl_sec"]), resolved_now):
             continue
         caps = json.loads(row["capabilities"])
-        if capability not in caps:
+        from agentswarm_platform.capabilities import agent_satisfies_capability
+
+        if not agent_satisfies_capability(caps, capability):
             continue
         owner = str(row["owner"] or "")
         if owner in exclude_owners:
@@ -180,3 +182,75 @@ def touch_presence(conn: sqlite3.Connection, agent_id: str) -> None:
             agent_id,
         ),
     )
+
+
+def summarize_dispatch_capacity(
+    conn: sqlite3.Connection,
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Aggregate fresh volunteer presence by capability for dispatch planning."""
+    resolved_now = now or datetime.now(timezone.utc)
+    evict_stale_presence(conn, now=resolved_now)
+    rows = conn.execute(
+        """
+        SELECT p.agent_id, p.status, p.capabilities, p.model_id, p.load,
+               p.last_seen_at, p.ttl_sec, a.owner
+        FROM agent_presence p
+        JOIN agents a ON a.agent_id = p.agent_id
+        """
+    ).fetchall()
+
+    capabilities: dict[str, dict[str, Any]] = {}
+    idle_agents = 0
+    busy_agents = 0
+    seen_agents: set[str] = set()
+
+    for row in rows:
+        if not presence_is_fresh(
+            str(row["last_seen_at"]),
+            int(row["ttl_sec"]),
+            now=resolved_now,
+        ):
+            continue
+        status = str(row["status"])
+        if status not in ("idle", "busy"):
+            continue
+        agent_id = str(row["agent_id"])
+        if agent_id not in seen_agents:
+            seen_agents.add(agent_id)
+            if status == "idle":
+                idle_agents += 1
+            else:
+                busy_agents += 1
+
+        caps = json.loads(row["capabilities"])
+        agent_summary = {
+            "agent_id": agent_id,
+            "owner": str(row["owner"] or ""),
+            "status": status,
+            "model_id": row["model_id"],
+            "load": float(row["load"] or 0),
+        }
+        for capability in caps:
+            bucket = capabilities.setdefault(
+                capability,
+                {"idle": 0, "busy": 0, "agents": []},
+            )
+            if status == "idle":
+                bucket["idle"] += 1
+            else:
+                bucket["busy"] += 1
+            bucket["agents"].append(agent_summary)
+
+    for bucket in capabilities.values():
+        bucket["agents"].sort(key=lambda item: (item["status"], item["owner"], item["agent_id"]))
+
+    return {
+        "capabilities": dict(sorted(capabilities.items())),
+        "totals": {
+            "idle_agents": idle_agents,
+            "busy_agents": busy_agents,
+            "tracked_agents": len(seen_agents),
+        },
+    }
