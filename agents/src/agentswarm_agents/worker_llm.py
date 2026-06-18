@@ -21,7 +21,10 @@ from agentswarm_agents.ollama_executor import (
     _reviewer_subjective_prompt,
 )
 
-_LLM_TASK_TYPES = frozenset({"creative.text", "reviewer.subjective"})
+from agentswarm_agents.llama_io import (
+    install_llama_log_sink,
+    suppress_native_stderr,
+)
 
 
 def model_path_from_env() -> str | None:
@@ -45,13 +48,16 @@ def _load_llama():
         raise FileNotFoundError(f"model weights not found: {path}")
     n_gpu = int(os.environ.get("AGENTSWARM_LLAMA_N_GPU_LAYERS", "-1"))
     n_ctx = int(os.environ.get("AGENTSWARM_LLAMA_N_CTX", "4096"))
-    return Llama(model_path=path, n_gpu_layers=n_gpu, n_ctx=n_ctx, verbose=False)
+    with suppress_native_stderr():
+        install_llama_log_sink()
+        return Llama(model_path=path, n_gpu_layers=n_gpu, n_ctx=n_ctx, verbose=False)
 
 
 def llama_chat(messages: list[dict[str, str]], *, timeout_sec: float = 120.0) -> str:
     del timeout_sec  # llama-cpp-python does not expose per-call HTTP timeouts
-    llama = _load_llama()
-    response = llama.create_chat_completion(messages=messages, temperature=0.2)
+    with suppress_native_stderr():
+        llama = _load_llama()
+        response = llama.create_chat_completion(messages=messages, temperature=0.2)
     choices = response.get("choices")
     if not isinstance(choices, list) or not choices:
         raise RuntimeError("llama response missing choices")
@@ -148,7 +154,14 @@ def execute_capsule_with_local_llm(assignment: dict[str, Any]) -> dict[str, Any]
         except (ValueError, RuntimeError, json.JSONDecodeError):
             return build_deterministic_coordinator_plan(capsule)
 
+    if task_type == "engineering.infer_patch" and engineering_llm_enabled():
+        if isinstance(capsule.get("lab"), dict) and isinstance(capsule.get("patch"), dict):
+            content = llama_chat(_engineering_patch_prompt(capsule))
+            return {"insert": _strip_code_fences(content)}
+
     if task_type == "codewriter.patch" and engineering_llm_enabled():
+        if isinstance(capsule.get("git"), dict):
+            return execute_capsule(assignment)
         if isinstance(capsule.get("lab"), dict) and isinstance(capsule.get("patch"), dict):
             try:
                 content = llama_chat(_engineering_patch_prompt(capsule))

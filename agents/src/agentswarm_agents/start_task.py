@@ -20,6 +20,7 @@ from agentswarm_agents.engineering_goal import ENGINEERING_ROLE_NAMES, build_eng
 from agentswarm_agents.engineering_lab import reset_fixture
 from agentswarm_agents.task_file import TaskSpec, load_task_file
 from agentswarm_agents.volunteer_client import VolunteerClient, VolunteerConfig
+from agentswarm_agents.volunteer_capabilities import default_generalist_capabilities
 from agentswarm_agents.volunteer_team import (
     TERMINAL_GOAL_STATUSES,
     clean_platform_url,
@@ -321,6 +322,54 @@ def execute_goal_with_volunteers(
     if goal.get("status") != "verified":
         raise RuntimeError(f"goal {goal_id} not verified (status={goal.get('status')!r})")
     return goal
+
+
+def execute_goal_with_generalist_volunteer(
+    base_url: str,
+    goal_id: str,
+    *,
+    model_id: str | None = None,
+    owner: str = "volunteer-e2e",
+    wait_timeout_sec: float = 15.0,
+    goal_timeout_sec: float = 180.0,
+    worker_ready_timeout_sec: float = 45.0,
+    realign_dispatch: bool = False,
+) -> dict[str, Any]:
+    """One generalist volunteer (task-console UX): create goal -> poll -> full pipeline."""
+    return execute_goal_with_volunteers(
+        base_url,
+        goal_id,
+        roles=[(default_generalist_capabilities(), owner)],
+        model_id=model_id,
+        wait_timeout_sec=wait_timeout_sec,
+        goal_timeout_sec=goal_timeout_sec,
+        worker_ready_timeout_sec=worker_ready_timeout_sec,
+        realign_dispatch=realign_dispatch,
+    )
+
+
+def create_and_execute_with_generalist_volunteer(
+    base_url: str,
+    task_file: str | Path,
+    *,
+    model_id: str | None = None,
+    owner: str = "volunteer-e2e",
+    wait_timeout_sec: float = 15.0,
+    goal_timeout_sec: float = 180.0,
+    worker_ready_timeout_sec: float = 45.0,
+) -> dict[str, Any]:
+    """Load task file, post goal, run one generalist volunteer until verified."""
+    spec = load_task_file(task_file)
+    created = create_goal_from_spec(base_url, spec)
+    return execute_goal_with_generalist_volunteer(
+        base_url,
+        created["goal_id"],
+        model_id=model_id,
+        owner=owner,
+        wait_timeout_sec=wait_timeout_sec,
+        goal_timeout_sec=goal_timeout_sec,
+        worker_ready_timeout_sec=worker_ready_timeout_sec,
+    )
 
 
 def create_and_execute_task_file(

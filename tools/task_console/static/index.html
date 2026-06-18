@@ -291,6 +291,68 @@
     }
     .deploy-note code { font-family: var(--mono); font-size: 0.75rem; }
     .deploy-note a { color: #7ee787; }
+    .replay-panel {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #010409;
+    }
+    .replay-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 0.65rem 0;
+    }
+    .replay-actions button { width: auto; flex: 0 0 auto; }
+    .file-tree {
+      max-height: 220px;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.35rem 0;
+      margin-top: 0.5rem;
+    }
+    .file-tree button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      padding: 0.2rem 0.65rem;
+      font-family: inherit;
+      font-size: inherit;
+      cursor: pointer;
+    }
+    .file-tree button:hover { background: #21262d; }
+    .file-tree .dir { color: var(--muted); }
+    .replay-output {
+      margin-top: 0.65rem;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      white-space: pre-wrap;
+      max-height: 240px;
+      overflow: auto;
+      padding: 0.6rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0d1117;
+    }
+    .artifact-box {
+      margin-top: 0.5rem;
+      padding: 0.65rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #161b22;
+      white-space: pre-wrap;
+      font-size: 0.85rem;
+      max-height: 200px;
+      overflow: auto;
+    }
+    .replay-warn { color: var(--warn); font-size: 0.8rem; margin-top: 0.35rem; }
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -337,12 +399,12 @@
 <body>
   <header>
     <h1>AgentSwarm Task Console</h1>
-    <p class="subtitle">Start an engineering task and watch coordinator → codewriter → tester → reviewer in order.</p>
+    <p class="subtitle">Dispatch engineering goals to the platform and watch volunteers execute coordinator → codewriter → tester → reviewer. This console does not run work locally — use <code>agentswarm-volunteer</code> on worker machines.</p>
   </header>
 
   <main>
     <section class="panel" id="controlsPanel">
-      <h2>Run</h2>
+      <h2>Dispatch</h2>
       <div class="field">
         <label for="apiUrl">Platform API URL</label>
         <input id="apiUrl" type="url" spellcheck="false" />
@@ -359,12 +421,13 @@
         <input id="goalId" type="text" placeholder="goal-… (optional)" spellcheck="false" />
       </div>
       <div class="row">
-        <button id="startBtn" type="button">Start task</button>
+        <button id="startBtn" type="button">Dispatch task</button>
         <button id="watchBtn" type="button" class="secondary">Watch goal</button>
       </div>
-      <div id="envHint" class="env-hint">Checking local worker env…</div>
+      <div id="envHint" class="env-hint">Checking dispatch credentials…</div>
+      <div id="volunteerHint" class="env-hint" style="margin-top:0.5rem">Workers: start <code>agentswarm-volunteer</code>, click <strong>Start</strong>, preset <em>Engineering git (full pipeline)</em>. Git tasks need Docker.</div>
       <div class="goal-line" id="goalLine" hidden></div>
-      <p class="subtitle" style="margin-top:0.75rem">Status: <span id="runStatus" class="badge">idle</span></p>
+      <p class="subtitle" style="margin-top:0.75rem">Live goal status: <span id="runStatus" class="badge">idle</span> <span class="subtitle">(from platform trace, not the dispatch log)</span></p>
     </section>
 
     <section>
@@ -380,13 +443,29 @@
 
       <div class="panel">
         <h2>Pipeline</h2>
+        <p class="subtitle" style="margin-top:0">Platform status: <span id="pipelineGoalStatus" class="badge">—</span></p>
         <div id="pipeline" class="pipeline">
-          <div class="empty">Start a task or watch a goal to see the role sequence.</div>
+          <div class="empty">Dispatch a task or watch a goal to see the role sequence.</div>
         </div>
       </div>
 
+      <div class="panel replay-panel" id="replayPanel" hidden>
+        <h2>Project &amp; replay</h2>
+        <div id="replayMeta" class="workspace-note" style="margin-top:0"></div>
+        <div id="creativeArtifact" class="artifact-box" hidden></div>
+        <div class="replay-actions">
+          <button id="refreshTreeBtn" type="button" class="secondary">Refresh file tree</button>
+          <button id="downloadZipBtn" type="button" class="secondary">Download project (.zip)</button>
+          <button id="verifyLocalBtn" type="button">Re-run tests locally</button>
+        </div>
+        <div id="replayWarn" class="replay-warn" hidden></div>
+        <div id="fileTree" class="file-tree"></div>
+        <div id="replayOutput" class="replay-output" hidden></div>
+      </div>
+
       <div class="panel" style="margin-top:1rem">
-        <h2>Run log</h2>
+        <h2>Dispatch log</h2>
+        <p class="subtitle" style="margin-top:0">Output from <code>create_task</code> when the goal was queued. <code>initial_status=pending</code> is normal; live status is above.</p>
         <div id="log">Waiting…</div>
       </div>
     </section>
@@ -414,6 +493,28 @@
     let watchGoalId = null;
     let apiUrl = "";
     let modalDownloadRevoke = null;
+    let lastReplayGoalId = null;
+    let lastLoggedTerminalStatus = null;
+
+    function setGoalStatusBadge(el, status) {
+      el.className = statusBadge(status);
+      el.textContent = status || "—";
+    }
+
+    function maybeAppendLiveStatus(goalId, status) {
+      const normalized = (status || "").toLowerCase();
+      if (!["verified", "rejected"].includes(normalized)) return;
+      const token = `${goalId}:${normalized}`;
+      if (lastLoggedTerminalStatus === token) return;
+      lastLoggedTerminalStatus = token;
+      const message =
+        normalized === "verified"
+          ? "Pipeline complete — see steps above and Project & replay."
+          : "Goal did not pass — inspect failed steps above.";
+      appendLog(
+        `\n[platform] live goal status=${normalized}\n${message}\n(dispatch log above is queue-time only)`
+      );
+    }
 
     function hideModalDownload() {
       const dl = $("downloadTaskModal");
@@ -441,7 +542,7 @@
 
     function statusBadge(status) {
       const s = (status || "").toLowerCase();
-      if (s === "verified" || s === "completed") return "badge ok";
+      if (s === "verified" || s === "completed" || s === "dispatched") return "badge ok";
       if (s === "failed" || s === "rejected") return "badge bad";
       if (s === "running" || s === "claimed" || s === "pending") return "badge warn";
       return "badge";
@@ -449,29 +550,60 @@
 
     function stepState(step, goalStatus) {
       const st = (step.status || "").toLowerCase();
-      if (st === "verified" || st === "submitted") return "done";
+      if (st === "verified" || st === "submitted" || st === "passed") return "done";
       if (st === "rejected" || st === "failed") return "failed";
       if (st === "claimed") return "active";
       if (goalStatus === "verified" && st) return "done";
       return "";
     }
 
+    function terminalGoalMessage(trace) {
+      const status = (trace.status || "").toLowerCase();
+      if (status === "verified") {
+        const ref = trace.workspace_ref;
+        return {
+          main: "Goal complete",
+          detail: ref
+            ? `All pipeline steps finished. workspace_ref: ${ref}`
+            : "All pipeline steps finished. Dispatch another task to run more work.",
+        };
+      }
+      if (status === "rejected") {
+        return {
+          main: "Goal rejected",
+          detail: "A step failed or the reviewer rejected this goal. Check pipeline results below.",
+        };
+      }
+      return null;
+    }
+
     function renderLive(trace, capacity) {
       $("livePanel").hidden = false;
       const box = $("liveBox");
+      const terminal = terminalGoalMessage(trace);
+      if (terminal) {
+        box.classList.add("idle");
+        $("liveMain").textContent = terminal.main;
+        $("liveDetail").textContent = terminal.detail;
+      } else {
       const active = trace.active_step;
       if (active && (active.owner || active.agent_id)) {
         box.classList.remove("idle");
         const who = active.owner && active.owner !== "(awaiting dispatch)"
           ? `client ${active.owner}`
-          : (active.agent_id ? `agent ${active.agent_id}` : "dispatching…");
+          : (active.agent_id ? `agent ${active.agent_id}` : "awaiting volunteer");
         const sandboxHost = active.sandbox_host_owner
           ? ` · sandbox host ${active.sandbox_host_owner}`
           : "";
         $("liveMain").innerHTML =
           `<span class="badge phase">${escapeHtml(active.phase || active.role)}</span> ` +
           `<span class="${roleClass(active.role)}">${active.role}</span> — ${escapeHtml(who)}`;
-        $("liveDetail").textContent = (active.work_description || "") + sandboxHost;
+        let detail = active.work_description || "";
+        if (!active.agent_id && active.owner === "(awaiting dispatch)") {
+          detail += (detail ? " " : "") +
+            `Start volunteer with capability "${active.role}" (engineering git preset covers the full pipeline).`;
+        }
+        $("liveDetail").textContent = detail + sandboxHost;
       } else if (capacity && capacity.capabilities) {
         const busy = [];
         for (const [cap, bucket] of Object.entries(capacity.capabilities)) {
@@ -494,6 +626,7 @@
         box.classList.add("idle");
         $("liveMain").textContent = trace.status === "verified" ? "Goal complete" : "Starting…";
         $("liveDetail").textContent = "";
+      }
       }
 
       const ws = trace.code_workspace;
@@ -528,6 +661,136 @@
       }
     }
 
+    async function refreshReplayPanel(trace) {
+      const goalId = trace.goal_id || watchGoalId;
+      if (!goalId) {
+        $("replayPanel").hidden = true;
+        return;
+      }
+      const canReplay =
+        trace.goal_kind === "creative" ||
+        trace.workspace_ref ||
+        ["verified", "rejected"].includes(trace.status);
+      if (!canReplay) {
+        $("replayPanel").hidden = true;
+        return;
+      }
+      $("replayPanel").hidden = false;
+      const ws = trace.code_workspace;
+      const mode = ws ? ws.mode : trace.goal_kind;
+      $("replayMeta").textContent = [
+        `Goal ${goalId}`,
+        trace.workspace_ref ? `workspace_ref ${trace.workspace_ref}` : "",
+        ws ? `mode ${mode}` : "",
+      ].filter(Boolean).join(" · ");
+      if (trace.goal_kind === "creative" && trace.artifact_text) {
+        $("creativeArtifact").hidden = false;
+        $("creativeArtifact").textContent = trace.artifact_text;
+        $("fileTree").innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>Creative deliverable above.</div>";
+      } else {
+        $("creativeArtifact").hidden = true;
+        if (lastReplayGoalId !== goalId) {
+          lastReplayGoalId = goalId;
+          await loadWorkspaceTree(goalId);
+        }
+      }
+    }
+
+    async function loadWorkspaceTree(goalId) {
+      const url = encodeURIComponent($("apiUrl").value.trim());
+      $("fileTree").textContent = "Loading workspace…";
+      $("replayWarn").hidden = true;
+      try {
+        const res = await fetch(`/api/goals/${goalId}/workspace-tree?api_url=${url}`);
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.detail || res.statusText);
+        if (body.warning) {
+          $("replayWarn").hidden = false;
+          $("replayWarn").textContent = body.warning;
+        }
+        const files = (body.entries || []).filter((e) => e.kind === "file");
+        if (!files.length) {
+          $("fileTree").innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>No files yet.</div>";
+          return;
+        }
+        $("fileTree").innerHTML = files.map((entry) =>
+          `<button type="button" class="file-open" data-path="${escapeHtml(entry.path)}">${escapeHtml(entry.path)}</button>`
+        ).join("");
+      } catch (err) {
+        $("fileTree").textContent = String(err);
+      }
+    }
+
+    async function verifyLocally() {
+      const goalId = watchGoalId;
+      if (!goalId) return;
+      const out = $("replayOutput");
+      out.hidden = false;
+      out.textContent = "Running pytest on the checked-out workspace…";
+      $("verifyLocalBtn").disabled = true;
+      try {
+        const res = await fetch(`/api/goals/${goalId}/verify-locally`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_url: $("apiUrl").value.trim() }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.detail || res.statusText);
+        const passed = body.passed ? "PASSED" : "FAILED";
+        const lines = [
+          `Replay ${passed} (${body.replay_mode || body.mode || "verify"})`,
+          body.warning || "",
+          body.message || "",
+          "",
+          "=== stdout ===",
+          body.stdout || "(empty)",
+          "",
+          "=== stderr ===",
+          body.stderr || "(empty)",
+        ].filter((line, idx) => line !== "" || idx > 4);
+        out.textContent = lines.join("\n");
+        out.style.borderColor = body.passed ? "var(--accent-dim)" : "var(--danger)";
+      } catch (err) {
+        out.textContent = String(err);
+        out.style.borderColor = "var(--danger)";
+      } finally {
+        $("verifyLocalBtn").disabled = false;
+      }
+    }
+
+    async function downloadWorkspaceZip() {
+      const goalId = watchGoalId;
+      if (!goalId) return;
+      const url = encodeURIComponent($("apiUrl").value.trim());
+      const btn = $("downloadZipBtn");
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/goals/${goalId}/workspace-zip?api_url=${url}`);
+        if (!res.ok) {
+          let detail = res.statusText;
+          try {
+            const body = await res.json();
+            detail = body.detail || detail;
+          } catch {
+            detail = await res.text();
+          }
+          throw new Error(detail);
+        }
+        const blob = await res.blob();
+        const disposition = res.headers.get("Content-Disposition") || "";
+        const match = disposition.match(/filename="([^"]+)"/);
+        const filename = match ? match[1] : `${goalId}.zip`;
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(objectUrl);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     function renderPipeline(trace) {
       const root = $("pipeline");
       const steps = trace.steps || [];
@@ -535,7 +798,11 @@
         root.innerHTML = '<div class="empty">No task steps yet — workers may still be starting.</div>';
         return;
       }
-      root.innerHTML = steps.map((step) => {
+      const terminal = terminalGoalMessage(trace);
+      const banner = terminal
+        ? `<div class="workspace-note" style="margin-bottom:1rem"><strong>${escapeHtml(terminal.main)}</strong> — ${escapeHtml(terminal.detail)}</div>`
+        : "";
+      root.innerHTML = banner + steps.map((step) => {
         const state = stepState(step, trace.status);
         const owner = step.owner || step.agent_id || "—";
         const clientLabel = step.owner
@@ -597,12 +864,16 @@
         `<option value="${f}">${f}</option>`
       ).join("");
       const hint = $("envHint");
-      if (cfg.has_bootstrap_token && cfg.has_assignment_secret) {
-        hint.textContent = "Worker env OK (bootstrap token + assignment secret loaded).";
+      if (cfg.has_bootstrap_token) {
+        hint.textContent = "Dispatch OK (bootstrap token loaded). This machine only posts goals.";
         hint.className = "env-hint ok";
       } else {
-        hint.textContent = "Run scripts/serve_task_console.ps1 so staging secrets load via SSH.";
+        hint.textContent = "Run scripts/serve_task_console.ps1 so staging bootstrap token loads via SSH.";
         hint.className = "env-hint bad";
+      }
+      const verifyBtn = $("verifyLocalBtn");
+      if (cfg.docker_available === false) {
+        verifyBtn.title = "Git goals re-run pytest on the local checkout; sandbox fixtures still need Docker";
       }
     }
 
@@ -632,8 +903,10 @@
         ]);
         renderLive(trace, capacity);
         renderPipeline(trace);
-        $("runStatus").className = statusBadge(trace.status);
-        $("runStatus").textContent = trace.status;
+        refreshReplayPanel(trace).catch((err) => console.warn("replay panel", err));
+        setGoalStatusBadge($("runStatus"), trace.status);
+        setGoalStatusBadge($("pipelineGoalStatus"), trace.status);
+        maybeAppendLiveStatus(goalId, trace.status);
         if (["verified", "rejected"].includes(trace.status)) {
           stopPolling();
         }
@@ -644,6 +917,7 @@
 
     function startPolling(goalId) {
       watchGoalId = goalId;
+      lastLoggedTerminalStatus = null;
       $("goalLine").hidden = false;
       $("goalLine").textContent = `goal_id=${goalId}`;
       stopPolling();
@@ -668,7 +942,7 @@
       if (body.status !== "running") {
         activeRunId = null;
         $("startBtn").disabled = false;
-        if (body.goal_id) await pollTrace(body.goal_id);
+        if (body.goal_id) startPolling(body.goal_id);
         return;
       }
       setTimeout(() => pollRun(runId), 800);
@@ -707,8 +981,8 @@
       localStorage.setItem("agentswarm_api_url", apiUrl);
       $("startBtn").disabled = true;
       $("runStatus").className = "badge warn";
-      $("runStatus").textContent = "starting";
-      appendLog(["Starting local worker team…"]);
+      $("runStatus").textContent = "dispatching";
+      appendLog(["Posting goal to platform (no local workers)…"]);
       const res = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -733,6 +1007,54 @@
       apiUrl = $("apiUrl").value.trim();
       localStorage.setItem("agentswarm_api_url", apiUrl);
       startPolling(goalId);
+    });
+
+    $("refreshTreeBtn").addEventListener("click", () => {
+      if (!watchGoalId) return;
+      lastReplayGoalId = null;
+      loadWorkspaceTree(watchGoalId).catch((err) => {
+        $("fileTree").textContent = String(err);
+      });
+    });
+
+    $("verifyLocalBtn").addEventListener("click", () => {
+      verifyLocally().catch((err) => {
+        $("replayOutput").hidden = false;
+        $("replayOutput").textContent = String(err);
+      });
+    });
+
+    $("downloadZipBtn").addEventListener("click", () => {
+      downloadWorkspaceZip().catch((err) => {
+        $("replayOutput").hidden = false;
+        $("replayOutput").textContent = String(err);
+      });
+    });
+
+    $("fileTree").addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.classList.contains("file-open")) {
+        return;
+      }
+      const path = target.getAttribute("data-path");
+      const goalId = watchGoalId;
+      if (!path || !goalId) return;
+      const url = encodeURIComponent($("apiUrl").value.trim());
+      try {
+        const res = await fetch(
+          `/api/goals/${goalId}/workspace-file?api_url=${url}&path=${encodeURIComponent(path)}`
+        );
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.detail || res.statusText);
+        $("taskModalTitle").textContent = path;
+        $("taskModalBody").textContent = body.content;
+        offerModalDownload(path.split("/").pop() || "file.txt", body.content);
+        $("taskModal").hidden = false;
+      } catch (err) {
+        $("taskModalTitle").textContent = path;
+        $("taskModalBody").textContent = String(err);
+        $("taskModal").hidden = false;
+      }
     });
 
     $("pipeline").addEventListener("click", async (event) => {

@@ -139,6 +139,7 @@ from agentswarm_platform.coordinator_plan import (
     DEFAULT_ENGINEERING_RUBRIC,
     build_default_creative_goal_plan,
     default_plan_for_goal,
+    goal_allows_same_agent_pipeline,
     materialize_deferred_payload,
     resolve_pool_need_constraints,
     validate_coordinator_plan,
@@ -1601,13 +1602,15 @@ class Store:
             complete_active_assignment_for_claim(conn, claim_token)
 
         if engineering_followup is not None:
+            worker_id = engineering_followup["worker_agent_id"]
+            self._mark_agent_idle_if_present(worker_id)
             enqueued = self._execute_deferred_pool_needs_for_goal(
                 goal_id=engineering_followup["goal_id"],
                 after_task_type="tester.run",
                 parent_task_id=engineering_followup["parent_task_id"],
-                worker_agent_id=engineering_followup["worker_agent_id"],
+                worker_agent_id=worker_id,
+                parent_test_result=result,
             )
-            self._mark_agent_idle_if_present(engineering_followup["worker_agent_id"])
             return SubmitResponse(
                 submission_id=submission_id,
                 enqueued_task_ids=enqueued,
@@ -1742,6 +1745,37 @@ class Store:
                 engineering_goal = (
                     goal is not None and goal.get("goal_kind") == "engineering"
                 )
+
+            if engineering_goal and verdict == "approve":
+                test_passed: bool | None = None
+                test_result = payload.get("test_result")
+                if isinstance(test_result, dict) and "passed" in test_result:
+                    test_passed = bool(test_result.get("passed"))
+                if test_passed is None:
+                    parent_tester_id = payload.get("parent_task_id") or row["parent_task_id"]
+                    if parent_tester_id:
+                        parent_row = conn.execute(
+                            """
+                            SELECT task_type, submission_result
+                            FROM tasks WHERE task_id = ?
+                            """,
+                            (parent_tester_id,),
+                        ).fetchone()
+                        if (
+                            parent_row is not None
+                            and parent_row["task_type"] == "tester.run"
+                            and parent_row["submission_result"]
+                        ):
+                            parent_result = json.loads(parent_row["submission_result"])
+                            if isinstance(parent_result, dict) and "passed" in parent_result:
+                                test_passed = bool(parent_result.get("passed"))
+                if test_passed is False:
+                    result = {
+                        **result,
+                        "approved": False,
+                        "notes": "tests failed",
+                    }
+                    verdict = "reject"
 
             group_id = (
                 row["replication_group_id"]
@@ -2989,6 +3023,7 @@ class Store:
         *,
         limit: int = 32,
         for_agent_id: str | None = None,
+        include_open_needs: bool = False,
     ) -> list[str]:
         """Assign pending pool needs when idle agents become available."""
         assigned: list[str] = []
@@ -3001,11 +3036,35 @@ class Store:
                     priority_ids.extend(str(need_id) for need_id in values)
             matched_ids: list[str] = []
             if for_agent_id:
-                matched_ids = list_pending_need_ids_for_agent(conn, for_agent_id, limit=limit)
+                scoped_ids = list_pending_need_ids_for_agent(
+                    conn, for_agent_id, limit=limit, owner_scope="scoped"
+                )
+                open_ids = (
+                    list_pending_need_ids_for_agent(
+                        conn, for_agent_id, limit=limit, owner_scope="open"
+                    )
+                    if include_open_needs
+                    else []
+                )
+                matched_ids = scoped_ids + [
+                    need_id for need_id in open_ids if need_id not in scoped_ids
+                ]
                 allowed = set(matched_ids)
                 priority_ids = [need_id for need_id in priority_ids if need_id in allowed]
             pending = list_pending_pool_needs(conn)
         seen: set[str] = set()
+        if for_agent_id is not None:
+            for need_id in priority_ids + matched_ids:
+                if need_id in seen:
+                    continue
+                seen.add(need_id)
+                if self._dispatch_need(need_id) is None:
+                    continue
+                with self._conn() as conn:
+                    if get_pending_assignment_for_agent(conn, for_agent_id) is not None:
+                        assigned.append(need_id)
+                        return assigned
+            return assigned
         for need_id in priority_ids + matched_ids:
             if need_id in seen:
                 continue
@@ -3034,6 +3093,7 @@ class Store:
         task_type: str | None,
         payload: dict[str, Any],
         constraints: dict[str, Any],
+        preferred_agent_id: str | None = None,
     ) -> dict[str, Any]:
         if not dispatch_enabled():
             raise ValueError("pool.need requires AGENTSWARM_ASSIGNMENT_MODE=dispatch")
@@ -3079,7 +3139,10 @@ class Store:
                     "constraints": constraints,
                 },
             )
-        assignment = self._dispatch_need(need_id)
+        assignment = self._dispatch_need(
+            need_id,
+            preferred_agent_id=preferred_agent_id,
+        )
         return {
             "need_id": need_id,
             "task_id": resolved_task_id,
@@ -3087,13 +3150,22 @@ class Store:
             "assignment": assignment,
         }
 
-    def _dispatch_need(self, need_id: str) -> dict[str, Any] | None:
+    def _dispatch_need(
+        self,
+        need_id: str,
+        *,
+        preferred_agent_id: str | None = None,
+    ) -> dict[str, Any] | None:
         with self._conn() as conn:
             prepare_pool_need_for_dispatch(conn, need_id)
             need_row = get_pool_need(conn, need_id)
             if need_row is None or need_row["status"] != "pending":
                 return None
-            agent_id = pick_dispatch_agent(conn, need_row)
+            agent_id = pick_dispatch_agent(
+                conn,
+                need_row,
+                preferred_agent_id=preferred_agent_id,
+            )
             if agent_id is None:
                 return None
             claim_token = new_claim_token()
@@ -3135,7 +3207,8 @@ class Store:
                 agent_id,
                 {"need_id": need_id, "task_id": task_id, "lease_id": lease["lease_id"]},
             )
-        assignment = self.get_pending_assignment(agent_id)
+        with self._conn() as conn:
+            assignment = get_pending_assignment_for_agent(conn, agent_id)
         return assignment
 
     def _enrich_assignment_with_forge(
@@ -3173,13 +3246,21 @@ class Store:
         with self._conn() as conn:
             assignment = get_pending_assignment_for_agent(conn, agent_id)
         if assignment is None and dispatch_enabled():
-            self._redispatch_pending_pool_needs(for_agent_id=agent_id)
+            self._redispatch_pending_pool_needs(
+                for_agent_id=agent_id,
+                include_open_needs=True,
+            )
             with self._conn() as conn:
                 assignment = get_pending_assignment_for_agent(conn, agent_id)
             if assignment is None:
                 with self._conn() as conn:
-                    scoped_waiting = list_pending_need_ids_for_agent(conn, agent_id)
-                if not scoped_waiting:
+                    scoped_waiting = list_pending_need_ids_for_agent(
+                        conn, agent_id, owner_scope="scoped"
+                    )
+                    open_waiting = list_pending_need_ids_for_agent(
+                        conn, agent_id, owner_scope="open"
+                    )
+                if not scoped_waiting and not open_waiting:
                     self._redispatch_pending_pool_needs()
                     with self._conn() as conn:
                         assignment = get_pending_assignment_for_agent(conn, agent_id)
@@ -3203,7 +3284,10 @@ class Store:
             if row is not None:
                 set_presence_status(conn, agent_id, "idle")
         if dispatch_enabled():
-            self._redispatch_pending_pool_needs(for_agent_id=agent_id)
+            self._redispatch_pending_pool_needs(
+                for_agent_id=agent_id,
+                include_open_needs=True,
+            )
 
     def get_agent_credits(self, agent_id: str) -> dict[str, Any] | None:
         agent = self.get_agent(agent_id)
@@ -3461,6 +3545,39 @@ class Store:
             goal["appeal"] = appeal
         return goal
 
+    def get_goal_replay_context(self, goal_id: str) -> dict[str, Any] | None:
+        from agentswarm_platform.forge_store import (
+            forge_credentials_for_assignment,
+            get_goal_forge_credential,
+        )
+
+        goal = self.get_creative_goal_status(goal_id)
+        if goal is None:
+            return None
+        forge_envelope: dict[str, Any] | None = None
+        with self._conn() as conn:
+            credential = get_goal_forge_credential(conn, goal_id)
+        if credential is not None:
+            forge_envelope = forge_credentials_for_assignment(
+                credential,
+                lease_expires_at="2099-01-01T00:00:00Z",
+            )
+        verification_spec = goal.get("verification_spec")
+        workspace = goal.get("workspace")
+        return {
+            "goal_id": goal_id,
+            "goal_kind": str(goal.get("goal_kind", "creative")),
+            "status": str(goal.get("status", "")),
+            "brief": str(goal.get("brief", "")),
+            "artifact_text": goal.get("artifact_text"),
+            "workspace_ref": goal.get("workspace_ref"),
+            "verification_spec": verification_spec
+            if isinstance(verification_spec, dict)
+            else None,
+            "workspace": workspace if isinstance(workspace, dict) else None,
+            "forge_credentials": forge_envelope,
+        }
+
     def get_goal_trace(self, goal_id: str) -> dict[str, Any] | None:
         from agentswarm_platform.goal_trace import (
             ROLE_ORDER,
@@ -3471,6 +3588,7 @@ class Store:
             sandbox_host_for_step,
             log_artifact_ref_for_step,
             summarize_task_result,
+            trace_step_status,
             workspace_ref_for_step,
         )
 
@@ -3520,7 +3638,11 @@ class Store:
                     "task_type": task_type,
                     "task_id": str(row["task_id"]),
                     "capability": str(row["capability_required"]),
-                    "status": str(row["status"]),
+                    "status": trace_step_status(
+                        task_type,
+                        str(row["status"]),
+                        result if isinstance(result, dict) else None,
+                    ),
                     "agent_id": row["claimed_by"],
                     "owner": str(row["owner"] or ""),
                     "created_at": row["created_at"],
@@ -3754,6 +3876,7 @@ class Store:
         poster_owner: str,
         worker_agent_id: str | None = None,
         payload_override: dict[str, Any] | None = None,
+        preferred_agent_id: str | None = None,
     ) -> str:
         payload = payload_override if payload_override is not None else spec["payload"]
         constraints = resolve_pool_need_constraints(
@@ -3779,6 +3902,7 @@ class Store:
             task_type=spec["task_type"],
             payload=payload,
             constraints=constraints,
+            preferred_agent_id=preferred_agent_id,
         )
         return created.task_id
 
@@ -3935,6 +4059,7 @@ class Store:
         after_task_type: str,
         parent_task_id: str,
         worker_agent_id: str | None,
+        parent_test_result: dict[str, Any] | None = None,
     ) -> list[str]:
         with self._conn() as conn:
             goal = get_creative_goal(conn, goal_id)
@@ -3946,6 +4071,7 @@ class Store:
         poster = self.get_agent(goal["poster_agent_id"])
         if poster is None:
             raise ValueError("poster agent missing")
+        solo_pipeline = goal_allows_same_agent_pipeline(goal)
         enqueued: list[str] = []
         remaining: list[dict[str, Any]] = []
         for entry in deferred_entries:
@@ -3954,7 +4080,17 @@ class Store:
                 continue
             spec = entry["spec"]
             payload_template = spec["payload_template"]
-            payload = materialize_deferred_payload(payload_template, goal=goal)
+            inject_test_result = (
+                after_task_type == "tester.run"
+                and str(spec.get("task_type")) == "reviewer.approve"
+                and parent_test_result is not None
+            )
+            payload = materialize_deferred_payload(
+                payload_template,
+                goal=goal,
+                parent_test_result=parent_test_result if inject_test_result else None,
+                parent_task_id=parent_task_id if inject_test_result else None,
+            )
             pool_spec = {
                 "role": spec["role"],
                 "capability_required": spec["capability_required"],
@@ -3976,6 +4112,13 @@ class Store:
                 enqueued.extend(task_ids)
                 continue
             count = int(spec.get("count", 1))
+            preferred_agent_id = None
+            if (
+                solo_pipeline
+                and worker_agent_id
+                and str(spec.get("task_type")) == "reviewer.approve"
+            ):
+                preferred_agent_id = worker_agent_id
             for _ in range(count):
                 task_id = self._emit_pool_need_spec(
                     spec=pool_spec,
@@ -3985,6 +4128,7 @@ class Store:
                     poster_owner=poster["owner"],
                     worker_agent_id=worker_agent_id,
                     payload_override=payload,
+                    preferred_agent_id=preferred_agent_id,
                 )
                 enqueued.append(task_id)
         with self._conn() as conn:

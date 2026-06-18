@@ -32,9 +32,16 @@ agentswarm-volunteer = "agentswarm_agents.volunteer_gui:main"
 agentswarm-solve = "agentswarm_agents.solve:main"
 agentswarm-create-task = "agentswarm_agents.create_task:main"
 agentswarm-start-task = "agentswarm_agents.start_task:main"
+agentswarm-replay-goal = "agentswarm_agents.replay_goal:main"
 
 [tool.setuptools.package-data]
 agentswarm_agents = ["model_allowlist.json"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+markers = [
+    "dispatch_e2e: live uvicorn dispatch platform + VolunteerClient integration",
+]

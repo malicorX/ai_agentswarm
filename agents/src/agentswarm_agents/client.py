@@ -138,4 +138,7 @@ def pilot_dir() -> str:
 
 
 def platform_url() -> str:
-    return os.environ.get("AGENTSWARM_PLATFORM_URL", "http://127.0.0.1:8000")
+    return os.environ.get(
+        "AGENTSWARM_PLATFORM_URL",
+        os.environ.get("AGENTSWARM_STAGING_API_URL", "http://127.0.0.1:8000"),
+    )

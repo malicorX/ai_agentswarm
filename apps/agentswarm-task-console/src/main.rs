@@ -184,9 +184,21 @@ fn start_server(repo_root: &Path, python: &Path, port: u16) -> Result<ServerProc
         .args(["-m", "tools.task_console.server"])
         .current_dir(repo_root)
         .env("AGENTSWARM_REPO_ROOT", repo_root)
-        .env("AGENTSWARM_TASK_CONSOLE_PORT", port.to_string())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .env("AGENTSWARM_TASK_CONSOLE_PORT", port.to_string());
+    for key in [
+        "AGENTSWARM_BOOTSTRAP_TOKEN",
+        "AGENTSWARM_OWNER_TOKEN",
+        "AGENTSWARM_STAGING_API_URL",
+        "AGENTSWARM_PLATFORM_URL",
+        "AGENTSWARM_ASSIGNMENT_SECRET",
+    ] {
+        if let Ok(value) = env::var(key) {
+            if !value.trim().is_empty() {
+                command.env(key, value);
+            }
+        }
+    }
+    command.stdout(Stdio::null()).stderr(Stdio::null());
     hide_console_window(&mut command);
 
     let child = command

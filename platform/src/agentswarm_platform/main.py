@@ -512,6 +512,17 @@ def get_goal_trace(goal_id: str) -> GoalTraceResponse:
     return GoalTraceResponse(**trace)
 
 
+@app.get("/creative/goals/{goal_id}/replay-context")
+def get_goal_replay_context(
+    goal_id: str,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> dict:
+    ctx = store.get_goal_replay_context(goal_id)
+    if ctx is None:
+        raise HTTPException(status_code=404, detail="goal not found")
+    return ctx
+
+
 @app.post("/artifacts", response_model=ArtifactStoreResponse)
 def store_artifact(
     content: Annotated[bytes, Body(media_type="application/octet-stream")],

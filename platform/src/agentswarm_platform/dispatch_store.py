@@ -5,10 +5,12 @@ import secrets
 import sqlite3
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Literal
 
 from agentswarm_platform.assignment_signing import sign_assignment
 from agentswarm_platform.assignment_wait import pool_need_max_age_hours
+from agentswarm_platform.capabilities import agent_satisfies_capability
+from agentswarm_platform.coordinator_plan import goal_allows_same_agent_pipeline
 from agentswarm_platform.hardware_gates import agent_meets_reviewer_hardware
 from agentswarm_platform.replication_store import agent_already_in_group
 from agentswarm_platform.presence_store import (
@@ -96,78 +98,147 @@ def list_pending_pool_needs(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def agent_matches_pool_need(
+    conn: sqlite3.Connection,
+    agent_id: str,
+    need_row: sqlite3.Row,
+    *,
+    replication_group_id: str | None = None,
+) -> bool:
+    """Return True when an idle agent may take this pending pool need."""
+    presence = conn.execute(
+        "SELECT * FROM agent_presence WHERE agent_id = ?", (agent_id,)
+    ).fetchone()
+    if presence is None or presence["status"] != "idle":
+        return False
+    agent = conn.execute(
+        "SELECT owner FROM agents WHERE agent_id = ?", (agent_id,)
+    ).fetchone()
+    if agent is None:
+        return False
+    owner = str(agent["owner"] or "")
+    capabilities = json.loads(presence["capabilities"])
+    capability_required = str(need_row["capability_required"])
+    if not agent_satisfies_capability(capabilities, capability_required):
+        return False
+    constraints = json.loads(need_row["constraints_json"])
+    include_owners = {str(item) for item in constraints.get("include_owners") or []}
+    if include_owners and owner not in include_owners:
+        return False
+    exclude_owners = {
+        str(item)
+        for item in constraints.get("exclude_owners")
+        or constraints.get("exclude_owner_ids")
+        or []
+    }
+    if owner in exclude_owners:
+        return False
+    exclude_agents = {
+        str(item)
+        for item in constraints.get("exclude_agent_ids")
+        or constraints.get("exclude_agents")
+        or []
+    }
+    if agent_id in exclude_agents:
+        return False
+    if capability_required == "reviewer" and not agent_meets_reviewer_hardware(
+        model_id=presence["model_id"],
+        vram_gb=presence["vram_gb"],
+        constraints=constraints,
+    ):
+        return False
+    group_id = replication_group_id
+    if group_id is None and need_row["task_id"]:
+        task_row = conn.execute(
+            "SELECT replication_group_id FROM tasks WHERE task_id = ?",
+            (need_row["task_id"],),
+        ).fetchone()
+        if task_row is not None and task_row["replication_group_id"]:
+            group_id = str(task_row["replication_group_id"])
+    if group_id and agent_already_in_group(conn, group_id, agent_id):
+        return False
+    return True
+
+
 def list_pending_need_ids_for_agent(
     conn: sqlite3.Connection,
     agent_id: str,
     *,
     limit: int = 32,
+    owner_scope: Literal["scoped", "open", "any"] = "scoped",
 ) -> list[str]:
-    """Owner-scoped pending needs an idle agent can take, oldest first."""
-    presence = conn.execute(
-        "SELECT * FROM agent_presence WHERE agent_id = ?", (agent_id,)
-    ).fetchone()
-    if presence is None or presence["status"] != "idle":
-        return []
-    agent = conn.execute(
-        "SELECT owner FROM agents WHERE agent_id = ?", (agent_id,)
-    ).fetchone()
-    if agent is None:
-        return []
-    owner = str(agent["owner"] or "")
-    capabilities = json.loads(presence["capabilities"])
+    """Pending needs an idle agent can take, oldest first.
+
+    owner_scope:
+      scoped — only needs with include_owners (owner must be listed)
+      open   — only needs without include_owners (general queue)
+      any    — both scoped and open needs
+    """
     matched: list[str] = []
-    from agentswarm_platform.capabilities import agent_satisfies_capability
 
     for need in list_pending_pool_needs(conn):
-        capability_required = str(need["capability_required"])
-        if not agent_satisfies_capability(capabilities, capability_required):
+        if not agent_matches_pool_need(conn, agent_id, need):
             continue
         constraints = json.loads(need["constraints_json"])
         include_owners = {str(item) for item in constraints.get("include_owners") or []}
-        if include_owners and owner not in include_owners:
-            continue
-        exclude_owners = {
-            str(item)
-            for item in constraints.get("exclude_owners")
-            or constraints.get("exclude_owner_ids")
-            or []
-        }
-        if owner in exclude_owners:
-            continue
-        exclude_agents = {
-            str(item)
-            for item in constraints.get("exclude_agent_ids")
-            or constraints.get("exclude_agents")
-            or []
-        }
-        if agent_id in exclude_agents:
-            continue
-        if capability_required == "reviewer" and not agent_meets_reviewer_hardware(
-            model_id=presence["model_id"],
-            vram_gb=presence["vram_gb"],
-            constraints=constraints,
-        ):
-            continue
-        task_id = need["task_id"]
-        if task_id:
-            task_row = conn.execute(
-                "SELECT replication_group_id FROM tasks WHERE task_id = ?",
-                (task_id,),
-            ).fetchone()
-            group_id = (
-                str(task_row["replication_group_id"])
-                if task_row is not None and task_row["replication_group_id"]
-                else None
-            )
-            if group_id and agent_already_in_group(conn, group_id, agent_id):
-                continue
         need_id = str(need["need_id"])
-        if not include_owners:
+        if owner_scope == "scoped" and not include_owners:
+            continue
+        if owner_scope == "open" and include_owners:
             continue
         matched.append(need_id)
         if len(matched) >= limit:
             break
     return matched[:limit]
+
+
+def relax_solo_pipeline_pool_need_constraints(conn: sqlite3.Connection) -> list[str]:
+    """Drop worker-agent exclusions on pending needs when solo pipeline is allowed."""
+    from agentswarm_platform.subjective_store import get_creative_goal
+
+    updated: list[str] = []
+    for need in list_pending_pool_needs(conn):
+        task_id = need["task_id"]
+        if not task_id:
+            continue
+        task_row = conn.execute(
+            "SELECT payload FROM tasks WHERE task_id = ?",
+            (task_id,),
+        ).fetchone()
+        if task_row is None or not task_row["payload"]:
+            continue
+        try:
+            payload = json.loads(task_row["payload"])
+        except json.JSONDecodeError:
+            continue
+        goal_id = payload.get("goal_id")
+        if not goal_id:
+            continue
+        goal = get_creative_goal(conn, str(goal_id))
+        if goal is None or not goal_allows_same_agent_pipeline(goal):
+            continue
+        try:
+            constraints = json.loads(need["constraints_json"])
+        except json.JSONDecodeError:
+            continue
+        poster_agent_id = str(goal["poster_agent_id"])
+        exclude_agents = [
+            str(item)
+            for item in constraints.get("exclude_agent_ids")
+            or constraints.get("exclude_agents")
+            or []
+        ]
+        relaxed = [agent_id for agent_id in exclude_agents if agent_id == poster_agent_id]
+        if relaxed == exclude_agents:
+            continue
+        constraints["exclude_agent_ids"] = relaxed
+        constraints.pop("exclude_agents", None)
+        conn.execute(
+            "UPDATE pool_needs SET constraints_json = ? WHERE need_id = ?",
+            (json.dumps(constraints), need["need_id"]),
+        )
+        updated.append(str(need["need_id"]))
+    return updated
 
 
 def complete_active_assignment_for_claim(
@@ -539,6 +610,7 @@ def maintain_dispatch_pool(
     stale = reclaim_leases_for_stale_presence(conn, now=now)
     reconciled_needs = reconcile_assigned_pool_needs_without_active_lease(conn)
     reconciled_tasks = reconcile_claimed_tasks_without_active_lease(conn)
+    relaxed_needs = relax_solo_pipeline_pool_need_constraints(conn)
     cancelled_needs = expire_stale_pending_pool_needs(conn, now=now)
     evicted = evict_stale_presence(conn, now=now)
     return {
@@ -546,6 +618,7 @@ def maintain_dispatch_pool(
         "stale_need_ids": stale,
         "reconciled_need_ids": reconciled_needs,
         "reconciled_task_ids": reconciled_tasks,
+        "relaxed_solo_need_ids": relaxed_needs,
         "cancelled_need_ids": cancelled_needs,
         "evicted_presence": evicted,
     }

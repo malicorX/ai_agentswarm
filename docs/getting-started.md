@@ -165,13 +165,19 @@ Full guide: [volunteer-client.md](volunteer-client.md) · hardware: [volunteer-h
 
 ## Task console (operator UI)
 
-Web UI to enqueue engineering tasks and watch goal pipelines (local `start_task` or **Watch goal** on staging):
+Web UI to **dispatch** engineering goals and watch the pipeline. **Does not run volunteer workers** on the console machine.
 
 ```powershell
 .\scripts\serve_task_console.ps1
 ```
 
-Open http://127.0.0.1:8765 — see [task-workflow.md](task-workflow.md).
+Open http://127.0.0.1:8765 — **Dispatch task** posts a goal via `create_task`; **Watch goal** monitors trace on staging.
+
+To execute work on your PC, start **`agentswarm-volunteer`** separately (same or another machine) with the right capabilities.
+
+Local all-in-one dev (console machine runs workers): `.\scripts\start_task.ps1` — not the task console.
+
+See [task-workflow.md](task-workflow.md).
 
 ### Preview the static pilot locally
 

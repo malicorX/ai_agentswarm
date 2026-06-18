@@ -104,7 +104,8 @@ def format_create_task_output(result: dict[str, Any]) -> str:
         f"goal_id={result['goal_id']}",
         f"coordinator_task_id={result['coordinator_task_id']}",
         f"TaskId={result['goal_id']}",
-        f"status={result.get('status', 'pending')}",
+        f"initial_status={result.get('status', 'pending')}",
+        "note=live status updates on the platform when volunteers finish (watch goal trace)",
     ]
     return "\n".join(lines)
 

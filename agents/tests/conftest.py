@@ -41,3 +41,25 @@ def cred_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         main_module.store = main_module.Store(db_path)
         deps.bind_store(main_module.store)
         yield TestClient(main_module.app)
+
+
+@pytest.fixture
+def live_dispatch_platform(tmp_path: Path):
+    """Start uvicorn with dispatch mode for volunteer-client integration tests."""
+    import dispatch_e2e_support
+
+    base_url, proc = dispatch_e2e_support.start_live_dispatch_platform(tmp_path)
+    try:
+        yield base_url
+    finally:
+        dispatch_e2e_support.stop_process(proc)
+
+
+@pytest.fixture
+def e2e_dispatch_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import dispatch_e2e_support
+
+    monkeypatch.setenv("AGENTSWARM_ASSIGNMENT_SECRET", dispatch_e2e_support.E2E_ASSIGNMENT_SECRET)
+    monkeypatch.setenv("AGENTSWARM_BOOTSTRAP_TOKEN", "e2e-bootstrap")
+    monkeypatch.setenv("AGENTSWARM_IDENTITY_DIR", str(tmp_path / "worker-identities"))
+    monkeypatch.setenv("AGENTSWARM_REPO_ROOT", str(Path(__file__).resolve().parents[2]))

@@ -5,6 +5,7 @@ import os
 import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from enum import Enum
 from typing import Any, Callable
@@ -19,6 +20,16 @@ from agentswarm_agents.docker_worker import (
     verify_assignment_signature,
 )
 from agentswarm_agents.model_store import ensure_model_for_entry, model_status
+from agentswarm_agents.volunteer_executor import resolve_hybrid_docker_executor
+from agentswarm_agents.volunteer_work import (
+    VolunteerWorkContext,
+    VolunteerWorkEvent,
+    finished_event,
+    running_status_detail,
+    started_event,
+    summarize_work_result,
+    work_context_from_assignment,
+)
 from agentswarm_agents.ollama_executor import ollama_available, ollama_capsule_executor
 from agentswarm_agents.identity import StoredIdentity, load_identity, save_identity
 from agentswarm_agents.model_allowlist import validate_model_id
@@ -28,6 +39,7 @@ from agentswarm_platform.crypto import generate_keypair, public_key_b64
 CLIENT_VERSION = "0.6.0-p6.8"
 LogCallback = Callable[[str], None]
 StateCallback = Callable[[str, str], None]
+WorkEventCallback = Callable[[VolunteerWorkEvent], None]
 
 
 class VolunteerState(str, Enum):
@@ -111,11 +123,17 @@ def resolve_executor(
             raise RuntimeError(
                 "selected model requires Docker Desktop; build the worker image first"
             )
-        return resolve_docker_executor(
+        return resolve_hybrid_docker_executor(
             agent_id,
             model_entry=model,
             default_image=config.worker_image,
             model_path=model_path,
+            docker_executor=resolve_docker_executor(
+                agent_id,
+                model_entry=model,
+                default_image=config.worker_image,
+                model_path=model_path,
+            ),
         )
     if runtime == "ollama":
         endpoint = str(model.get("endpoint", "http://127.0.0.1:11434"))
@@ -187,12 +205,17 @@ class VolunteerClient:
         *,
         on_state: StateCallback | None = None,
         on_log: LogCallback | None = None,
+        on_work_event: WorkEventCallback | None = None,
     ) -> None:
         self.config = config
         self._on_state = on_state
         self._on_log = on_log
+        self._on_work_event = on_work_event
         self._client: DispatchClient | None = None
         self._executor: CapsuleExecutor | None = None
+        self._idle_polls: int = 0
+        self._active_work: VolunteerWorkContext | None = None
+        self._active_work_started_at: datetime | None = None
 
     @property
     def agent_id(self) -> str | None:
@@ -203,6 +226,29 @@ class VolunteerClient:
     def _log(self, message: str) -> None:
         if self._on_log is not None:
             self._on_log(message)
+
+    def _emit_work(self, event: VolunteerWorkEvent) -> None:
+        if self._on_work_event is not None:
+            self._on_work_event(event)
+
+    def _clear_active_work(self) -> None:
+        self._active_work = None
+        self._active_work_started_at = None
+
+    def _fail_active_work(self, error: str) -> None:
+        if self._active_work is None or self._active_work_started_at is None:
+            return
+        self._emit_work(
+            finished_event(
+                self._active_work,
+                started_at=self._active_work_started_at,
+                status="error",
+                submission_id=None,
+                summary="failed",
+                detail=error,
+            )
+        )
+        self._clear_active_work()
 
     def _set_state(self, state: VolunteerState | str, detail: str = "") -> None:
         if self._on_state is not None:
@@ -267,9 +313,17 @@ class VolunteerClient:
         if assignment is None:
             return False
         verify_assignment_signature(assignment, client.agent_id)
-        task_type = assignment.get("task_type", "assignment")
-        self._set_state(VolunteerState.RUNNING, task_type)
-        self._log(f"running {task_type} ({assignment.get('task_id')})")
+        task_type = str(assignment.get("task_type", "assignment"))
+        work = work_context_from_assignment(assignment)
+        self._active_work = work
+        started = started_event(work)
+        self._active_work_started_at = started.started_at
+        self._emit_work(started)
+        self._set_state(VolunteerState.RUNNING, running_status_detail(work))
+        self._log(
+            f"running {work.role} / {task_type} "
+            f"(goal={work.goal_display}, project={work.project_display}, {work.task_id})"
+        )
         client.heartbeat(
             config.capabilities,
             status="busy",
@@ -304,6 +358,19 @@ class VolunteerClient:
             stop_heartbeat.set()
             heartbeat_thread.join(timeout=2.0)
         submission_id = client.submit_assignment(assignment, result)
+        summary, detail = summarize_work_result(task_type, result)
+        if self._active_work is not None and self._active_work_started_at is not None:
+            self._emit_work(
+                finished_event(
+                    self._active_work,
+                    started_at=self._active_work_started_at,
+                    status="ok",
+                    submission_id=submission_id,
+                    summary=summary,
+                    detail=detail,
+                )
+            )
+        self._clear_active_work()
         client.heartbeat(
             config.capabilities,
             status="idle",
@@ -314,6 +381,7 @@ class VolunteerClient:
         )
         self._set_state(VolunteerState.IDLE, "waiting for assignment")
         self._log(f"submitted {submission_id}")
+        self._idle_polls = 0
         return True
 
     def run_until_stopped(self, stop_event: threading.Event) -> None:
@@ -324,6 +392,7 @@ class VolunteerClient:
                 try:
                     worked = self.run_once()
                 except Exception as exc:
+                    self._fail_active_work(str(exc))
                     self._set_state(VolunteerState.ERROR, str(exc))
                     self._log(f"error: {exc}")
                     stop_event.wait(self.config.poll_sec)
@@ -332,6 +401,12 @@ class VolunteerClient:
                     self._set_state(VolunteerState.IDLE, "retrying")
                     continue
                 if not worked:
+                    self._idle_polls += 1
+                    if self._idle_polls == 1 or self._idle_polls % 5 == 0:
+                        self._log(
+                            "idle — no tasks in the platform queue "
+                            "(dispatch a new goal or wait for work)"
+                        )
                     stop_event.wait(self.config.poll_sec)
         except Exception as exc:
             self._set_state(VolunteerState.ERROR, str(exc))

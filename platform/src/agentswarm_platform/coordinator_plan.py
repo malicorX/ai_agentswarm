@@ -420,6 +420,8 @@ def materialize_deferred_payload(
     template: dict[str, Any],
     *,
     goal: dict[str, Any],
+    parent_test_result: dict[str, Any] | None = None,
+    parent_task_id: str | None = None,
 ) -> dict[str, Any]:
     payload = copy.deepcopy(template)
     payload["goal_id"] = goal["goal_id"]
@@ -454,7 +456,24 @@ def materialize_deferred_payload(
                     capsule["workspace_ref"] = ref
         except (json.JSONDecodeError, TypeError):
             pass
+    if parent_test_result is not None:
+        payload["test_result"] = parent_test_result
+        capsule["test_result"] = parent_test_result
+    if parent_task_id:
+        payload["parent_task_id"] = parent_task_id
     return payload
+
+
+def goal_allows_same_agent_pipeline(goal: dict[str, Any]) -> bool:
+    """Single-machine volunteers may run codewriter → tester → reviewer on one agent."""
+    spec = goal.get("verification_spec") or {}
+    explicit = spec.get("solo_pipeline")
+    if explicit is True:
+        return True
+    if explicit is False:
+        return False
+    owners = goal.get("dispatch_include_owners") or []
+    return not owners
 
 
 def resolve_pool_need_constraints(
@@ -467,12 +486,15 @@ def resolve_pool_need_constraints(
     resolved = dict(constraints or {})
     exclude_owners = [str(item) for item in resolved.pop("exclude_owners", [])]
     exclude_agent_ids = [str(item) for item in resolved.pop("exclude_agent_ids", [])]
+    same_agent_pipeline = goal_allows_same_agent_pipeline(goal)
     if resolved.pop("exclude_poster", False):
         exclude_owners.append(poster_owner)
-    if resolved.pop("exclude_worker", False) and worker_agent_id:
+    if same_agent_pipeline:
+        resolved.pop("exclude_worker", None)
+    elif resolved.pop("exclude_worker", False) and worker_agent_id:
         exclude_agent_ids.append(worker_agent_id)
     exclude_agent_ids.append(goal["poster_agent_id"])
-    if worker_agent_id:
+    if worker_agent_id and not same_agent_pipeline:
         exclude_agent_ids.append(worker_agent_id)
     deduped_owners = list(dict.fromkeys(exclude_owners))
     deduped_agents = list(dict.fromkeys(exclude_agent_ids))

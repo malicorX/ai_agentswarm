@@ -4,6 +4,7 @@ from agentswarm_platform.goal_trace import (
     describe_task_work,
     role_label,
     summarize_task_result,
+    trace_step_status,
     workspace_ref_for_step,
 )
 
@@ -26,6 +27,12 @@ def test_summarize_task_result() -> None:
     )
     assert "passed=True" in summarize_task_result("tester.run", {"passed": True})
     assert "approved=True" in summarize_task_result("reviewer.approve", {"approved": True})
+
+
+def test_trace_step_status_maps_passed_tester() -> None:
+    assert trace_step_status("tester.run", "submitted", {"passed": True}) == "passed"
+    assert trace_step_status("tester.run", "submitted", {"passed": False}) == "failed"
+    assert trace_step_status("tester.run", "verified", {"passed": True}) == "verified"
 
 
 def test_describe_task_work_engineering() -> None:

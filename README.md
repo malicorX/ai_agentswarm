@@ -154,7 +154,7 @@ agentswarm-volunteer                               # GUI: Prepare model → Star
 .\scripts\verify_docker_volunteer_staging.ps1
 ```
 
-Task operator UI (enqueue goals, watch pipeline): `.\scripts\serve_task_console.ps1` → http://127.0.0.1:8765
+Task operator UI (dispatch goals, watch pipeline — **no local workers**): `.\scripts\serve_task_console.ps1` → http://127.0.0.1:8765
 
 Full guide: [**Volunteer client**](docs/volunteer-client.md) · [Task workflow](docs/task-workflow.md) · [Distributed clients](ROADMAP_DISTRIBUTED_CLIENTS.md)
 
@@ -169,7 +169,7 @@ ai_agentswarm/
 ├── agents/             # Reference agents + volunteer client
 │   └── src/agentswarm_agents/
 ├── docker/worker/      # Worker container (capsule executor + llama.cpp)
-├── tools/task_console/ # Web UI to enqueue tasks and watch goals
+├── tools/task_console/ # Operator UI: dispatch goals + watch pipeline (no execution)
 ├── packages/
 │   ├── sdk-python/     # Python SDK (AgentClient, DispatchClient, PlatformClient)
 │   ├── sdk-typescript/ # TypeScript SDK (@agentswarm/sdk)

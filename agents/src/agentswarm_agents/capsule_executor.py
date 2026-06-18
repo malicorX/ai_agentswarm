@@ -188,6 +188,20 @@ def execute_capsule(assignment: dict[str, Any]) -> dict[str, Any]:
 
     if task_type == "reviewer.approve":
 
+        test_result = assignment.get("test_result")
+        if not isinstance(test_result, dict):
+            test_result = capsule.get("test_result")
+        if isinstance(test_result, dict) and "passed" in test_result:
+            approved = bool(test_result.get("passed"))
+            return {
+                "approved": approved,
+                "notes": (
+                    "auto-approved after passing tests"
+                    if approved
+                    else "tests failed"
+                ),
+            }
+
         return {"approved": True, "notes": "container approve"}
 
     return {"ok": True, "task_type": task_type}

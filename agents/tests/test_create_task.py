@@ -25,6 +25,7 @@ def test_format_create_task_output_includes_task_id_alias() -> None:
     assert "goal_id=goal-abc" in text
     assert "TaskId=goal-abc" in text
     assert "coordinator_task_id=task-xyz" in text
+    assert "initial_status=pending" in text
 
 
 @patch("agentswarm_agents.create_task.goal_auth_headers", return_value={"X-Bootstrap-Token": "t"})

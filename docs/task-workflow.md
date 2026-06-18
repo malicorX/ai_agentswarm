@@ -1,6 +1,6 @@
 # Task workflow — create, dispatch, solve
 
-This guide describes the **decoupled task pool workflow**: enqueue work without starting volunteers, inspect swarm capacity, then execute via dispatch (phase 3: `start_task`).
+This guide describes the **decoupled task pool workflow**: enqueue goals, inspect swarm capacity, then let **volunteers** on worker machines execute assignments. The **task console** only dispatches (`create_task`); it does not run workers on the operator PC.
 
 ## Overview
 
@@ -9,9 +9,9 @@ This guide describes the **decoupled task pool workflow**: enqueue work without 
 | 1. Enqueue | `create_task.ps1` | Reads a task file, posts a goal to the platform, returns `goal_id` |
 | 2. Capacity | `GET /dispatch/capacity` | See which capabilities have idle/busy volunteers |
 | 3. Work | `agentswarm-solve work --team engineering` | Long-running workers pick up assignments (on each machine) |
-| 4. Execute | `start_task.ps1` | Provision engineering workers and monitor until verified |
+| 4. Execute | `start_task.ps1` **or** volunteers on worker machines | `start_task` runs a local team (dev); production uses `agentswarm-volunteer` per machine |
 
-`agentswarm-solve` (all-in-one) still runs enqueue + local team + wait — useful for local dev; **create_task** + **start_task** is the production-shaped path.
+`agentswarm-solve` (all-in-one) still runs enqueue + local team + wait — useful for local dev. Production: **task console** or `create_task` to enqueue, **`agentswarm-volunteer`** on each worker machine. `start_task.ps1` is maintainer local all-in-one only.
 
 ## Task file format
 
@@ -205,11 +205,21 @@ Use this before `start_task` to see which roles need workers started.
 
 ## Automated test
 
-The full create → volunteer fetch → verified chain is covered by:
+The full **create goal → volunteer polls → submit → verified** chain is covered by live dispatch e2e tests (local uvicorn + real `VolunteerClient`):
 
-`agents/tests/test_task_pool_chain_e2e.py::test_create_task_volunteer_chain_primes_verified`
+| Test | What it mirrors |
+|------|-----------------|
+| `agents/tests/test_volunteer_dispatch_e2e.py::test_dispatch_goal_generalist_volunteer_primes_verified` | Task console dispatch + **one generalist volunteer** (solo machine) |
+| `agents/tests/test_volunteer_dispatch_e2e.py::test_dispatch_goal_generalist_git_in_container_verified` | Same, for `git_in_container` (needs Docker) |
+| `agents/tests/test_task_pool_chain_e2e.py::test_create_task_volunteer_chain_primes_verified` | Multi-role volunteer **team** (distributed-style) |
 
-It starts a live dispatch platform, enqueues `tasks/example-primes.txt`, runs real `VolunteerClient` workers, and asserts the goal reaches `verified`.
+Run volunteer dispatch e2e only:
+
+```bash
+pytest agents/tests/test_volunteer_dispatch_e2e.py agents/tests/test_task_pool_chain_e2e.py -m dispatch_e2e
+```
+
+Included in `.\scripts\run_all_tests.ps1` (full `pytest agents/tests`).
 
 ## Run workers (pick up pool assignments)
 
@@ -238,7 +248,27 @@ Workers heartbeat as idle, receive dispatch assignments, and execute capsules. L
 
 ## Task console
 
-Operator web UI: `.\scripts\serve_task_console.ps1` → enqueue tasks, **Watch goal** on staging trace API. Does not replace remote distributed workers — see [ROADMAP_DISTRIBUTED_CLIENTS.md](../ROADMAP_DISTRIBUTED_CLIENTS.md).
+Operator web UI: `.\scripts\serve_task_console.ps1` → **Dispatch task** (enqueue only via `create_task`) or **Watch goal** on staging trace API.
+
+The console machine **must not** execute capsules as a volunteer. Run `agentswarm-volunteer` on worker machines to take assignments. For local all-in-one dev use `start_task.ps1` instead.
+
+### Project & replay (operator)
+
+When watching a goal, the console **Project & replay** panel lets you:
+
+1. **Browse** the workspace at `workspace_ref` (git checkout cached under `%LOCALAPPDATA%\AgentSwarm\replay-cache\`).
+2. **Open files** (source, tests, docs) in a preview modal.
+3. **Verify locally** — re-run pytest inside the same Linux sandbox image volunteers use (`agentswarm/sandbox-pytest:3.12`). Requires Docker on the operator PC.
+
+CLI equivalent:
+
+```powershell
+agentswarm-replay-goal goal-… tree
+agentswarm-replay-goal goal-… read primes.py
+agentswarm-replay-goal goal-… verify
+```
+
+Distributed engineering goals should use `workspace_mode: git` (optionally `git_in_container: true`) so replay is authoritative across machines. `local_fixture` replay only reflects this machine's engineering-lab checkout.
 
 ## Related
 

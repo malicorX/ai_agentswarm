@@ -1,4 +1,8 @@
-"""Local web console: start engineering tasks and watch the role pipeline."""
+"""Local web console: dispatch engineering goals and watch the role pipeline.
+
+The console does not run volunteer workers. Post goals with create_task; execution
+happens on machines running agentswarm-volunteer (or other dispatch clients).
+"""
 
 from __future__ import annotations
 
@@ -14,21 +18,29 @@ from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+from agentswarm_agents.replay_goal import (
+    build_workspace_zip,
+    fetch_replay_context,
+    list_workspace_tree,
+    merge_trace_into_context,
+    read_workspace_file,
+    verify_goal_locally,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 GOAL_ID_RE = re.compile(r"goal_id=(goal-[0-9a-f]+)", re.IGNORECASE)
 
-app = FastAPI(title="AgentSwarm Task Console", version="0.1.0")
+app = FastAPI(title="AgentSwarm Task Console", version="0.3.0")
 
 
 class RunRequest(BaseModel):
     api_url: str = Field(default="https://theebie.de/agentswarm/api")
     task_file: str = Field(default="tasks/example-primes.txt")
-    goal_timeout_sec: float = Field(default=300.0, ge=30.0, le=3600.0)
 
 
 @dataclass
@@ -76,10 +88,11 @@ def _reader_thread(run: RunState) -> None:
     exit_code = proc.wait()
     run.exit_code = exit_code
     run.finished_at = time.time()
-    run.status = "verified" if exit_code == 0 else "failed"
+    run.status = "dispatched" if exit_code == 0 else "failed"
 
 
-def _start_run(body: RunRequest) -> RunState:
+def _dispatch_run(body: RunRequest) -> RunState:
+    """Enqueue a goal on the platform (no local workers)."""
     task_path = _resolve_task_file(body.task_file)
     env = os.environ.copy()
     env.setdefault("AGENTSWARM_REPO_ROOT", str(REPO_ROOT))
@@ -89,13 +102,11 @@ def _start_run(body: RunRequest) -> RunState:
     cmd = [
         sys.executable,
         "-m",
-        "agentswarm_agents.start_task",
+        "agentswarm_agents.create_task",
         "--task-file",
         str(task_path),
         "--base-url",
         body.api_url.rstrip("/"),
-        "--goal-timeout-sec",
-        str(body.goal_timeout_sec),
     ]
     proc = subprocess.Popen(
         cmd,
@@ -113,6 +124,9 @@ def _start_run(body: RunRequest) -> RunState:
         _proc=proc,
     )
     run.append_log(f"$ {' '.join(cmd)}")
+    run.append_log(
+        "Goal queued on platform. Start agentswarm-volunteer on worker machine(s) to execute."
+    )
     thread = threading.Thread(target=_reader_thread, args=(run,), daemon=True)
     thread.start()
     return run
@@ -139,13 +153,24 @@ def get_config() -> dict[str, Any]:
         "task_files": task_files,
         "has_bootstrap_token": bool(os.environ.get("AGENTSWARM_BOOTSTRAP_TOKEN")),
         "has_assignment_secret": bool(os.environ.get("AGENTSWARM_ASSIGNMENT_SECRET")),
+        "dispatch_only": True,
+        "docker_available": _docker_available(),
     }
+
+
+def _docker_available() -> bool:
+    try:
+        from agentswarm_agents.sandbox_executor import docker_available
+
+        return docker_available()
+    except ImportError:
+        return False
 
 
 @app.post("/api/runs")
 def create_run(body: RunRequest) -> dict[str, Any]:
     try:
-        run = _start_run(body)
+        run = _dispatch_run(body)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     with RUNS_LOCK:
@@ -227,6 +252,87 @@ def proxy_goal(goal_id: str, api_url: str) -> dict[str, Any]:
             raise HTTPException(status_code=404, detail="goal not found")
         response.raise_for_status()
         return response.json()
+
+
+class ReplayRequest(BaseModel):
+    api_url: str = Field(default="https://theebie.de/agentswarm/api")
+
+
+def _load_replay_context(api_url: str, goal_id: str) -> dict[str, Any]:
+    clean = api_url.rstrip("/")
+    ctx = fetch_replay_context(clean, goal_id)
+    try:
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+            trace_response = client.get(f"{clean}/creative/goals/{goal_id}/trace")
+            trace = trace_response.json() if trace_response.status_code == 200 else None
+    except httpx.HTTPError:
+        trace = None
+    return merge_trace_into_context(ctx, trace)
+
+
+@app.get("/api/proxy/goals/{goal_id}/replay-context")
+def proxy_replay_context(goal_id: str, api_url: str) -> dict[str, Any]:
+    try:
+        return fetch_replay_context(api_url.rstrip("/"), goal_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.get("/api/goals/{goal_id}/workspace-tree")
+def goal_workspace_tree(goal_id: str, api_url: str) -> dict[str, Any]:
+    try:
+        ctx = _load_replay_context(api_url, goal_id)
+        return list_workspace_tree(ctx)
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.get("/api/goals/{goal_id}/workspace-file")
+def goal_workspace_file(goal_id: str, api_url: str, path: str) -> dict[str, Any]:
+    try:
+        ctx = _load_replay_context(api_url, goal_id)
+        return read_workspace_file(ctx, path=path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.post("/api/goals/{goal_id}/verify-locally")
+def goal_verify_locally(goal_id: str, body: ReplayRequest) -> dict[str, Any]:
+    try:
+        ctx = _load_replay_context(body.api_url, goal_id)
+        return verify_goal_locally(ctx)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (RuntimeError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.get("/api/goals/{goal_id}/workspace-zip")
+def goal_workspace_zip(goal_id: str, api_url: str) -> Response:
+    try:
+        ctx = _load_replay_context(api_url, goal_id)
+        data, filename = build_workspace_zip(ctx)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/proxy/artifacts/{artifact_ref:path}")

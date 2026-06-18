@@ -98,8 +98,11 @@ def _forge_key_mount(
     key_pem = forge_credentials.get("private_key_pem") or forge_credentials.get("private_key")
     if forge_credentials.get("type") != "ssh_deploy_key" or not isinstance(key_pem, str) or not key_pem.strip():
         return [], [], None
+    from agentswarm_agents.forge_ssh import normalize_deploy_key_pem
+
+    normalized = normalize_deploy_key_pem(key_pem)
     handle = tempfile.NamedTemporaryFile(prefix="agentswarm-forge-", suffix=".key", delete=False)
-    handle.write((key_pem.strip() + "\n").encode("utf-8"))
+    handle.write(normalized.encode("utf-8"))
     handle.flush()
     handle.close()
     key_path = handle.name

@@ -9,9 +9,9 @@ import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
-from agentswarm_platform.assignment_signing import verify_assignment
-
+from agentswarm_agents.llama_io import parse_worker_container_failure
 from agentswarm_agents.model_store import worker_image_for_model
+from agentswarm_platform.assignment_signing import verify_assignment
 
 
 def default_worker_image() -> str:
@@ -80,6 +80,8 @@ def _docker_run_args(
         args.extend(["-e", f"AGENTSWARM_MODEL_PATH={mount_target}/model.gguf"])
         if model_entry and model_entry.get("id", "").startswith("docker/"):
             args.extend(["-e", "AGENTSWARM_ENGINEERING_LLM=1"])
+            if not os.environ.get("AGENTSWARM_LLAMA_LOG"):
+                args.extend(["-e", "LLAMA_LOG_VERBOSITY=0"])
     args.append(image)
     return args
 
@@ -112,10 +114,14 @@ def run_capsule_in_docker(
         check=False,
     )
     if proc.returncode != 0:
-        stderr = proc.stderr.decode("utf-8", errors="replace").strip()
-        raise RuntimeError(
-            f"worker container failed (exit {proc.returncode}): {stderr or 'no stderr'}"
+        stderr = proc.stderr.decode("utf-8", errors="replace")
+        stdout = proc.stdout.decode("utf-8", errors="replace")
+        detail = parse_worker_container_failure(
+            stdout=stdout,
+            stderr=stderr,
+            exit_code=proc.returncode,
         )
+        raise RuntimeError(f"worker container failed (exit {proc.returncode}): {detail}")
     stdout = proc.stdout.decode("utf-8", errors="replace").strip()
     if not stdout:
         raise RuntimeError("worker container returned empty stdout")

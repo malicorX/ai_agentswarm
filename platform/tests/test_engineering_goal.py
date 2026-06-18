@@ -205,6 +205,142 @@ def test_engineering_reviewer_dispatched_after_tester_submit(
     assert reviewer_assignment["task_type"] == "reviewer.approve"
 
 
+def test_engineering_solo_agent_claims_reviewer_after_tester(
+    dispatch_client: TestClient,
+) -> None:
+    """One generalist volunteer may complete reviewer after codewriter+tester."""
+    poster_id, _ = register_agent(dispatch_client, ["codewriter"], owner="poster-solo")
+    generalist_id, generalist_priv = register_agent(
+        dispatch_client,
+        ["coordinator", "codewriter", "tester", "reviewer"],
+        owner="volunteer",
+    )
+    _presence(dispatch_client, generalist_id, ["coordinator", "codewriter", "tester", "reviewer"])
+
+    goal_resp = dispatch_client.post(
+        "/creative/goals",
+        json={
+            "poster_agent_id": poster_id,
+            "brief": ENGINEERING_GOAL["brief"],
+            "rubric": [],
+            "goal_kind": "engineering",
+            "verification_spec": ENGINEERING_GOAL["verification_spec"],
+            "min_reviewers": 1,
+        },
+    )
+    assert goal_resp.status_code == 200, goal_resp.text
+    goal_id = goal_resp.json()["goal_id"]
+
+    coord_assignment = dispatch_client.get(
+        f"/agents/{generalist_id}/assignments/pending"
+    ).json()
+    plan = build_default_engineering_goal_plan({**ENGINEERING_GOAL, "goal_id": goal_id})
+    _submit(dispatch_client, generalist_id, generalist_priv, coord_assignment, plan)
+
+    coder_assignment = dispatch_client.get(
+        f"/agents/{generalist_id}/assignments/pending"
+    ).json()
+    _submit(
+        dispatch_client,
+        generalist_id,
+        generalist_priv,
+        coder_assignment,
+        {"applied": True, "fixture": "primes", "file": "primes.py"},
+    )
+
+    tester_assignment = dispatch_client.get(
+        f"/agents/{generalist_id}/assignments/pending"
+    ).json()
+    assert tester_assignment is not None
+    _submit(
+        dispatch_client,
+        generalist_id,
+        generalist_priv,
+        tester_assignment,
+        {"passed": True, "fixture": "primes"},
+    )
+
+    reviewer_assignment = dispatch_client.get(
+        f"/agents/{generalist_id}/assignments/pending"
+    ).json()
+    assert reviewer_assignment is not None
+    assert reviewer_assignment["task_type"] == "reviewer.approve"
+    reviewer_payload = reviewer_assignment["capsule"]
+    assert reviewer_payload["test_result"]["passed"] is True
+
+    _submit(
+        dispatch_client,
+        generalist_id,
+        generalist_priv,
+        reviewer_assignment,
+        {"approved": True, "notes": "ok"},
+    )
+
+    goal = dispatch_client.get(f"/creative/goals/{goal_id}").json()
+    assert goal["status"] == "verified"
+
+
+def test_engineering_failed_tests_reject_goal_without_reviewer(
+    dispatch_client: TestClient,
+) -> None:
+    poster_id, _ = register_agent(dispatch_client, ["codewriter"], owner="poster-fail")
+    generalist_id, generalist_priv = register_agent(
+        dispatch_client,
+        ["coordinator", "codewriter", "tester", "reviewer"],
+        owner="volunteer-fail",
+    )
+    _presence(dispatch_client, generalist_id, ["coordinator", "codewriter", "tester", "reviewer"])
+
+    goal_resp = dispatch_client.post(
+        "/creative/goals",
+        json={
+            "poster_agent_id": poster_id,
+            "brief": ENGINEERING_GOAL["brief"],
+            "rubric": [],
+            "goal_kind": "engineering",
+            "verification_spec": ENGINEERING_GOAL["verification_spec"],
+            "min_reviewers": 1,
+        },
+    )
+    goal_id = goal_resp.json()["goal_id"]
+
+    coord_assignment = dispatch_client.get(
+        f"/agents/{generalist_id}/assignments/pending"
+    ).json()
+    plan = build_default_engineering_goal_plan({**ENGINEERING_GOAL, "goal_id": goal_id})
+    _submit(dispatch_client, generalist_id, generalist_priv, coord_assignment, plan)
+
+    coder_assignment = dispatch_client.get(
+        f"/agents/{generalist_id}/assignments/pending"
+    ).json()
+    _submit(
+        dispatch_client,
+        generalist_id,
+        generalist_priv,
+        coder_assignment,
+        {"applied": True, "fixture": "primes", "file": "primes.py"},
+    )
+
+    tester_assignment = dispatch_client.get(
+        f"/agents/{generalist_id}/assignments/pending"
+    ).json()
+    _submit(
+        dispatch_client,
+        generalist_id,
+        generalist_priv,
+        tester_assignment,
+        {"passed": False, "stderr": "assert 0 == 1"},
+    )
+
+    reviewer_assignment = dispatch_client.get(
+        f"/agents/{generalist_id}/assignments/pending"
+    ).json()
+    assert reviewer_assignment is None
+
+    goal = dispatch_client.get(f"/creative/goals/{goal_id}").json()
+    assert goal["status"] == "rejected"
+
+
 def _presence_reviewer(
     dispatch_client: TestClient,
     agent_id: str,

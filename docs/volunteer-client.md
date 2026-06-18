@@ -92,7 +92,7 @@ agentswarm-volunteer
 4. Set **Capabilities** (`creative`, `reviewer`, `codewriter`, etc.).
 5. Click **Start**.
 
-Task console (enqueue / watch goals): `.\scripts\serve_task_console.ps1` → http://127.0.0.1:8765
+Task console (operator — dispatch only): `.\scripts\serve_task_console.ps1` → http://127.0.0.1:8765
 
 ---
 

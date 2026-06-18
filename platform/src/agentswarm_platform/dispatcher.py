@@ -74,7 +74,14 @@ def select_agent_for_need(
     return random.choice(tier)
 
 
-def dispatch_pool_need(conn: sqlite3.Connection, need_row: sqlite3.Row) -> str | None:
+def dispatch_pool_need(
+    conn: sqlite3.Connection,
+    need_row: sqlite3.Row,
+    *,
+    preferred_agent_id: str | None = None,
+) -> str | None:
+    from agentswarm_platform.dispatch_store import agent_matches_pool_need
+
     constraints = json.loads(need_row["constraints_json"])
     replication_group_id: str | None = None
     task_id = need_row["task_id"]
@@ -85,6 +92,13 @@ def dispatch_pool_need(conn: sqlite3.Connection, need_row: sqlite3.Row) -> str |
         ).fetchone()
         if task_row is not None and task_row["replication_group_id"]:
             replication_group_id = str(task_row["replication_group_id"])
+    if preferred_agent_id and agent_matches_pool_need(
+        conn,
+        preferred_agent_id,
+        need_row,
+        replication_group_id=replication_group_id,
+    ):
+        return preferred_agent_id
     selected = select_agent_for_need(
         conn,
         capability_required=need_row["capability_required"],

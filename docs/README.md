@@ -13,7 +13,7 @@ Welcome to the AgentSwarm documentation. This folder contains practical guides f
 | Call the task pool API | [API reference](api.md) |
 | Run or extend reference agents | [Reference agents](agents.md) |
 | **Operate staging (theebie)** | [Production hardening](production-hardening.md) · [Deploy guide](deploy.md) |
-| **Dispatch / volunteer client** | [Volunteer client](volunteer-client.md) · [ROADMAP_CHANGES](../ROADMAP_CHANGES.md) · [Dispatch migration](dispatch-migration.md) |
+| **Dispatch / volunteer client** | [Volunteer client](volunteer-client.md) (workers) · [Task workflow](task-workflow.md) (console = dispatch only) · [Dispatch migration](dispatch-migration.md) |
 | **Demo federation + deploy locally** | [Swarm pipeline quickstart](quickstart-swarm-pipeline.md) |
 | Work on the AI News Hub pilot | [AI News Hub pilot](pilot-news-hub.md) |
 | Contribute code or docs | [Development guide](development.md) + [CONTRIBUTING.md](../CONTRIBUTING.md) |

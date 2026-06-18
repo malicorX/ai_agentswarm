@@ -5,6 +5,7 @@ import pytest
 from agentswarm_platform.coordinator_plan import (
     build_default_creative_goal_plan,
     build_default_engineering_goal_plan,
+    goal_allows_same_agent_pipeline,
     materialize_deferred_payload,
     resolve_pool_need_constraints,
     validate_coordinator_plan,
@@ -194,16 +195,61 @@ def test_materialize_deferred_payload_injects_artifact() -> None:
     assert payload["capsule"]["artifact_text"] == "Poem body"
 
 
+def test_materialize_deferred_payload_injects_parent_test_result() -> None:
+    template = {
+        "goal_id": "goal-abc",
+        "capsule": {"goal_id": "goal-abc", "brief": "Print primes"},
+    }
+    test_result = {"passed": True, "fixture": "primes"}
+    payload = materialize_deferred_payload(
+        template,
+        goal=GOAL,
+        parent_test_result=test_result,
+        parent_task_id="task-tester-1",
+    )
+    assert payload["test_result"] == test_result
+    assert payload["capsule"]["test_result"] == test_result
+    assert payload["parent_task_id"] == "task-tester-1"
+
+
 def test_resolve_pool_need_constraints_exclude_flags() -> None:
+    distributed_goal = {
+        **GOAL,
+        "dispatch_include_owners": ["vol-a"],
+        "verification_spec": {"solo_pipeline": False},
+    }
     resolved = resolve_pool_need_constraints(
         {"exclude_poster": True, "exclude_worker": True},
-        goal=GOAL,
+        goal=distributed_goal,
         poster_owner="poster-owner",
         worker_agent_id="agent-worker",
     )
     assert "poster-owner" in resolved["exclude_owners"]
     assert "agent-poster" in resolved["exclude_agent_ids"]
     assert "agent-worker" in resolved["exclude_agent_ids"]
+
+
+def test_resolve_pool_need_constraints_solo_pipeline_allows_worker() -> None:
+    goal = {**GOAL, "dispatch_include_owners": [], "verification_spec": {}}
+    assert goal_allows_same_agent_pipeline(goal) is True
+    resolved = resolve_pool_need_constraints(
+        {"exclude_poster": True, "exclude_worker": True},
+        goal=goal,
+        poster_owner="poster-owner",
+        worker_agent_id="agent-worker",
+    )
+    assert "poster-owner" in resolved["exclude_owners"]
+    assert "agent-poster" in resolved["exclude_agent_ids"]
+    assert "agent-worker" not in resolved["exclude_agent_ids"]
+
+
+def test_goal_allows_same_agent_pipeline_respects_explicit_false() -> None:
+    goal = {
+        **GOAL,
+        "dispatch_include_owners": [],
+        "verification_spec": {"solo_pipeline": False},
+    }
+    assert goal_allows_same_agent_pipeline(goal) is False
 
 
 def test_resolve_pool_need_constraints_merges_goal_include_owners() -> None:

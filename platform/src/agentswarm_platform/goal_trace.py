@@ -41,6 +41,21 @@ def role_label(task_type: str) -> str:
     return ROLE_LABELS.get(task_type, task_type.split(".", 1)[0])
 
 
+def trace_step_status(
+    task_type: str,
+    status: str,
+    result: dict[str, Any] | None,
+) -> str:
+    """Human-friendly pipeline status (engineering tester stays submitted in DB)."""
+    normalized = status.strip().lower()
+    if task_type == "tester.run" and normalized == "submitted" and isinstance(result, dict):
+        if result.get("passed") is True:
+            return "passed"
+        if result.get("passed") is False:
+            return "failed"
+    return status
+
+
 def summarize_task_result(task_type: str, result: dict[str, Any] | None) -> str:
     if not result:
         return ""

@@ -10,13 +10,6 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from agentswarm_agents.engineering_lab import (
-    fixture_dir,
-    get_fixture_spec,
-    mock_body_for_fixture,
-    reset_fixture,
-)
-from agentswarm_agents.client import repo_root
 from agentswarm_agents.git_capsule import (
     _configure_identity,
     _run_git,
@@ -62,6 +55,8 @@ def resolve_engineering_git_workspace(
     workspace_root: Path | None = None,
 ) -> dict[str, str]:
     """Use a shared remote bare repo when configured, else seed file:// under repo root."""
+    from agentswarm_agents.client import repo_root
+
     env_url = os.environ.get("AGENTSWARM_GIT_REPO_URL", "").strip()
     resolved_url = (workspace_repo_url or env_url or "").strip()
     if resolved_url:
@@ -76,6 +71,13 @@ def init_local_git_workspace(
     fixture: str = "primes",
 ) -> dict[str, str]:
     """Create a file:// bare repo seeded with an engineering-lab fixture stub."""
+    from agentswarm_agents.client import repo_root
+    from agentswarm_agents.engineering_lab import (
+        fixture_dir,
+        get_fixture_spec,
+        reset_fixture,
+    )
+
     base_dir.mkdir(parents=True, exist_ok=True)
     bare = base_dir / f"{fixture}.git"
     work = base_dir / f"{fixture}-seed"
@@ -120,6 +122,8 @@ def execute_git_engineering_patch(
     insert_body: str | None = None,
 ) -> dict[str, Any]:
     """Patch engineering source in a goal-scoped git branch."""
+    from agentswarm_agents.engineering_lab import mock_body_for_fixture
+
     git_info = capsule.get("git")
     patch = capsule.get("patch")
     if not isinstance(git_info, dict) or not isinstance(patch, dict):

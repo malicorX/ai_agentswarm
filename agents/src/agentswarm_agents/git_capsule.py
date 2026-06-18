@@ -4,9 +4,10 @@ import os
 import shutil
 import subprocess
 import tempfile
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
+
+from agentswarm_agents.forge_ssh import forge_git_env
 
 
 def _run_git(
@@ -32,34 +33,6 @@ def _run_git(
 def _configure_identity(repo_dir: Path, *, env: dict[str, str] | None = None) -> None:
     _run_git(["config", "user.email", "agentswarm@local"], cwd=repo_dir, env=env)
     _run_git(["config", "user.name", "AgentSwarm"], cwd=repo_dir, env=env)
-
-
-@contextmanager
-def forge_git_env(credentials: dict[str, Any] | None) -> Iterator[dict[str, str]]:
-    """Temporarily configure GIT_SSH_COMMAND for a scoped deploy key."""
-    if not credentials:
-        yield {}
-        return
-    key_pem = credentials.get("private_key_pem") or credentials.get("private_key")
-    if credentials.get("type") != "ssh_deploy_key" or not isinstance(key_pem, str) or not key_pem.strip():
-        yield {}
-        return
-    fd, key_name = tempfile.mkstemp(prefix="agentswarm-forge-", suffix=".key")
-    os.close(fd)
-    key_path = Path(key_name)
-    try:
-        key_path.write_text(key_pem.strip() + "\n", encoding="utf-8")
-        if os.name != "nt":
-            key_path.chmod(0o600)
-        ssh_cmd = (
-            f'ssh -i "{key_path}" -o IdentitiesOnly=yes '
-            "-o StrictHostKeyChecking=accept-new"
-        )
-        merged = os.environ.copy()
-        merged["GIT_SSH_COMMAND"] = ssh_cmd
-        yield merged
-    finally:
-        key_path.unlink(missing_ok=True)
 
 
 def clone_repo(
