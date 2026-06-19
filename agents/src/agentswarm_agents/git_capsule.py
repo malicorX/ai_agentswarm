@@ -42,8 +42,13 @@ def clone_repo(
     default_branch: str,
     env: dict[str, str] | None = None,
 ) -> None:
+    clone_args = ["git", "clone"]
+    # file:// clones default to --local; that needs write access to the source repo.
+    if repo_url.startswith("file://"):
+        clone_args.append("--no-local")
+    clone_args.extend([repo_url, str(target_dir)])
     proc = subprocess.run(
-        ["git", "clone", repo_url, str(target_dir)],
+        clone_args,
         capture_output=True,
         text=True,
         check=False,

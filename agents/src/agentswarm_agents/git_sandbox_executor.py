@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -134,6 +135,7 @@ def _run_python_job(
     forge_mounts, forge_env, forge_handle = _forge_key_mount(
         forge if isinstance(forge, dict) else None
     )
+    git_work_mount = tempfile.mkdtemp(prefix="agentswarm-git-work-")
     image = ensure_sandbox_test_image(sandbox_image_ref(verification_spec))
     try:
         proc = run_sandbox_command(
@@ -142,19 +144,21 @@ def _run_python_job(
             command=["python", "-c", runner, agents_container],
             volume_mounts=[
                 (agents_host, agents_container, "ro"),
+                (git_work_mount, "/git-work", "rw"),
                 *file_mounts,
                 *forge_mounts,
             ],
-            container_workdir="/tmp",
+            container_workdir="/git-work",
             memory_limit=DEFAULT_MEMORY,
             network=git_sandbox_network(),
-            extra_env=forge_env,
+            extra_env=[*(forge_env or []), "-e", "TMPDIR=/git-work"],
             input_text=json.dumps(payload),
             timeout=600,
         )
     finally:
         if forge_handle is not None:
             Path(forge_handle.name).unlink(missing_ok=True)
+        shutil.rmtree(git_work_mount, ignore_errors=True)
 
     stdout = proc.stdout or ""
     stderr = proc.stderr or ""

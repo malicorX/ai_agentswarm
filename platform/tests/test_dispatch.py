@@ -475,6 +475,46 @@ def test_orphaned_assigned_need_reconciled_on_idle_presence(
     assert reclaimed["task_id"] == need["task_id"]
 
 
+def test_sync_claimed_tasks_restores_active_lease_claim_token(
+    dispatch_client: TestClient,
+) -> None:
+    from agentswarm_platform import main as platform_main
+    from agentswarm_platform.dispatch_store import maintain_dispatch_pool
+
+    register_agent(dispatch_client, ["codewriter"], owner="poster-owner")
+    reviewer_a, _ = register_agent(dispatch_client, ["reviewer"], owner="reviewer-a")
+    dispatch_client.post(
+        f"/agents/{reviewer_a}/presence",
+        json={"status": "idle", "capabilities": ["reviewer"], "ttl_sec": 120},
+    )
+    need = _post_reviewer_need(dispatch_client)
+    assert need["assigned"] is True
+    assignment = dispatch_client.get(
+        f"/agents/{reviewer_a}/assignments/pending"
+    ).json()
+    assert assignment is not None
+    claim_token = assignment["claim_token"]
+
+    with platform_main.store._conn() as conn:
+        conn.execute(
+            """
+            UPDATE tasks
+            SET status = 'created', claimed_by = NULL, claim_token = NULL, claim_deadline = NULL
+            WHERE task_id = ?
+            """,
+            (need["task_id"],),
+        )
+        result = maintain_dispatch_pool(conn)
+        row = conn.execute(
+            "SELECT status, claim_token FROM tasks WHERE task_id = ?",
+            (need["task_id"],),
+        ).fetchone()
+
+    assert need["task_id"] in result["synced_task_ids"]
+    assert row["status"] == "claimed"
+    assert row["claim_token"] == claim_token
+
+
 def test_idle_presence_skips_generic_coordinator_backlog(
     dispatch_client: TestClient,
 ) -> None:
