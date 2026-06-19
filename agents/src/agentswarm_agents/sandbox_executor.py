@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from agentswarm_agents.client import repo_root
 from agentswarm_agents.engineering_lab import engineering_lab_root, fixture_dir
 from agentswarm_agents.sandbox_security import (
     cleanup_sandbox_container,
@@ -14,8 +15,8 @@ from agentswarm_agents.sandbox_security import (
     sandbox_container_name,
 )
 
-DEFAULT_SANDBOX_IMAGE = "agentswarm/sandbox-pytest:3.12.1"
-DEFAULT_SANDBOX_DOCKERFILE = "Dockerfile.sandbox"
+DEFAULT_SANDBOX_IMAGE = "agentswarm/sandbox-pytest:3.12.2"
+DEFAULT_SANDBOX_DOCKERFILE = Path("pilot") / "engineering-lab" / "Dockerfile.sandbox"
 DEFAULT_MEMORY = "512m"
 DEFAULT_NETWORK = "none"
 
@@ -59,7 +60,7 @@ def ensure_sandbox_test_image(
         return resolved
     if not docker_available():
         raise RuntimeError("Docker is not available; cannot build sandbox test image")
-    context = build_context or engineering_lab_root()
+    context = build_context or Path(repo_root())
     dockerfile = context / DEFAULT_SANDBOX_DOCKERFILE
     if not dockerfile.is_file():
         raise FileNotFoundError(f"sandbox Dockerfile not found: {dockerfile}")

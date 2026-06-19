@@ -1,8 +1,18 @@
+# Build from repo root:
+#   docker build -f pilot/engineering-lab/Dockerfile.sandbox -t agentswarm/sandbox-pytest:3.12.2 .
 FROM python:3.12-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git openssh-client \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir pytest==8.3.4 cryptography>=43.0.0
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY platform /src/platform
+COPY agents /src/agents
+
+RUN pip install --no-cache-dir -q -U pip && \
+    pip install --no-cache-dir -q -e /src/platform -e /src/agents && \
+    pip install --no-cache-dir -q pytest==8.3.4
 
 WORKDIR /work
