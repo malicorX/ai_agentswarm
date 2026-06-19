@@ -125,6 +125,21 @@ def _forge_key_mount(
     return mounts, env, handle
 
 
+def _sandbox_git_docker_env(forge_env: list[str] | None = None) -> list[str]:
+    """Docker -e flags so git trusts mounted forge repos and uses writable workdir."""
+    return [
+        *(forge_env or []),
+        "-e",
+        "GIT_CONFIG_COUNT=1",
+        "-e",
+        "GIT_CONFIG_KEY_0=safe.directory",
+        "-e",
+        "GIT_CONFIG_VALUE_0=*",
+        "-e",
+        "TMPDIR=/git-work",
+    ]
+
+
 def _run_python_job(
     *,
     verification_spec: dict[str, Any],
@@ -158,7 +173,7 @@ def _run_python_job(
             container_workdir="/git-work",
             memory_limit=DEFAULT_MEMORY,
             network=git_sandbox_network(),
-            extra_env=[*(forge_env or []), "-e", "TMPDIR=/git-work"],
+            extra_env=_sandbox_git_docker_env(forge_env),
             input_text=json.dumps(payload),
             timeout=600,
         )
