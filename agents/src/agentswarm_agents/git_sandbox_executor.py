@@ -176,6 +176,7 @@ def _run_python_job(
             extra_env=_sandbox_git_docker_env(forge_env),
             input_text=json.dumps(payload),
             timeout=600,
+            harden=False,
         )
     finally:
         if forge_handle is not None:

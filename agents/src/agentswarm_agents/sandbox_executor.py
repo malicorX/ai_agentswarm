@@ -142,6 +142,7 @@ def run_sandbox_command(
     extra_env: list[str] | None = None,
     input_text: str | None = None,
     timeout: int = 600,
+    harden: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     """Run an arbitrary command in a sandbox container with custom volume mounts."""
     run_id = _sandbox_run_id(verification_spec)
@@ -154,8 +155,9 @@ def run_sandbox_command(
         f"--network={network}",
         f"--memory={memory_limit}",
         "--pids-limit=256",
-        *docker_security_args(),
     ]
+    if harden and sandbox_hardening_enabled():
+        cmd.extend(docker_security_args())
     if run_id:
         cmd.extend(["--name", sandbox_container_name(run_id)])
     if extra_env:
