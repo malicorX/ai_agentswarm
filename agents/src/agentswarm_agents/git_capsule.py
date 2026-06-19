@@ -42,9 +42,12 @@ def clone_repo(
     default_branch: str,
     env: dict[str, str] | None = None,
 ) -> None:
-    clone_args = ["git", "clone"]
+    clone_args = ["git", "-c", "safe.directory=*", "clone"]
     # file:// clones default to --local; that needs write access to the source repo.
     if repo_url.startswith("file://"):
+        clone_args.append("--no-local")
+    elif repo_url.startswith("/"):
+        # Mounted bare repos in sandboxes are owned by the host user, not root.
         clone_args.append("--no-local")
     clone_args.extend([repo_url, str(target_dir)])
     proc = subprocess.run(
