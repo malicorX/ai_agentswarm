@@ -25,8 +25,12 @@ GIT_NETWORK_ENV = "AGENTSWARM_SANDBOX_GIT_NETWORK"
 AGENTS_SRC_CONTAINER = "/opt/agentswarm/agents/src"
 
 _PATCH_RUNNER = """
-import json, os, sys
+import json, os, subprocess, sys
 os.environ.setdefault("TMPDIR", "/git-work")
+subprocess.run(
+    ["git", "config", "--global", "safe.directory", "*"],
+    check=True,
+)
 sys.path.insert(0, sys.argv[1])
 from agentswarm_agents.engineering_workspace import execute_git_engineering_patch
 payload = json.load(sys.stdin)
@@ -39,8 +43,12 @@ json.dump(result, sys.stdout)
 """.strip()
 
 _TEST_RUNNER = """
-import json, os, sys
+import json, os, subprocess, sys
 os.environ.setdefault("TMPDIR", "/git-work")
+subprocess.run(
+    ["git", "config", "--global", "safe.directory", "*"],
+    check=True,
+)
 sys.path.insert(0, sys.argv[1])
 from agentswarm_agents.engineering_workspace import run_git_workspace_tests
 payload = json.load(sys.stdin)
@@ -79,7 +87,7 @@ def _rewrite_file_repo_url(repo_url: str) -> tuple[str, list[tuple[str, str, str
     repo_path = Path(raw_path)
     mount_parent = str(repo_path.parent.resolve())
     container_repo = str(PurePosixPath("/forge") / repo_path.name)
-    return f"file://{container_repo}", [(mount_parent, "/forge", "ro")]
+    return f"file://{container_repo}", [(mount_parent, "/forge", "rw")]
 
 
 def _prepare_capsule_for_container(capsule: dict[str, Any]) -> tuple[dict[str, Any], list[tuple[str, str, str]]]:
