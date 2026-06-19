@@ -11,7 +11,7 @@ def test_docker_run_cmd_includes_security_and_name(monkeypatch) -> None:
     with patch("agentswarm_agents.sandbox_executor.cleanup_sandbox_container"):
         cmd = _docker_run_cmd(
             verification_spec={"sandbox_run_id": "task_deadbeef"},
-            image="agentswarm/sandbox-pytest:3.12",
+            image="agentswarm/sandbox-pytest:3.12.1",
             host_path="/tmp/fixture",
             container_work="/work",
             memory_limit="512m",

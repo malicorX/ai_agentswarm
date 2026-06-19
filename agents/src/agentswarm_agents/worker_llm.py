@@ -26,6 +26,8 @@ from agentswarm_agents.llama_io import (
     suppress_native_stderr,
 )
 
+_LLM_TASK_TYPES = frozenset({"creative.text", "reviewer.subjective"})
+
 
 def model_path_from_env() -> str | None:
     raw = os.environ.get("AGENTSWARM_MODEL_PATH", "").strip()

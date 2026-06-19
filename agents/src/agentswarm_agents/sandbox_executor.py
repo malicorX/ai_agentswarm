@@ -14,7 +14,7 @@ from agentswarm_agents.sandbox_security import (
     sandbox_container_name,
 )
 
-DEFAULT_SANDBOX_IMAGE = "agentswarm/sandbox-pytest:3.12"
+DEFAULT_SANDBOX_IMAGE = "agentswarm/sandbox-pytest:3.12.1"
 DEFAULT_SANDBOX_DOCKERFILE = "Dockerfile.sandbox"
 DEFAULT_MEMORY = "512m"
 DEFAULT_NETWORK = "none"

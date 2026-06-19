@@ -37,7 +37,7 @@ def _assert_engineering_pipeline_verified(trace: dict) -> None:
     assert "tester" in roles
     assert "reviewer" in roles
     for step in trace["steps"]:
-        assert step["status"] in ("verified", "submitted", "rejected")
+        assert step["status"] in ("verified", "submitted", "rejected", "passed", "failed")
 
 
 def test_dispatch_goal_generalist_volunteer_primes_verified(

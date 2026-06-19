@@ -29,7 +29,7 @@ def test_run_fixture_tests_sandbox_primes() -> None:
     assert result["sandbox"] is True
     assert result["passed"] is True
     assert result["fixture"] == "primes"
-    assert result["sandbox_image"] == "agentswarm/sandbox-pytest:3.12"
+    assert result["sandbox_image"] == "agentswarm/sandbox-pytest:3.12.1"
 
 
 def test_run_fixture_tests_sandbox_requires_docker(monkeypatch: pytest.MonkeyPatch) -> None:
