@@ -47,6 +47,8 @@
         "fstatfs",
         "ftruncate",
         "futex",
+        "fork",
+        "vfork",
         "getcwd",
         "getdents",
         "getdents64",

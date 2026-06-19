@@ -25,7 +25,8 @@ GIT_NETWORK_ENV = "AGENTSWARM_SANDBOX_GIT_NETWORK"
 AGENTS_SRC_CONTAINER = "/opt/agentswarm/agents/src"
 
 _PATCH_RUNNER = """
-import json, sys
+import json, os, sys
+os.environ.setdefault("TMPDIR", "/git-work")
 sys.path.insert(0, sys.argv[1])
 from agentswarm_agents.engineering_workspace import execute_git_engineering_patch
 payload = json.load(sys.stdin)
@@ -38,7 +39,8 @@ json.dump(result, sys.stdout)
 """.strip()
 
 _TEST_RUNNER = """
-import json, sys
+import json, os, sys
+os.environ.setdefault("TMPDIR", "/git-work")
 sys.path.insert(0, sys.argv[1])
 from agentswarm_agents.engineering_workspace import run_git_workspace_tests
 payload = json.load(sys.stdin)
@@ -87,7 +89,12 @@ def _prepare_capsule_for_container(capsule: dict[str, Any]) -> tuple[dict[str, A
         raise ValueError("git capsule requires git section")
     repo_url = str(git_info["repo_url"])
     rewritten, mounts = _rewrite_file_repo_url(repo_url)
-    git_info["repo_url"] = rewritten
+    parsed = urlparse(rewritten)
+    if parsed.scheme == "file":
+        # Plain path avoids file:// upload-pack (fork) inside hardened sandboxes.
+        git_info["repo_url"] = parsed.path
+    else:
+        git_info["repo_url"] = rewritten
     return prepared, mounts
 
 
