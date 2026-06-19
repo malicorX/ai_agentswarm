@@ -103,6 +103,15 @@ def test_verify_production_staging_quick_orchestration() -> None:
                     },
                 ),
                 type(
+                    "GoalDeployMod",
+                    (),
+                    {
+                        "verify_goal_deploy_staging": staticmethod(
+                            lambda url: {"deploy_request": "ok"}
+                        )
+                    },
+                ),
+                type(
                     "ExternalMod",
                     (),
                     {
@@ -126,5 +135,6 @@ def test_verify_production_staging_quick_orchestration() -> None:
     assert result["dispatch"]["assignment_mode"] == "dispatch"
     assert result["sdk_dispatch"]["register"] == "agent_sdk"
     assert result["versioning"]["agent_id"] == "agent_v"
+    assert result["goal_deploy"]["deploy_request"] == "ok"
     assert reg_auth_calls == [{"expect_enforced": True}]
-    assert mock_pytest.call_count == 5
+    assert mock_pytest.call_count == 6
