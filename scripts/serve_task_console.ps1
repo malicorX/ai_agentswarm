@@ -10,20 +10,19 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-$NativeExe = @(
-    (Join-Path $Root "dist\agentswarm-task-console.exe"),
-    (Join-Path $Root "apps\agentswarm-task-console\target\release\agentswarm-task-console.exe")
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-$UseNative = $Native -or ((-not $Browser) -and $NativeExe)
-
-if ($UseNative) {
+# Default: native desktop window (builds on first run if needed).
+# Pass -Browser only when you explicitly want Chrome/Edge instead.
+if (-not $Browser) {
+    $NativeExe = @(
+        (Join-Path $Root "dist\agentswarm-task-console.exe"),
+        (Join-Path $Root "apps\agentswarm-task-console\target\release\agentswarm-task-console.exe")
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
     if (-not $NativeExe) {
         Write-Host "Native app not built yet. Building now..." -ForegroundColor Yellow
         & "$PSScriptRoot\start_task_console_app.ps1" -Build
-        exit $LASTEXITCODE
+    } else {
+        & "$PSScriptRoot\start_task_console_app.ps1"
     }
-    & "$PSScriptRoot\start_task_console_app.ps1"
     exit $LASTEXITCODE
 }
 
@@ -43,7 +42,7 @@ $Python = Join-Path $Root ".venv\Scripts\python.exe"
 Write-Host ""
 Write-Host "  Task console (browser mode)" -ForegroundColor Cyan
 Write-Host "  URL: $ConsoleUrl" -ForegroundColor Green
-Write-Host "  Tip: omit -Browser to use the native desktop app instead"
+Write-Host "  Tip: omit -Browser to use the native desktop window instead"
 Write-Host "  Press Ctrl+C to stop the server."
 Write-Host ""
 

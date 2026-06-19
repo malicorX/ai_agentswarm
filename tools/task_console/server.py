@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from agentswarm_agents.outcome_bundle import build_outcome_bundle
+from agentswarm_agents.goal_run_log import collect_goal_diagnostics, write_goal_run_log
 from agentswarm_agents.replay_goal import (
     build_workspace_zip,
     fetch_replay_context,
@@ -148,6 +149,12 @@ def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+def _default_resume_owners() -> list[str]:
+    raw = os.environ.get("AGENTSWARM_RESUME_OWNERS", "volunteer")
+    owners = [part.strip() for part in raw.split(",") if part.strip()]
+    return owners or ["volunteer"]
+
+
 @app.get("/api/config")
 def get_config() -> dict[str, Any]:
     tasks_dir = REPO_ROOT / "tasks"
@@ -166,6 +173,7 @@ def get_config() -> dict[str, Any]:
         "has_assignment_secret": bool(os.environ.get("AGENTSWARM_ASSIGNMENT_SECRET")),
         "dispatch_only": True,
         "docker_available": _docker_available(),
+        "default_resume_owners": _default_resume_owners(),
     }
 
 
@@ -296,6 +304,33 @@ def proxy_goal(goal_id: str, api_url: str) -> dict[str, Any]:
         return response.json()
 
 
+class ResumeDispatchRequest(BaseModel):
+    api_url: str = Field(default="https://theebie.de/agentswarm/api")
+    include_owners: list[str] = Field(min_length=1)
+
+
+@app.post("/api/proxy/goals/{goal_id}/resume-dispatch")
+def proxy_resume_goal_dispatch(goal_id: str, body: ResumeDispatchRequest) -> dict[str, Any]:
+    clean = body.api_url.rstrip("/")
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        response = client.post(
+            f"{clean}/creative/goals/{goal_id}/resume-dispatch",
+            json={"include_owners": body.include_owners},
+            headers=_platform_auth_headers(),
+        )
+        if response.status_code == 401:
+            raise HTTPException(
+                status_code=401,
+                detail="resume-dispatch requires bootstrap token in server env",
+            )
+        if response.status_code == 404:
+            raise HTTPException(status_code=404, detail="goal not found")
+        if response.status_code == 400:
+            raise HTTPException(status_code=400, detail=response.text)
+        response.raise_for_status()
+        return response.json()
+
+
 class ReplayRequest(BaseModel):
     api_url: str = Field(default="https://theebie.de/agentswarm/api")
 
@@ -378,6 +413,60 @@ def goal_verify_locally(goal_id: str, body: ReplayRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+class RunLogRequest(BaseModel):
+    api_url: str = Field(default="https://theebie.de/agentswarm/api")
+    save: bool = True
+    probe_workspace: bool = True
+
+
+@app.get("/api/goals/{goal_id}/run-log")
+def goal_run_log_get(goal_id: str, api_url: str, probe_workspace: bool = True) -> dict[str, Any]:
+    return _goal_run_log_response(goal_id, api_url, save=True, probe_workspace=probe_workspace)
+
+
+@app.post("/api/goals/{goal_id}/run-log")
+def goal_run_log_post(goal_id: str, body: RunLogRequest) -> dict[str, Any]:
+    return _goal_run_log_response(
+        goal_id,
+        body.api_url,
+        save=body.save,
+        probe_workspace=body.probe_workspace,
+    )
+
+
+def _goal_run_log_response(
+    goal_id: str,
+    api_url: str,
+    *,
+    save: bool,
+    probe_workspace: bool,
+) -> dict[str, Any]:
+    os.environ.setdefault("AGENTSWARM_REPO_ROOT", str(REPO_ROOT))
+    try:
+        if save:
+            report, paths = write_goal_run_log(
+                api_url.rstrip("/"),
+                goal_id,
+                include_workspace_probe=probe_workspace,
+            )
+            return {
+                **report,
+                "log_paths": [str(path) for path in paths],
+            }
+        report = collect_goal_diagnostics(
+            api_url.rstrip("/"),
+            goal_id,
+            include_workspace_probe=probe_workspace,
+        )
+        return report
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/api/goals/{goal_id}/workspace-zip")

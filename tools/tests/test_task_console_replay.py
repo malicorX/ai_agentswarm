@@ -119,3 +119,51 @@ def test_proxy_list_creative_goals(console_client: TestClient) -> None:
         )
     assert response.status_code == 200
     assert response.json()["goals"][0]["goal_id"] == "goal-old"
+
+
+def test_resume_dispatch_proxy(console_client: TestClient) -> None:
+    from unittest.mock import MagicMock, patch
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "goal_id": "goal-resume",
+        "include_owners": ["volunteer"],
+        "updated_need_ids": ["need-1"],
+        "reclaimed_need_ids": [],
+        "redispatched_need_ids": ["need-1"],
+        "healed_task_ids": [],
+    }
+    with patch("tools.task_console.server.httpx.Client") as mock_client_cls:
+        mock_client = mock_client_cls.return_value.__enter__.return_value
+        mock_client.post.return_value = mock_response
+        response = console_client.post(
+            "/api/proxy/goals/goal-resume/resume-dispatch",
+            json={"api_url": "https://example.test/api", "include_owners": ["volunteer"]},
+        )
+    assert response.status_code == 200
+    assert response.json()["redispatched_need_ids"] == ["need-1"]
+
+
+def test_run_log_endpoint(console_client: TestClient, tmp_path) -> None:
+    from unittest.mock import patch
+
+    report = {
+        "goal_id": "goal-log",
+        "api_url": "https://example.test/api",
+        "collected_at": "2026-01-01T00:00:00Z",
+        "goal_status": "pending",
+        "issues": [{"severity": "error", "code": "missing_workspace_ref", "message": "no ref"}],
+        "issue_count": 1,
+        "has_errors": True,
+        "steps": [],
+    }
+    with patch("tools.task_console.server.write_goal_run_log", return_value=(report, [tmp_path / "goal-log.json"])):
+        response = console_client.get(
+            "/api/goals/goal-log/run-log",
+            params={"api_url": "https://example.test/api"},
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["has_errors"] is True
+    assert body["issues"][0]["code"] == "missing_workspace_ref"

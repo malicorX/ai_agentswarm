@@ -367,6 +367,10 @@ class GoalRealignDispatchResponse(BaseModel):
     redispatched_need_ids: list[str]
 
 
+class GoalResumeDispatchResponse(GoalRealignDispatchResponse):
+    healed_task_ids: list[str] = Field(default_factory=list)
+
+
 class CreativeGoalAppealRequest(BaseModel):
     filed_by_agent_id: str
     message: str = Field(min_length=10, max_length=4000)

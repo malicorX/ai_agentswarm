@@ -38,7 +38,8 @@ if (-not $Exe) {
 Write-Host ""
 Write-Host "Starting AgentSwarm Task Console (native window)" -ForegroundColor Green
 Write-Host "API: $ApiUrl"
-Write-Host "Close the browser tab if you also ran serve_task_console.ps1 (same UI, different port)."
+Write-Host "If the window fails to open, use: .\scripts\serve_task_console.ps1 -Browser"
+Write-Host "Close other task-console windows first (avoids WebView port conflicts)."
 Write-Host ""
 
 & $Exe

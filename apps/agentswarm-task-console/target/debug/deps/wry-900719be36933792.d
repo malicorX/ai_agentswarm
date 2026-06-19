@@ -1,0 +1,11 @@
+M:\Data\Projects\ai_agentSwarm\apps\agentswarm-task-console\target\debug\deps\wry-900719be36933792.d: C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\lib.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\error.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\proxy.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\web_context.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\webview2\mod.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\webview2\drag_drop.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\webview2\util.rs
+
+M:\Data\Projects\ai_agentSwarm\apps\agentswarm-task-console\target\debug\deps\libwry-900719be36933792.rmeta: C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\lib.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\error.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\proxy.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\web_context.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\webview2\mod.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\webview2\drag_drop.rs C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\webview2\util.rs
+
+C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\lib.rs:
+C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\error.rs:
+C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\proxy.rs:
+C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\web_context.rs:
+C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\webview2\mod.rs:
+C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\webview2\drag_drop.rs:
+C:\Users\Malicor\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wry-0.49.0\src\webview2\util.rs:

@@ -33,6 +33,7 @@ agentswarm-solve = "agentswarm_agents.solve:main"
 agentswarm-create-task = "agentswarm_agents.create_task:main"
 agentswarm-start-task = "agentswarm_agents.start_task:main"
 agentswarm-replay-goal = "agentswarm_agents.replay_goal:main"
+agentswarm-check-goal = "agentswarm_agents.check_goal:main"
 
 [tool.setuptools.package-data]
 agentswarm_agents = ["model_allowlist.json"]

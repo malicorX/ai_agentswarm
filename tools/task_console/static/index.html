@@ -99,19 +99,72 @@
     button {
       cursor: pointer;
       font-weight: 600;
+      background: #21262d;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.primary {
       background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
       border: none;
       color: #041007;
     }
     button:disabled {
-      opacity: 0.45;
+      opacity: 0.38;
       cursor: not-allowed;
     }
+    button.link {
+      width: auto;
+      padding: 0.25rem 0;
+      margin-top: 0.5rem;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.85rem;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    button.link:hover:not(:disabled) { color: var(--text); }
     button.secondary {
       background: #21262d;
       color: var(--text);
       border: 1px solid var(--border);
     }
+    .action-group {
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+    .action-group-title {
+      margin: 0 0 0.65rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .action-hint {
+      margin: 0.4rem 0 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .action-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: stretch;
+      margin-top: 0.5rem;
+    }
+    .action-row > button { flex: 1; }
+    #resumePanel {
+      margin-top: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      border: 1px dashed var(--border);
+      background: #0d1117;
+    }
+    #resumePanel[hidden] { display: none !important; }
+    #existingGoalPanel[hidden] { display: none !important; }
     .badge {
       display: inline-block;
       font-family: var(--mono);
@@ -506,43 +559,65 @@
 
   <main>
     <section class="panel" id="controlsPanel">
-      <h2>Dispatch</h2>
+      <h2>Console</h2>
       <div class="field">
         <label for="apiUrl">Platform API URL</label>
         <input id="apiUrl" type="url" spellcheck="false" />
       </div>
+
+      <p class="action-group-title" style="margin-top:0">New goal</p>
       <div class="field">
         <label for="taskFile">Task file</label>
         <div class="task-file-row">
           <select id="taskFile"></select>
-          <button id="viewTaskBtn" type="button" class="secondary" title="View task file">View</button>
+          <button id="viewTaskBtn" type="button" title="View task file">View</button>
         </div>
       </div>
-      <div class="field">
-        <label for="goalPicker">Browse / load goal</label>
-        <div class="goal-picker">
-          <input id="goalPicker" type="search" placeholder="Search goal id or brief…" autocomplete="off" spellcheck="false" />
-          <select id="goalStatusFilter" class="goal-status-filter" title="Filter by status">
-            <option value="">All statuses</option>
-            <option value="verified">Verified</option>
-            <option value="pending">Pending / running</option>
-            <option value="rejected">Rejected</option>
-          </select>
+      <button id="startBtn" type="button" class="primary">Dispatch new goal</button>
+      <p class="action-hint">Posts a <strong>new</strong> goal from the task file. Volunteers on other machines execute it. This never continues an existing goal.</p>
+
+      <div class="action-group">
+        <p class="action-group-title">Existing goal</p>
+        <div class="field">
+          <label for="goalPicker">Browse goals</label>
+          <div class="goal-picker">
+            <input id="goalPicker" type="search" placeholder="Search goal id or brief…" autocomplete="off" spellcheck="false" />
+            <select id="goalStatusFilter" class="goal-status-filter" title="Filter by status">
+              <option value="">All statuses</option>
+              <option value="verified">Verified</option>
+              <option value="pending">Pending / running</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div id="goalPickerMenu" class="goal-picker-menu" hidden></div>
+          <p id="goalPickerHint" class="subtitle" style="margin:0.35rem 0 0"></p>
         </div>
-        <div id="goalPickerMenu" class="goal-picker-menu" hidden></div>
-        <p id="goalPickerHint" class="subtitle" style="margin:0.35rem 0 0"></p>
+        <div class="field">
+          <label for="goalId">Goal id</label>
+          <input id="goalId" type="text" placeholder="goal-… or pick from list" spellcheck="false" />
+        </div>
+        <div class="action-row">
+          <button id="watchBtn" type="button" disabled title="Load trace and watch pipeline for the goal id above">Load &amp; watch</button>
+        </div>
+        <p class="action-hint">Pick a goal from the list (auto-loads) or paste an id and click Load &amp; watch. Read-only unless you resume a stalled run below.</p>
+
+        <div id="existingGoalPanel" hidden>
+          <div class="goal-line" id="goalLine"></div>
+          <p id="watchModeHint" class="subtitle env-hint" style="margin-top:0.5rem"></p>
+          <div id="resumePanel" hidden>
+            <div class="field" style="margin-bottom:0.5rem">
+              <label for="resumeOwners">Volunteer owner(s) for resume</label>
+              <input id="resumeOwners" type="text" placeholder="volunteer" spellcheck="false" />
+            </div>
+            <button id="resumeBtn" type="button" disabled>Resume stalled pipeline</button>
+            <p class="action-hint" style="margin-top:0.35rem">Reclaims stale leases and redispatches to your volunteers. Requires <code>agentswarm-volunteer</code> running with matching owner id.</p>
+          </div>
+        </div>
+        <button id="clearViewBtn" type="button" class="link" hidden>Clear view</button>
       </div>
-      <div class="field">
-        <label for="goalId">Selected goal</label>
-        <input id="goalId" type="text" placeholder="goal-…" spellcheck="false" />
-      </div>
-      <div class="row">
-        <button id="startBtn" type="button">Dispatch task</button>
-        <button id="watchBtn" type="button" class="secondary">Watch goal</button>
-      </div>
-      <div id="envHint" class="env-hint">Checking dispatch credentials…</div>
+
+      <div id="envHint" class="env-hint" style="margin-top:0.75rem">Checking dispatch credentials…</div>
       <div id="volunteerHint" class="env-hint" style="margin-top:0.5rem">Workers: start <code>agentswarm-volunteer</code>, click <strong>Start</strong>, preset <em>Engineering git (full pipeline)</em>. Git tasks need Docker.</div>
-      <div class="goal-line" id="goalLine" hidden></div>
       <p class="subtitle" style="margin-top:0.75rem">Live goal status: <span id="runStatus" class="badge">idle</span> <span class="subtitle">(from platform trace, not the dispatch log)</span></p>
     </section>
 
@@ -1256,6 +1331,9 @@
       if (cfg.docker_available === false) {
         verifyBtn.title = "Git goals re-run pytest on the local checkout; sandbox fixtures still need Docker";
       }
+      const defaultOwners = (cfg.default_resume_owners || ["volunteer"]).join(", ");
+      $("resumeOwners").value = localStorage.getItem("agentswarm_resume_owners") || defaultOwners;
+      updateGoalActionControls(null);
       scheduleGoalCatalogRefresh();
     }
 
@@ -1277,6 +1355,32 @@
       return res.json();
     }
 
+    async function saveGoalRunLog(goalId) {
+      const url = encodeURIComponent($("apiUrl").value.trim());
+      try {
+        const res = await fetch(
+          `/api/goals/${encodeURIComponent(goalId)}/run-log?api_url=${url}&probe_workspace=true`
+        );
+        if (!res.ok) return null;
+        const body = await res.json();
+        if (body.has_errors && Array.isArray(body.issues) && body.issues.length) {
+          const warn = $("replayWarn");
+          warn.hidden = false;
+          const lines = body.issues.map(
+            (item) => `[${(item.severity || "warn").toUpperCase()}] ${item.message}`
+          );
+          const logHint = (body.log_paths || [])[0]
+            ? ` Log: ${body.log_paths[0]}`
+            : "";
+          warn.textContent = `${lines.join(" · ")}${logHint}`;
+        }
+        return body;
+      } catch (err) {
+        console.warn("run-log save failed", err);
+        return null;
+      }
+    }
+
     async function pollTrace(goalId) {
       try {
         const [trace, capacity] = await Promise.all([
@@ -1290,6 +1394,8 @@
         setGoalStatusBadge($("pipelineGoalStatus"), trace.status);
         maybeAppendLiveStatus(goalId, trace.status);
         rememberGoalFromTrace(trace);
+        updateGoalActionControls(trace);
+        saveGoalRunLog(goalId).catch(() => {});
         if (["verified", "rejected"].includes(trace.status)) {
           stopPolling();
         }
@@ -1298,11 +1404,129 @@
       }
     }
 
+    function parseResumeOwners(raw) {
+      return (raw || "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+    }
+
+    function updateGoalActionControls(trace) {
+      const status = (trace?.status || "").toLowerCase();
+      const terminal = ["verified", "rejected"].includes(status);
+      const hasGoalInput = Boolean($("goalId").value.trim());
+      const watching = Boolean(watchGoalId);
+
+      $("watchBtn").disabled = !hasGoalInput;
+
+      const existingPanel = $("existingGoalPanel");
+      const clearBtn = $("clearViewBtn");
+      const resumePanel = $("resumePanel");
+      const hint = $("watchModeHint");
+
+      if (!watching) {
+        existingPanel.hidden = true;
+        clearBtn.hidden = true;
+        resumePanel.hidden = true;
+        $("resumeBtn").disabled = true;
+        return;
+      }
+
+      existingPanel.hidden = false;
+      clearBtn.hidden = false;
+      $("goalLine").textContent = `Watching ${watchGoalId}`;
+
+      hint.hidden = false;
+      hint.className = "subtitle env-hint ok";
+      if (status === "verified") {
+        hint.textContent =
+          `Goal ${watchGoalId} finished successfully. View-only — dispatch a new goal to run again.`;
+      } else if (status === "rejected") {
+        hint.textContent =
+          `Goal ${watchGoalId} was rejected. View-only — dispatch a new goal to try again.`;
+      } else if (status === "pending") {
+        hint.textContent = `Goal ${watchGoalId} is still running on the platform.`;
+      } else {
+        hint.textContent = `Loading status for ${watchGoalId}…`;
+      }
+
+      const canResume = !terminal;
+      resumePanel.hidden = !canResume;
+      $("resumeBtn").disabled = !canResume;
+      if (status === "rejected") {
+        $("resumeBtn").title = "Rejected goals cannot be resumed";
+      } else if (status === "verified") {
+        $("resumeBtn").title = "Goal already verified";
+      } else {
+        $("resumeBtn").title = "Reclaim stale leases and redispatch to your volunteers";
+      }
+    }
+
+    function resetToNewTask() {
+      stopPolling();
+      activeRunId = null;
+      watchGoalId = null;
+      lastReplayGoalId = null;
+      lastOutcomeBundle = null;
+      lastLoggedTerminalStatus = null;
+      $("goalId").value = "";
+      $("goalPicker").value = "";
+      $("goalPickerMenu").hidden = true;
+      $("startBtn").disabled = false;
+      setGoalStatusBadge($("runStatus"), "idle");
+      setGoalStatusBadge($("pipelineGoalStatus"), "—");
+      $("livePanel").hidden = true;
+      $("replayPanel").hidden = true;
+      $("pipeline").innerHTML =
+        '<div class="empty">Dispatch a new goal or load an existing one from the list above.</div>';
+      $("log").textContent = "Ready for a new dispatch.";
+      $("replayOutput").hidden = true;
+      updateGoalActionControls(null);
+    }
+
+    async function resumeSelectedGoal() {
+      const goalId = $("goalId").value.trim() || watchGoalId;
+      if (!goalId) return;
+      const owners = parseResumeOwners($("resumeOwners").value);
+      if (!owners.length) {
+        appendLog(["Resume failed: enter at least one volunteer owner id."]);
+        return;
+      }
+      apiUrl = $("apiUrl").value.trim();
+      localStorage.setItem("agentswarm_api_url", apiUrl);
+      $("resumeBtn").disabled = true;
+      appendLog([`Resuming ${goalId} for owner(s): ${owners.join(", ")}…`]);
+      try {
+        const res = await fetch(`/api/proxy/goals/${encodeURIComponent(goalId)}/resume-dispatch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_url: apiUrl, include_owners: owners }),
+        });
+        if (!res.ok) {
+          const detail = await res.text();
+          appendLog([`Resume failed: ${detail}`]);
+          return;
+        }
+        const body = await res.json();
+        appendLog([
+          `[platform] resume: healed=${(body.healed_task_ids || []).length} ` +
+            `reclaimed=${(body.reclaimed_need_ids || []).length} ` +
+            `redispatched=${(body.redispatched_need_ids || []).length}`,
+        ]);
+        startPolling(goalId);
+      } catch (err) {
+        appendLog([`Resume error: ${err}`]);
+      } finally {
+        pollTrace(goalId).catch(() => {});
+      }
+    }
+
     function startPolling(goalId) {
       watchGoalId = goalId;
+      $("goalId").value = goalId;
       lastLoggedTerminalStatus = null;
-      $("goalLine").hidden = false;
-      $("goalLine").textContent = `goal_id=${goalId}`;
+      $("goalLine").textContent = `Watching ${goalId}`;
+      updateGoalActionControls(null);
       stopPolling();
       pollTrace(goalId);
       pollTimer = setInterval(() => pollTrace(goalId), 1500);
@@ -1368,10 +1592,14 @@
     $("startBtn").addEventListener("click", async () => {
       apiUrl = $("apiUrl").value.trim();
       localStorage.setItem("agentswarm_api_url", apiUrl);
+      const priorGoal = watchGoalId;
       $("startBtn").disabled = true;
       $("runStatus").className = "badge warn";
       $("runStatus").textContent = "dispatching";
-      appendLog(["Posting goal to platform (no local workers)…"]);
+      const intro = priorGoal
+        ? [`Dispatching new goal (separate from ${priorGoal})…`]
+        : ["Posting new goal to platform (no local workers)…"];
+      appendLog(intro);
       const res = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1396,6 +1624,19 @@
       apiUrl = $("apiUrl").value.trim();
       localStorage.setItem("agentswarm_api_url", apiUrl);
       startPolling(goalId);
+    });
+
+    $("resumeBtn").addEventListener("click", () => {
+      localStorage.setItem("agentswarm_resume_owners", $("resumeOwners").value.trim());
+      resumeSelectedGoal().catch((err) => appendLog([`Resume error: ${err}`]));
+    });
+
+    $("clearViewBtn").addEventListener("click", () => {
+      resetToNewTask();
+    });
+
+    $("goalId").addEventListener("input", () => {
+      if (!watchGoalId) updateGoalActionControls(null);
     });
 
     $("goalPicker").addEventListener("input", scheduleGoalCatalogRefresh);

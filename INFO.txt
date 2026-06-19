@@ -1,0 +1,24 @@
+!!! THIS IS FOR HUMANS ONLY !!!
+!!! NEVER EDIT THIS FILE!!!
+
+
+-- build exe files
+.\scripts\build_volunteer_exe.ps1          # builds dist\AgentSwarmVolunteer.exe
+.\scripts\build_task_console_app.ps1          # adds README + dist\AgentSwarm-friend.zip
+
+start agentswarn
+.\scripts\serve_task_console.ps1
+
+start volunteer
+.\scripts\start_volunteer.ps1
+
+deploy to server
+.\scripts\deploy_platform_theebie.ps1
+
+have others run it:
+git clone www.github.com/malicorx/ai_agentSwarm
+cd ai_agentSwarm
+.\scripts\repair_dev_venv.ps1
+.\scripts\build_worker_image.ps1
+.\scripts\start_volunteer.ps1          # volunteer from source
+.\scripts\serve_task_console.ps1       # task console (you, as operator)

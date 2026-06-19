@@ -1,0 +1,62 @@
+{
+  "goal_id": "goal-6ad2ec62a442",
+  "api_url": "https://theebie.de/agentswarm/api",
+  "collected_at": "2026-06-19T07:29:47+00:00",
+  "goal_status": "verified",
+  "goal_kind": "engineering",
+  "workspace_ref": "f1d152721b9fd7100066842a6bd2aca5549fd48e",
+  "workspace_mode": "git",
+  "issues": [],
+  "issue_count": 0,
+  "has_errors": false,
+  "trace_summary": {
+    "active_step": null,
+    "coordinator_task_id": "task_4891d358d2db",
+    "step_count": 4
+  },
+  "steps": [
+    {
+      "seq": 1,
+      "role": "coordinator",
+      "task_type": "coordinator.decompose",
+      "status": "verified",
+      "owner": "volunteer",
+      "workspace_ref": null,
+      "result_summary": "planned 1 immediate + 2 deferred pool needs",
+      "submitted_at": "2026-06-19T07:29:32+00:00"
+    },
+    {
+      "seq": 2,
+      "role": "codewriter",
+      "task_type": "codewriter.patch",
+      "status": "verified",
+      "owner": "volunteer",
+      "workspace_ref": "f1d152721b9fd7100066842a6bd2aca5549fd48e",
+      "result_summary": "applied=True target=primes.py ref=f1d152721b9f…",
+      "submitted_at": "2026-06-19T07:29:34+00:00"
+    },
+    {
+      "seq": 3,
+      "role": "tester",
+      "task_type": "tester.run",
+      "status": "passed",
+      "owner": "volunteer",
+      "workspace_ref": "f1d152721b9fd7100066842a6bd2aca5549fd48e",
+      "result_summary": "passed=True ref=f1d152721b9f…",
+      "submitted_at": "2026-06-19T07:29:40+00:00"
+    },
+    {
+      "seq": 4,
+      "role": "reviewer",
+      "task_type": "reviewer.approve",
+      "status": "verified",
+      "owner": "volunteer",
+      "workspace_ref": "f1d152721b9fd7100066842a6bd2aca5549fd48e",
+      "result_summary": "approved=True",
+      "submitted_at": "2026-06-19T07:29:43+00:00"
+    }
+  ],
+  "replay_context_error": null,
+  "workspace_tree_error": null,
+  "workspace_tree_mode": "git"
+}

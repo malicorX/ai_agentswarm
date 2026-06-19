@@ -1,3 +1,6 @@
+// Release builds: no extra console window (UI is the native WebView shell, not a browser).
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -26,16 +29,57 @@ impl Drop for ServerProcess {
 
 fn main() {
     if let Err(err) = run() {
-        eprintln!("AgentSwarm Task Console failed: {err}");
+        show_fatal_error(&format!("AgentSwarm Task Console failed:\n{err}"));
         std::process::exit(1);
     }
 }
 
+#[cfg(all(windows, not(debug_assertions)))]
+fn show_fatal_error(message: &str) {
+    use std::ffi::OsStr;
+    use std::iter::once;
+    use std::os::windows::ffi::OsStrExt;
+
+    extern "system" {
+        fn MessageBoxW(hwnd: *mut std::ffi::c_void, text: *const u16, caption: *const u16, utype: u32) -> i32;
+    }
+
+    fn wide(value: &str) -> Vec<u16> {
+        OsStr::new(value).encode_wide().chain(once(0)).collect()
+    }
+
+    let text = wide(message);
+    let caption = wide("AgentSwarm Task Console");
+    unsafe {
+        MessageBoxW(
+            std::ptr::null_mut(),
+            text.as_ptr(),
+            caption.as_ptr(),
+            0x00000010, // MB_ICONERROR
+        );
+    }
+}
+
+#[cfg(not(all(windows, not(debug_assertions))))]
+fn show_fatal_error(message: &str) {
+    eprintln!("{message}");
+}
+
+fn is_local_console_url(url: &str) -> bool {
+    url.starts_with("http://127.0.0.1:")
+        || url.starts_with("http://localhost:")
+        || url.starts_with("https://127.0.0.1:")
+        || url.starts_with("https://localhost:")
+}
+
 fn run() -> Result<(), String> {
     let repo_root = resolve_repo_root()?;
+    std::env::set_current_dir(&repo_root).map_err(|e| format!("set repo cwd: {e}"))?;
+    std::env::set_var("AGENTSWARM_REPO_ROOT", &repo_root);
     let python = resolve_python(&repo_root)?;
     let port = pick_port(DEFAULT_PORT)?;
     let server = start_server(&repo_root, &python, port)?;
+    #[cfg(debug_assertions)]
     eprintln!("Task console backend on http://127.0.0.1:{port}/");
     wait_for_server(port)?;
 
@@ -51,6 +95,8 @@ fn run() -> Result<(), String> {
 
     let _webview = WebViewBuilder::new()
         .with_url(&url)
+        .with_navigation_handler(|nav_url| is_local_console_url(&nav_url))
+        .with_new_window_req_handler(|_nav_url| false)
         .build(&window)
         .map_err(|e| format!("create webview: {e}"))?;
 
@@ -101,7 +147,8 @@ fn resolve_repo_root() -> Result<PathBuf, String> {
     }
 
     Err(
-        "Could not find AgentSwarm repo root. Set AGENTSWARM_REPO_ROOT to the repository directory."
+        "Could not find AgentSwarm repo root (need platform/, agents/, tools/task_console/).\n\
+         Run dist\\TaskConsole.cmd from the repo, or set AGENTSWARM_REPO_ROOT."
             .to_string(),
     )
 }

@@ -353,8 +353,12 @@ def merge_trace_into_context(
         merged["trace_steps"] = trace.get("steps") or []
         if not merged.get("workspace_ref") and trace.get("workspace_ref"):
             merged["workspace_ref"] = trace["workspace_ref"]
+        if not merged.get("workspace_ref"):
+            merged["workspace_ref"] = _workspace_ref(merged)
         if not merged.get("artifact_text") and trace.get("artifact_text"):
             merged["artifact_text"] = trace["artifact_text"]
+        if not merged.get("status") and trace.get("status"):
+            merged["status"] = trace["status"]
     return merged
 
 

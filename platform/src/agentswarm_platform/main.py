@@ -43,6 +43,7 @@ from agentswarm_platform.models import (
     DispatchCapacityResponse,
     GoalRealignDispatchRequest,
     GoalRealignDispatchResponse,
+    GoalResumeDispatchResponse,
     GoalTraceResponse,
     GitArtifactEnvelope,
     GitPatchRequest,
@@ -590,6 +591,19 @@ def realign_goal_dispatch(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return GoalRealignDispatchResponse(**result)
+
+
+@app.post("/creative/goals/{goal_id}/resume-dispatch", response_model=GoalResumeDispatchResponse)
+def resume_goal_dispatch(
+    goal_id: str,
+    body: GoalRealignDispatchRequest,
+    _owner: Annotated[OwnerAuth, Depends(get_owner)],
+) -> GoalResumeDispatchResponse:
+    try:
+        result = store.resume_goal_dispatch(goal_id, include_owners=body.include_owners)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return GoalResumeDispatchResponse(**result)
 
 
 @app.post(

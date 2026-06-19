@@ -3437,6 +3437,90 @@ class Store:
             "goal_kind": resolved_kind,
         }
 
+    def _heal_stalled_deferred_steps(self, goal_id: str) -> list[str]:
+        """Re-enqueue deferred pipeline steps whose parent finished but child task was never created."""
+        with self._conn() as conn:
+            goal = get_creative_goal(conn, goal_id)
+        if goal is None:
+            return []
+        deferred = goal.get("deferred_pool_needs") or []
+        if not deferred:
+            return []
+
+        with self._conn() as conn:
+            task_rows = conn.execute(
+                """
+                SELECT task_id, task_type, status, submission_result_json, assigned_agent_id
+                FROM tasks
+                WHERE payload LIKE ?
+                ORDER BY created_at ASC
+                """,
+                (f"%{goal_id}%",),
+            ).fetchall()
+
+        completed_by_type: dict[str, Any] = {}
+        existing_types: set[str] = set()
+        for row in task_rows:
+            task_type = str(row["task_type"])
+            existing_types.add(task_type)
+            if str(row["status"]) in ("submitted", "verified"):
+                completed_by_type[task_type] = row
+
+        worker_agent_id: str | None = None
+        coder_row = completed_by_type.get("codewriter.patch")
+        if coder_row is not None and coder_row["assigned_agent_id"]:
+            worker_agent_id = str(coder_row["assigned_agent_id"])
+
+        healed: list[str] = []
+        healed_after: set[str] = set()
+        for entry in deferred:
+            after = str(entry.get("after_task_type", ""))
+            if not after or after in healed_after:
+                continue
+            spec = entry.get("spec") or {}
+            child_type = str(spec.get("task_type", ""))
+            if after not in completed_by_type:
+                continue
+            if child_type and child_type in existing_types:
+                continue
+            parent_row = completed_by_type[after]
+            parent_task_id = str(parent_row["task_id"])
+            parent_test_result = None
+            if after == "tester.run" and parent_row["submission_result_json"]:
+                try:
+                    parent_test_result = json.loads(parent_row["submission_result_json"])
+                except json.JSONDecodeError:
+                    parent_test_result = None
+            task_ids = self._execute_deferred_pool_needs_for_goal(
+                goal_id=goal_id,
+                after_task_type=after,
+                parent_task_id=parent_task_id,
+                worker_agent_id=worker_agent_id,
+                parent_test_result=parent_test_result,
+            )
+            if task_ids:
+                healed.extend(task_ids)
+                healed_after.add(after)
+        return healed
+
+    def resume_goal_dispatch(
+        self,
+        goal_id: str,
+        *,
+        include_owners: list[str],
+    ) -> dict[str, Any]:
+        """Heal missing deferred steps, then reclaim and redispatch for a non-terminal goal."""
+        goal = self.get_creative_goal_status(goal_id)
+        if goal is None:
+            raise ValueError("goal not found")
+        if goal["status"] in ("verified", "rejected"):
+            raise ValueError(f"goal already terminal (status={goal['status']})")
+
+        healed_task_ids = self._heal_stalled_deferred_steps(goal_id)
+        result = self.realign_goal_dispatch(goal_id, include_owners=include_owners)
+        result["healed_task_ids"] = healed_task_ids
+        return result
+
     def realign_goal_dispatch(
         self,
         goal_id: str,
