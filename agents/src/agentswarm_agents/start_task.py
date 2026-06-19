@@ -311,8 +311,9 @@ def execute_goal_with_volunteers(
         goal = wait_for_goal(clean, goal_id, timeout_sec=goal_timeout_sec, poll_sec=1.0)
     finally:
         stop.set()
+        join_timeout = max(15.0, wait_timeout_sec + 15.0)
         for thread in threads:
-            thread.join(timeout=10.0)
+            thread.join(timeout=join_timeout)
         alive = [thread.name for thread in threads if thread.is_alive()]
         if alive:
             raise RuntimeError(f"volunteer threads did not stop: {', '.join(alive)}")
@@ -423,8 +424,9 @@ def create_and_execute_task_file(
         goal = wait_for_goal(clean, goal_id, timeout_sec=goal_timeout_sec, poll_sec=1.0)
     finally:
         stop.set()
+        join_timeout = max(15.0, wait_timeout_sec + 15.0)
         for thread in threads:
-            thread.join(timeout=10.0)
+            thread.join(timeout=join_timeout)
 
     if goal.get("status") != "verified":
         raise RuntimeError(f"goal {goal_id} not verified (status={goal.get('status')!r})")
