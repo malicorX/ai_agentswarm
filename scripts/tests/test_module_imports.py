@@ -22,35 +22,40 @@ def _skipped(rel_parts: tuple[str, ...]) -> bool:
     return any(part in SKIP_DIRS or part.endswith(".egg-info") for part in rel_parts)
 
 
+def _denied_packages(root: Path, rule: dict, modules: list[str] | None) -> list[str]:
+    if "deny" in rule:
+        denied_modules = list(rule["deny"])
+    else:
+        allowed = {rule["from"], *rule.get("allow", [])}
+        denied_modules = [m for m in (modules or []) if m not in allowed]
+    return sorted({pkg for mod in denied_modules for pkg in package_names(root, mod)})
+
+
+def _file_violations(root: Path, path: Path, pattern: re.Pattern) -> list[str]:
+    rel = path.relative_to(root).as_posix()
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return [
+        f"{rel}:{number}: {line.strip()}"
+        for number, line in enumerate(text.splitlines(), start=1)
+        if pattern.match(line)
+    ]
+
+
 def find_import_violations(
     root: Path, rules: list[dict], modules: list[str] | None = None
 ) -> list[str]:
     found: list[str] = []
     for rule in rules:
-        if "deny" in rule:
-            denied_modules = list(rule["deny"])
-        else:
-            allowed = {rule["from"], *rule.get("allow", [])}
-            denied_modules = [m for m in (modules or []) if m not in allowed]
-        packages = sorted(
-            {pkg for mod in denied_modules for pkg in package_names(root, mod)}
-        )
-        if not packages:
+        packages = _denied_packages(root, rule, modules)
+        base = root / rule["from"]
+        if not packages or not base.is_dir():
             continue
         pattern = re.compile(
             r"^\s*(from|import)\s+(" + "|".join(map(re.escape, packages)) + r")(\.|\s|,|$)"
         )
-        base = root / rule["from"]
-        if not base.is_dir():
-            continue
         for path in sorted(base.rglob("*.py")):
-            if _skipped(path.relative_to(base).parts):
-                continue
-            text = path.read_text(encoding="utf-8", errors="replace")
-            for number, line in enumerate(text.splitlines(), start=1):
-                if pattern.match(line):
-                    rel = path.relative_to(root).as_posix()
-                    found.append(f"{rel}:{number}: {line.strip()}")
+            if not _skipped(path.relative_to(base).parts):
+                found += _file_violations(root, path, pattern)
     return found
 
 
