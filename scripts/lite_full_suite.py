@@ -26,7 +26,7 @@ def stray_packages(python, env):
     if out.returncode != 0:
         return [out.stderr.strip() or "import failed"]
     root = os.path.normcase(ROOT)
-    return [line for line in out.stdout.splitlines() if not os.path.normcase(line.split(" ", 1)[1]).startswith(root)]
+    return [line for line in out.stdout.splitlines() if not os.path.normcase(line.split(" ", 1)[1]).startswith(root + os.sep)]
 
 
 def main():
