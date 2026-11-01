@@ -10,7 +10,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIRS = ("platform/src", "agents/src", "packages/mcp-adapter/src", "packages/sdk-python/src")
 PACKAGES = ("agentswarm_platform", "agentswarm_agents", "agentswarm_mcp", "agentswarm_sdk")
-TEST_DIRS = ("platform/tests", "agents/tests", "packages/mcp-adapter/tests", "pilot/news-hub/tests")
+TEST_DIRS = ("platform/tests", "agents/tests", "packages/mcp-adapter/tests", "pilot/news-hub/tests", "scripts/tests", "tools/tests")
 
 
 def build_env(env):
