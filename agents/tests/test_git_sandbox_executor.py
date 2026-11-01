@@ -1,13 +1,36 @@
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from agentswarm_agents.capsule_executor import execute_capsule
 from agentswarm_agents.git_sandbox_executor import (
+    _PATCH_RUNNER,
+    _TEST_RUNNER,
+    _sandbox_git_docker_env,
     execute_git_engineering_patch_sandbox,
     git_sandbox_mock_enabled,
     run_git_workspace_tests_sandbox,
 )
+
+
+def test_git_sandbox_tmpdir_not_on_bind_mount() -> None:
+    """TMPDIR must stay on the container filesystem, not the /git-work host bind mount.
+
+    pytest's capture tempfiles are deleted while still open; on a Windows-host bind
+    mount truncate() then fails with FileNotFoundError and tester.run reports
+    passed=False, so the engineering goal ends 'rejected'.
+    """
+    flags = _sandbox_git_docker_env(["-e", "GIT_SSH_COMMAND=ssh"])
+    env_values = [flags[i + 1] for i, flag in enumerate(flags) if flag == "-e"]
+    tmpdir_values = [value for value in env_values if value.startswith("TMPDIR=")]
+    assert tmpdir_values == ["TMPDIR=/tmp"]
+
+    for runner in (_PATCH_RUNNER, _TEST_RUNNER):
+        runner_tmpdirs = re.findall(r'"TMPDIR",\s*"([^"]*)"', runner)
+        assert runner_tmpdirs == ["/tmp"]
+        assert "/git-work" not in "".join(runner_tmpdirs)
 
 
 def test_git_sandbox_mock_patch(monkeypatch: pytest.MonkeyPatch) -> None:

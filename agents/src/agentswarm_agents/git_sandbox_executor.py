@@ -26,7 +26,7 @@ AGENTS_SRC_CONTAINER = "/opt/agentswarm/agents/src"
 
 _PATCH_RUNNER = """
 import json, os, subprocess, sys
-os.environ.setdefault("TMPDIR", "/git-work")
+os.environ.setdefault("TMPDIR", "/tmp")
 subprocess.run(
     ["git", "config", "--global", "safe.directory", "*"],
     check=True,
@@ -44,7 +44,7 @@ json.dump(result, sys.stdout)
 
 _TEST_RUNNER = """
 import json, os, subprocess, sys
-os.environ.setdefault("TMPDIR", "/git-work")
+os.environ.setdefault("TMPDIR", "/tmp")
 subprocess.run(
     ["git", "config", "--global", "safe.directory", "*"],
     check=True,
@@ -134,7 +134,11 @@ def _forge_key_mount(
 
 
 def _sandbox_git_docker_env(forge_env: list[str] | None = None) -> list[str]:
-    """Docker -e flags so git trusts mounted forge repos and uses writable workdir."""
+    """Docker -e flags so git trusts mounted forge repos and uses a writable temp dir.
+
+    TMPDIR stays on the container filesystem (/tmp): on the /git-work host bind
+    mount, pytest's deleted-but-open capture files break (FileNotFoundError).
+    """
     return [
         *(forge_env or []),
         "-e",
@@ -144,7 +148,7 @@ def _sandbox_git_docker_env(forge_env: list[str] | None = None) -> list[str]:
         "-e",
         "GIT_CONFIG_VALUE_0=*",
         "-e",
-        "TMPDIR=/git-work",
+        "TMPDIR=/tmp",
     ]
 
 
