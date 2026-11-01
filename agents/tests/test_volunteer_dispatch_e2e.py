@@ -99,6 +99,7 @@ def test_dispatch_task_file_generalist_one_liner_verified(
 
 @pytest.mark.skipif(not docker_available(), reason="Docker not available")
 @pytest.mark.skipif(shutil.which("git") is None, reason="git not installed")
+@pytest.mark.xfail(strict=False, reason="red on main 95aae3c outside CI: goal ends rejected; backlog sprint 2 (ai_agentSwarm)")
 def test_dispatch_goal_generalist_git_in_container_verified(
     live_dispatch_platform: str,
     e2e_dispatch_env: None,

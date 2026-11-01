@@ -1,0 +1,25 @@
+{
+  "_doc": "Verzeichnisregel für die Lite-Strukturprüfung neuer oder umbenannter Pfade. Trifft ein forbidden-Glob, ist das Ergebnis FAIL; sonst ergibt ein passendes allowed-Glob PASS, sonst WARN, und fehlt die Datei oder enthält sie keine Regel, ist das Ergebnis UNKNOWN.",
+  "allowed": [
+    {"glob": "platform/**", "kind": "Plattform"},
+    {"glob": "agents/**", "kind": "Agenten"},
+    {"glob": "packages/**", "kind": "Pakete"},
+    {"glob": "pilot/**", "kind": "Pilot"},
+    {"glob": "apps/**", "kind": "Apps"},
+    {"glob": "client/**", "kind": "Client"},
+    {"glob": "scripts/**", "kind": "Skripte und Skript-Tests"},
+    {"glob": "tools/**", "kind": "Werkzeuge"},
+    {"glob": "docs/**", "kind": "Doku"},
+    {"glob": "config/**", "kind": "Konfiguration"},
+    {"glob": "docker/**", "kind": "Docker"},
+    {"glob": "tasks/**", "kind": "Aufgabenbeispiele"}
+  ],
+  "forbidden": [
+    {"glob": "platform/data/**", "reason": "Laufzeitdaten der Plattform"},
+    {"glob": "**/*.log", "reason": "Logs"},
+    {"glob": "**/*.sqlite3", "reason": "lokale Datenbanken"},
+    {"glob": "**/*.db", "reason": "lokale Datenbanken"},
+    {"glob": ".venv/**", "reason": "virtuelle Umgebung"},
+    {"glob": "*_out.txt", "reason": "Ausgabedatei in der Wurzel"}
+  ]
+}
