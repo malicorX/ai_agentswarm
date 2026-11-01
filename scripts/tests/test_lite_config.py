@@ -49,3 +49,67 @@ def test_uncounted_are_modules():
 
     for module in config["uncounted_modules"]:
         assert module in config["modules"]
+
+
+STRUCTURE_JSON = ROOT / "config" / "structure.json"
+
+ALLOWED_GLOBS = {
+    "platform/**",
+    "agents/**",
+    "packages/**",
+    "pilot/**",
+    "apps/**",
+    "client/**",
+    "scripts/**",
+    "tools/**",
+    "docs/**",
+    "config/**",
+    "docker/**",
+    "tasks/**",
+}
+
+FORBIDDEN_GLOBS = {
+    "platform/data/**",
+    "**/*.log",
+    "**/*.sqlite3",
+    "**/*.db",
+    ".venv/**",
+    "*_out.txt",
+}
+
+
+def load_structure_config():
+    return json.loads(STRUCTURE_JSON.read_text(encoding="utf-8"))
+
+
+def test_structure_json_keys():
+    config = load_structure_config()
+
+    assert isinstance(config, dict)
+    assert isinstance(config["_doc"], str)
+    assert isinstance(config["allowed"], list) and config["allowed"]
+    assert isinstance(config["forbidden"], list) and config["forbidden"]
+
+
+def test_structure_entries():
+    config = load_structure_config()
+
+    for entry in config["allowed"]:
+        assert isinstance(entry["glob"], str) and entry["glob"]
+        assert isinstance(entry["kind"], str) and entry["kind"]
+    for entry in config["forbidden"]:
+        assert isinstance(entry["glob"], str) and entry["glob"]
+        assert isinstance(entry["reason"], str) and entry["reason"]
+
+
+def test_structure_globs():
+    config = load_structure_config()
+    allowed = [entry["glob"] for entry in config["allowed"]]
+    forbidden = [entry["glob"] for entry in config["forbidden"]]
+
+    assert len(allowed) == 12
+    assert len(allowed) == len(set(allowed))
+    assert set(allowed) == ALLOWED_GLOBS
+    assert len(forbidden) == 6
+    assert len(forbidden) == len(set(forbidden))
+    assert set(forbidden) == FORBIDDEN_GLOBS
