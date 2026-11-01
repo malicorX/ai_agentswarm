@@ -1,0 +1,24 @@
+{
+  "_doc": "Modulregel für Desk Lite; ein Pfad gehört zum längsten passenden Präfix; docs und config zählen nicht; keine Importregeln in diesem Sprint.",
+  "modules": [
+    "platform",
+    "agents",
+    "packages/mcp-adapter",
+    "packages/sdk-python",
+    "pilot",
+    "apps",
+    "client",
+    "scripts",
+    "tools",
+    "docker",
+    "docs",
+    "config"
+  ],
+  "max_modules_per_task": 3,
+  "uncounted_modules": [
+    "docs",
+    "config"
+  ],
+  "unknown_module": "warn",
+  "imports": []
+}
