@@ -36,6 +36,21 @@ def _install_fake_run(monkeypatch, responses):
     monkeypatch.setattr(mod.subprocess, "run", fake)
 
 
+def test_test_dirs_include_new_dirs():
+    expected = (
+        "platform/tests",
+        "agents/tests",
+        "packages/mcp-adapter/tests",
+        "pilot/news-hub/tests",
+        "scripts/tests",
+        "tools/tests",
+    )
+
+    assert mod.TEST_DIRS == expected
+    for rel in mod.TEST_DIRS:
+        assert os.path.isdir(os.path.join(mod.ROOT, rel)), rel
+
+
 def test_build_env_prepends_src_dirs():
     env = {"PYTHONPATH": "vorher", "X": "1"}
 
