@@ -227,3 +227,27 @@ Phases **0–4 are complete in code**. Phase **6** (volunteer client dispatch) i
 **GitHub Pages (fork mirror):** [https://malicorx.github.io/ai_agentswarm/](https://malicorx.github.io/ai_agentswarm/) — [deploy.md](deploy.md) Option B.
 
 **Staging auth:** enabled 2026-06-15 (`auth.enforced=true` on theebie) via `scripts/harden_staging_auth_theebie.sh`.
+
+## Since Phase 23
+
+Source: `git log v0.24.0-phase23..HEAD` (the tag points to `6644c42`) and `git tag --list`; a date filter `git log --since=2026-06-16` would miss `76a4ca6`, `d20f8ac` and `2e2cf19`.
+
+### Git-in-container sandbox
+
+`885b9af` added `agents/src/agentswarm_agents/git_sandbox_executor.py`, `pilot/engineering-lab/Dockerfile.sandbox` and `pilot/engineering-lab/seccomp-sandbox.json`. CI fixes then adjusted git clones, the seccomp profile, `safe.directory` and the sandbox test image (`1885bc1`, `4e5eb21`, `d887887`, `262882b`, `ffd8748`, `3e26a7b`) and the accepted tester trace status in the git e2e test (`8b5d27d`). `f74e7f8` turns off sandbox hardening for git-in-container jobs.
+
+### Task Console
+
+`885b9af` added the Rust app in `apps/agentswarm-task-console/` and the web server in `tools/task_console/`; `8f6d545` extended `tools/task_console/server.py` with goal listing and a goal outcome endpoint (tested in `tools/tests/test_task_console_replay.py`), and `ead9b05` changed `apps/agentswarm-task-console/src/main.rs`. `3c40208` is titled as a docs update but is not docs-only: it also changes `tools/task_console/server.py`, `tools/tests/test_task_console_replay.py`, `apps/agentswarm-task-console/src/main.rs` and volunteer client code, and it removes 18 lines from `pilot/engineering-lab/primes/primes.py` (`95aae3c` adds 18 lines back).
+
+### Goal dispatch API
+
+`8f6d545` added `GET /creative/goals` to list creative goals (tested in `platform/tests/test_list_creative_goals.py`) and outcome retrieval via the task console. `ead9b05` added `POST /creative/goals/{goal_id}/resume-dispatch` (tested in `platform/tests/test_resume_goal_dispatch.py`). `88cdb86` only updates `platform/tests/test_verify_production_staging.py` to match the goal deploy orchestration.
+
+### Pilot engineering-lab
+
+`885b9af` added the pilot folders `pilot/engineering-lab/fizzbuzz/`, `pilot/engineering-lab/primes/` and `pilot/engineering-lab/winhello/`, each with a `tests/` folder. `95aae3c` adds the prime generator to `pilot/engineering-lab/primes/primes.py` and the greeting to `pilot/engineering-lab/winhello/hello.py` (the "hello" pilot).
+
+### Development process via Desk Lite
+
+`a76dec5` added `GOAL.md` and the worktree-safe full-suite runner `scripts/lite_full_suite.py`, and `089e875` fixed its root-path guard. `42fcc49` added `config/modules.json`, `8061b6a` added `config/structure.json`, and `02beef0` extended `TEST_DIRS` in `scripts/lite_full_suite.py` with `scripts/tests` and `tools/tests`. `4e38840` is the merge that landed the Lite sprint branch `lite/s79-20261101090902` on main; the tag `lite-stable-20261101-s79` points to it.
