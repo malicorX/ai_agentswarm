@@ -1,5 +1,5 @@
 {
-  "_doc": "Modulregel für Desk Lite; ein Pfad gehört zum längsten passenden Präfix; docs und config zählen nicht; keine Importregeln in diesem Sprint.",
+  "_doc": "Modulregel für Desk Lite; ein Pfad gehört zum längsten passenden Präfix; docs und config zählen nicht; imports nennt Modulregeln mit from, allow oder deny und reason.",
   "modules": [
     "platform",
     "agents",
@@ -20,5 +20,21 @@
     "config"
   ],
   "unknown_module": "warn",
-  "imports": []
+  "imports": [
+    {
+      "from": "packages/sdk-python",
+      "deny": ["agents", "packages/mcp-adapter"],
+      "reason": "SDK importiert weder Agenten- noch MCP-Adapter-Code (git grep: 0 Treffer)."
+    },
+    {
+      "from": "packages/mcp-adapter",
+      "deny": ["agents", "packages/sdk-python"],
+      "reason": "MCP-Adapter importiert weder Agenten- noch SDK-Code (git grep: 0 Treffer)."
+    },
+    {
+      "from": "agents",
+      "deny": ["packages/mcp-adapter", "packages/sdk-python"],
+      "reason": "Agenten importieren weder MCP-Adapter- noch SDK-Code (git grep: 0 Treffer)."
+    }
+  ]
 }

@@ -32,7 +32,32 @@ def test_modules_json_keys():
     assert type(config["max_modules_per_task"]) is int
     assert config["uncounted_modules"] == ["docs", "config"]
     assert config["unknown_module"] == "warn"
-    assert config["imports"] == []
+    assert isinstance(config["imports"], list) and 1 <= len(config["imports"]) <= 3
+
+
+def test_import_rules_format_and_dirs():
+    config = load_modules_config()
+    modules = config["modules"]
+    rules = config["imports"]
+
+    assert isinstance(rules, list) and 1 <= len(rules) <= 3
+    for rule in rules:
+        assert isinstance(rule, dict)
+        assert set(rule.keys()) in (
+            {"from", "deny", "reason"},
+            {"from", "allow", "reason"},
+        )
+        assert rule["from"] in modules
+        assert os.path.isdir(os.path.join(ROOT, *rule["from"].split("/")))
+        key = "deny" if "deny" in rule else "allow"
+        targets = rule[key]
+        assert isinstance(targets, list) and targets
+        for target in targets:
+            assert isinstance(target, str)
+            assert target in modules
+            assert target != rule["from"]
+            assert os.path.isdir(os.path.join(ROOT, *target.split("/")))
+        assert isinstance(rule["reason"], str) and rule["reason"].strip()
 
 
 def test_modules_exist():
