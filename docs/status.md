@@ -251,3 +251,23 @@ Source: `git log v0.24.0-phase23..HEAD` (the tag points to `6644c42`) and `git t
 ### Development process via Desk Lite
 
 `a76dec5` added `GOAL.md` and the worktree-safe full-suite runner `scripts/lite_full_suite.py`, and `089e875` fixed its root-path guard. `42fcc49` added `config/modules.json`, `8061b6a` added `config/structure.json`, and `02beef0` extended `TEST_DIRS` in `scripts/lite_full_suite.py` with `scripts/tests` and `tools/tests`. `4e38840` is the merge that landed the Lite sprint branch `lite/s79-20261101090902` on main; the tag `lite-stable-20261101-s79` points to it.
+
+### Known gaps
+
+Source: `git grep -n -E "xfail|pytest\.skip|mark\.skip|skipif" -- platform/tests agents/tests packages/mcp-adapter/tests pilot scripts/tests tools/tests ":(exclude)scripts/tests/test_docs_status.py"` at `0e67755` finds 11 markers: 1 expected failure and 10 environment-dependent skips. Nothing listed here is removed or changed.
+
+- **Expected failure (1):**
+  - `agents/tests/test_volunteer_dispatch_e2e.py:102` - `pytest.mark.xfail(strict=False)`: "red on main 95aae3c outside CI: goal ends rejected; backlog sprint 2"; added in `b3c81a6`.
+- **Environment-dependent skips (10):**
+  - `agents/tests/test_forge_ssh.py:69` - `skipif`: Windows only ("Windows ACL helper").
+  - `agents/tests/test_forge_ssh.py:82` - `skipif`: no ssh client ("openssh client not installed").
+  - `agents/tests/test_git_capsule.py:23` - `skipif`: no git ("git not installed").
+  - `agents/tests/test_sandbox_executor.py:13` - `skipif`: no Docker ("Docker not available").
+  - `agents/tests/test_task_pool_chain_e2e.py:57` - `skipif`: no git ("git not installed").
+  - `agents/tests/test_task_pool_chain_e2e.py:93` - `skipif`: no Docker ("Docker not available").
+  - `agents/tests/test_volunteer_dispatch_e2e.py:100` - `skipif`: no Docker ("Docker not available").
+  - `agents/tests/test_volunteer_dispatch_e2e.py:101` - `skipif`: no git ("git not installed").
+  - `platform/tests/test_git_patch.py:25` - `pytest.skip`: no git ("git not installed").
+  - `pilot/engineering-lab/winhello/tests/test_hello.py:25` - `pytest.skip`: `hello.exe` not built yet ("run builder.compile in Windows VM").
+- **Repo debris:** [REPO-DEBRIS-MANIFEST.md](REPO-DEBRIS-MANIFEST.md) lists the tracked legacy files in the repo root and deletes nothing (`9006482`).
+- **Test runners:** `.github/workflows/ci.yml` (lines 25-31) and `scripts/run_all_tests.ps1` (line 24) run only `platform/tests`, `agents/tests`, `packages/mcp-adapter/tests` and `pilot/news-hub/tests`. Of the three runners, only `scripts/lite_full_suite.py` also runs `scripts/tests` and `tools/tests` (`TEST_DIRS`, line 13). `pilot/engineering-lab/*/tests` is in none of the three runners.

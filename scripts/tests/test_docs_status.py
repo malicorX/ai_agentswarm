@@ -82,3 +82,43 @@ def test_each_theme_has_valid_hash():
         body = _section(section, theme)
         valid = [h for h in HASH_RE.findall(body) if _is_commit(h)]
         assert valid, f"no valid commit hash under {theme!r}"
+
+
+KNOWN_GAPS = "### Known gaps"
+TEST_DIRS = [
+    "platform/tests",
+    "agents/tests",
+    "packages/mcp-adapter/tests",
+    "pilot",
+    "scripts/tests",
+    "tools/tests",
+]
+# Assembled from parts so that this file does not match its own search.
+EXPECTED_FAILURE_RE = "pytest\\.mark\\.x" + "fail|pytest\\.x" + "fail\\("
+
+
+def test_known_gaps_lists_every_expected_failure():
+    section = _section(_read(), KNOWN_GAPS)
+    proc = subprocess.run(
+        ["git", "grep", "-l", "-E", EXPECTED_FAILURE_RE, "--", *TEST_DIRS,
+         ":(exclude)scripts/tests/test_docs_status.py"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    # git grep: 0 = matches, 1 = no match, anything else = error.
+    assert proc.returncode in (0, 1), f"git grep failed ({proc.returncode}): {proc.stderr}"
+    paths = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    missing = [p for p in paths if p not in section]
+    assert not missing, f"expected-failure test files missing in {KNOWN_GAPS!r}: {missing}"
+
+
+def test_known_gaps_names_debris_manifest_and_runners():
+    section = _section(_read(), KNOWN_GAPS)
+    for needle in [
+        "REPO-DEBRIS-MANIFEST.md",
+        "scripts/lite_full_suite.py",
+        "scripts/run_all_tests.ps1",
+        ".github/workflows/ci.yml",
+    ]:
+        assert needle in section, f"{needle!r} missing in {KNOWN_GAPS!r}"
