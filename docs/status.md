@@ -254,10 +254,10 @@ Source: `git log v0.24.0-phase23..HEAD` (the tag points to `6644c42`) and `git t
 
 ### Known gaps
 
-Source: `git grep -n -E "xfail|pytest\.skip|mark\.skip|skipif" -- platform/tests agents/tests packages/mcp-adapter/tests pilot scripts/tests tools/tests ":(exclude)scripts/tests/test_docs_status.py"` at `0e67755` finds 11 markers: 1 expected failure and 10 environment-dependent skips. Nothing listed here is removed or changed.
+Source: `git grep -n -E "xfail|pytest\.skip|mark\.skip|skipif" -- platform/tests agents/tests packages/mcp-adapter/tests pilot scripts/tests tools/tests ":(exclude)scripts/tests/test_docs_status.py"` at `0e67755` found 11 markers: 1 expected failure and 10 environment-dependent skips. The expected failure was fixed and its marker removed by `3991e8a` (git-in-container e2e), so on the current main only the 10 skips remain.
 
-- **Expected failure (1):**
-  - `agents/tests/test_volunteer_dispatch_e2e.py:102` - `pytest.mark.xfail(strict=False)`: "red on main 95aae3c outside CI: goal ends rejected; backlog sprint 2"; added in `b3c81a6`.
+- **Expected failure (fixed):**
+  - `agents/tests/test_volunteer_dispatch_e2e.py` - `pytest.mark.xfail(strict=False)` added in `b3c81a6` (goal ended rejected); removed with the fix in `3991e8a`.
 - **Environment-dependent skips (10):**
   - `agents/tests/test_forge_ssh.py:69` - `skipif`: Windows only ("Windows ACL helper").
   - `agents/tests/test_forge_ssh.py:82` - `skipif`: no ssh client ("openssh client not installed").
