@@ -122,3 +122,89 @@ def test_known_gaps_names_debris_manifest_and_runners():
         ".github/workflows/ci.yml",
     ]:
         assert needle in section, f"{needle!r} missing in {KNOWN_GAPS!r}"
+
+
+# README.md: status row and '## Development process'. Relative Markdown links
+# must point at an existing file or folder; http:, https:, mailto: and pure
+# '#' anchors are left out, and a '#...' part is cut off before the check.
+README = ROOT / "README.md"
+LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+CODE_RE = re.compile(r"`([^`]+)`")
+STATUS_ROW = "| **Status** |"
+DEV_PROCESS = "## Development process"
+DEV_PROCESS_TARGETS = [
+    "GOAL.md",
+    "config/structure.json",
+    "config/modules.json",
+    "scripts/lite_full_suite.py",
+    "scripts/run_all_tests.ps1",
+    "docs/status.md#known-gaps",
+]
+
+
+def _readme_lines():
+    return README.read_text(encoding="utf-8").splitlines()
+
+
+def _relative_targets(text):
+    return [
+        target
+        for target in LINK_RE.findall(text)
+        if not target.startswith(("http:", "https:", "mailto:", "#"))
+    ]
+
+
+def _missing_targets(targets):
+    return [t for t in targets if not (ROOT / t.split("#", 1)[0]).exists()]
+
+
+def _is_tag(name):
+    proc = subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", "refs/tags/" + name],
+        cwd=ROOT,
+        capture_output=True,
+    )
+    return proc.returncode == 0
+
+
+def _readme_section(heading):
+    """README lines from heading up to the next line starting with '## ' or '---'."""
+    lines = _readme_lines()
+    starts = [i for i, line in enumerate(lines) if line.rstrip() == heading]
+    assert starts, f"section missing in README.md: {heading!r}"
+    end = len(lines)
+    for i in range(starts[0] + 1, len(lines)):
+        if lines[i].startswith("## ") or lines[i].startswith("---"):
+            end = i
+            break
+    return "\n".join(lines[starts[0]:end])
+
+
+def test_readme_status_row_links_exist():
+    rows = [line for line in _readme_lines() if line.startswith(STATUS_ROW)]
+    assert len(rows) == 1, f"expected exactly one README line starting with {STATUS_ROW!r}, found {len(rows)}"
+    row = rows[0]
+    targets = _relative_targets(row)
+    missing = _missing_targets(targets)
+    assert not missing, f"status row links to missing paths: {missing}"
+    assert "docs/status.md#since-phase-23" in targets, f"status row does not link docs/status.md#since-phase-23: {targets}"
+    assert HEADING in [line.rstrip() for line in _read().splitlines()], f"docs/status.md has no line {HEADING!r}"
+    tags = [tok for tok in CODE_RE.findall(row) if tok.startswith(("v0.", "lite-stable-"))]
+    not_tags = [t for t in tags if not _is_tag(t)]
+    assert not not_tags, f"status row names tags that do not exist: {not_tags}"
+    assert any(t.startswith("lite-stable-") for t in tags), f"status row names no `lite-stable-...` tag: {tags}"
+
+
+def test_readme_development_process_links_exist():
+    section = _readme_section(DEV_PROCESS)
+    targets = _relative_targets(section)
+    absent = [t for t in DEV_PROCESS_TARGETS if t not in targets]
+    assert not absent, f"{DEV_PROCESS!r} does not link: {absent}"
+    missing = _missing_targets(targets)
+    assert not missing, f"{DEV_PROCESS!r} links to missing paths: {missing}"
+    assert KNOWN_GAPS in [line.rstrip() for line in _read().splitlines()], f"docs/status.md has no line {KNOWN_GAPS!r}"
+
+
+def test_readme_no_timestamped_filenames():
+    hits = re.findall(r"\d{8}_\d{6}", README.read_text(encoding="utf-8"))
+    assert not hits, f"README.md names timestamped files: {hits}"

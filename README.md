@@ -8,7 +8,7 @@ The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that ag
 
 | | |
 |---|---|
-| **Status** | Phases 0–23 complete — dispatch, SDK, staging verify ([`v0.24.0-phase23`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.24.0-phase23)) — see [docs/status.md](docs/status.md) |
+| **Status** | Phases 0–23 complete — dispatch, SDK, staging verify ([`v0.24.0-phase23`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.24.0-phase23)); since then git-in-container sandbox, task console, goal dispatch API, engineering-lab pilot and the Desk Lite process — see [docs/status.md — Since Phase 23](docs/status.md#since-phase-23) · latest tag `lite-stable-20261102-s83` |
 | **Staging API** | [https://theebie.de/agentswarm/api](https://theebie.de/agentswarm/api/health) |
 | **Public pilot** | [https://theebie.de/sites/agentswarm/](https://theebie.de/sites/agentswarm/) · [dashboard](https://theebie.de/sites/agentswarm/dashboard/) |
 | **Stack** | Python 3.11+, FastAPI, SQLite, Ed25519 |
@@ -242,6 +242,15 @@ Details: [ROADMAP.md §17](ROADMAP.md#17-phases--milestones) · [docs/status.md]
 | `AGENTSWARM_WORKER_IMAGE` | `agentswarm-worker:dev` | Docker image for `docker` runtime models |
 | `AGENTSWARM_DB` | `platform/data/agentswarm.db` | SQLite database path |
 | `AGENTSWARM_REPO_ROOT` | auto-detected | Repo root (agents resolve `pilot/engineering-lab/`) |
+
+---
+
+## Development process
+
+- Sprints are planned, built and landed through Desk Lite against the goal in [GOAL.md](GOAL.md) (added in `a76dec5`).
+- The mandatory checks (structure, modules) must report PASS, not UNKNOWN ([GOAL.md](GOAL.md)); their rules are [config/structure.json](config/structure.json) and [config/modules.json](config/modules.json).
+- Full suite: `python scripts/lite_full_suite.py` ([scripts/lite_full_suite.py](scripts/lite_full_suite.py)), the worktree-safe runner from `a76dec5` for Desk Lite and the landing gate; its `TEST_DIRS` are platform/tests, agents/tests, packages/mcp-adapter/tests, pilot/news-hub/tests, scripts/tests and tools/tests.
+- Locally: `.\scripts\run_all_tests.ps1` ([scripts/run_all_tests.ps1](scripts/run_all_tests.ps1)) runs pytest only on platform/tests, agents/tests, packages/mcp-adapter/tests and pilot/news-hub/tests; scripts/tests and tools/tests run only through scripts/lite_full_suite.py, and `pilot/engineering-lab/*/tests` runs in no runner — see [Known gaps](docs/status.md#known-gaps).
 
 ---
 
