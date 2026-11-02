@@ -250,7 +250,7 @@ Source: `git log v0.24.0-phase23..HEAD` (the tag points to `6644c42`) and `git t
 
 ### Development process via Desk Lite
 
-`a76dec5` added `GOAL.md` and the worktree-safe full-suite runner `scripts/lite_full_suite.py`, and `089e875` fixed its root-path guard. `42fcc49` added `config/modules.json`, `8061b6a` added `config/structure.json`, and `02beef0` extended `TEST_DIRS` in `scripts/lite_full_suite.py` with `scripts/tests` and `tools/tests`. `4e38840` is the merge that landed the Lite sprint branch `lite/s79-20261101090902` on main; the tag `lite-stable-20261101-s79` points to it.
+`a76dec5` added `GOAL.md` and the worktree-safe full-suite runner `scripts/lite_full_suite.py`, and `089e875` fixed its root-path guard. `42fcc49` added `config/modules.json`, `8061b6a` added `config/structure.json`, and `02beef0` extended `TEST_DIRS` in `scripts/lite_full_suite.py` with `scripts/tests` and `tools/tests`. `4e38840` is the merge that landed the sprint 1 branch on main; the tag `lite-stable-20261101-s79` points to it.
 
 ### Known gaps
 
