@@ -208,3 +208,14 @@ def test_readme_development_process_links_exist():
 def test_readme_no_timestamped_filenames():
     hits = re.findall(r"\d{8}_\d{6}", README.read_text(encoding="utf-8"))
     assert not hits, f"README.md names timestamped files: {hits}"
+
+# README.md: one linked sentence each for the Task Console app and the
+# engineering-lab pilot. Both link targets must be existing folders.
+FOLDER_LINKS = ["apps/agentswarm-task-console", "pilot/engineering-lab"]
+
+
+def test_readme_links_task_console_and_engineering_lab():
+    targets = [t.rstrip("/") for t in _relative_targets(README.read_text(encoding="utf-8"))]
+    for folder in FOLDER_LINKS:
+        assert folder in targets, f"README.md has no relative link to {folder!r}"
+        assert (ROOT / folder).is_dir(), f"link target is not a folder: {folder!r}"

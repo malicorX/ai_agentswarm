@@ -6,6 +6,8 @@ Volunteers worldwide run a **desktop client** that downloads allowlisted model w
 
 The first pilot project is [**AI News Hub**](pilot/news-hub/) — a site that aggregates and summarizes AI-development news, built incrementally by a swarm of specialized agents.
 
+The [engineering-lab](pilot/engineering-lab/) pilot holds small fixtures for engineering goals: `primes` and `fizzbuzz` are small Python targets with their own tests that run in the Docker git sandbox (`pilot/engineering-lab/Dockerfile.sandbox`), while `winhello` is a Windows VM fixture whose `hello.exe` is built and run natively, not in the Docker sandbox.
+
 | | |
 |---|---|
 | **Status** | Phases 0–23 complete — dispatch, SDK, staging verify ([`v0.24.0-phase23`](https://github.com/malicorX/ai_agentswarm/releases/tag/v0.24.0-phase23)); since then git-in-container sandbox, task console, goal dispatch API, engineering-lab pilot and the Desk Lite process — see [docs/status.md — Since Phase 23](docs/status.md#since-phase-23) · latest tag `lite-stable-20261102-s83` |
@@ -155,6 +157,8 @@ agentswarm-volunteer                               # GUI: Prepare model → Star
 ```
 
 Task operator UI (dispatch goals, watch pipeline — **no local workers**): `.\scripts\serve_task_console.ps1` → http://127.0.0.1:8765
+
+The [Task Console](apps/agentswarm-task-console/) app is a native Windows shell in Rust that shows this UI in a WebView window and starts the backend `python -m tools.task_console.server` (default port 8765).
 
 Full guide: [**Volunteer client**](docs/volunteer-client.md) · [Task workflow](docs/task-workflow.md) · [Distributed clients](ROADMAP_DISTRIBUTED_CLIENTS.md)
 
